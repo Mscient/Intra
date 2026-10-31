@@ -15,4 +15,4 @@ Status reflects source review only. No system below has been backtested on curre
 | S09 | Limit-order market making | Model review prepared; no local performance evidence | Queue position, order events, cancel latency, inventory/fees | Study mechanics only; defer implementation. |
 | S10 | Delta-hedged options volatility | Public-source review prepared; no Nifty strategy validation | Option surface, realized volatility, hedge fills, Greeks and costs | Defer until basic options and execution research are complete. |
 
-The next research step is a data-capability and instrument-selection matrix, followed by comparable offline tests of S01-S04 and an order-lifecycle baseline for S06. Keep all candidates in research/paper status until realistic costs and fills are measured.
+Follow the isolation and evaluation requirements in [ISOLATED-TESTING-PLAN.md](ISOLATED-TESTING-PLAN.md). Start with the data-capability and instrument-selection matrix, then compare S01-S04 and build the S06 order-lifecycle baseline inside the separate lab. Keep all candidates in research/paper status until realistic costs and fills are measured.
