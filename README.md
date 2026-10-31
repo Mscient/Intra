@@ -11,7 +11,8 @@ The research sequence starts with market microstructure, then options and volati
 - Book 03, *Algorithmic and High-Frequency Trading* by Cartea, Jaimungal, and Penalva: legal publisher excerpt, contents, and preface researched; system-focused report prepared; full-text reading remains in progress.
 - Book 04, *Algorithmic Trading* by Ernest P. Chan: publisher excerpt and system-focused backtesting/strategy note prepared; full-text reading remains in progress.
 - Book 05, *Volatility Trading* by Euan Sinclair: publisher chapter summaries and Nifty-focused volatility research note prepared; full-text reading remains in progress.
-- Book backlog and next actions: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
+- Book 06, *Market Microstructure in Practice* by Lehalle and Laruelle: public second-edition contents researched; Nifty liquidity and execution note prepared; full-text reading remains in progress.
+- Book 07, *Algorithmic Trading & DMA* by Barry Johnson: catalogue-based execution and system note prepared; full text remains unread.- Book backlog and next actions: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)
 
@@ -25,5 +26,3 @@ Use publisher pages, papers, authorized previews, library access, and public-dom
 - research/sessions/ — one uniquely named record for each chat that changes project state.
 - research/BOOK_TRACKER.md — status and reading order for the supplied book list.
 - research/SESSION_INDEX.csv — session IDs mapped to commits containing their work.
-
-
