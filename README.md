@@ -12,7 +12,11 @@ The research sequence starts with market microstructure, then options and volati
 - Book 04, *Algorithmic Trading* by Ernest P. Chan: publisher excerpt and system-focused backtesting/strategy note prepared; full-text reading remains in progress.
 - Book 05, *Volatility Trading* by Euan Sinclair: publisher chapter summaries and Nifty-focused volatility research note prepared; full-text reading remains in progress.
 - Book 06, *Market Microstructure in Practice* by Lehalle and Laruelle: public second-edition contents researched; Nifty liquidity and execution note prepared; full-text reading remains in progress.
-- Book 07, *Algorithmic Trading & DMA* by Barry Johnson: catalogue-based execution and system note prepared; full text remains unread.- Book backlog and next actions: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
+- Book 07, *Algorithmic Trading & DMA* by Barry Johnson: catalogue-based execution and system note prepared; full text remains unread.
+- Book 08, *The Volatility Surface* by Jim Gatheral: publisher-contents and SVI research synthesis prepared; full-text reading remains in progress.
+- Book 09, *Options, Futures, and Other Derivatives* by John Hull: Pearson scope and Nifty derivatives-system note prepared; full-text reading remains in progress.
+- Book 10, *Advances in Financial Machine Learning* by Marcos López de Prado: validation-focused public-source note prepared with limits and caveats; full-text reading remains in progress.
+- Book backlog and next actions: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)
 
