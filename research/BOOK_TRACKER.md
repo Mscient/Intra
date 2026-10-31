@@ -5,7 +5,7 @@ Reading and research order follows the supplied HFT project brief. Status reflec
 | ID | Title and author | Brief priority | Research state | Access / next action |
 |---|---|---|---|---|
 | B01 | *Trading and Exchanges: Market Microstructure for Practitioners* — Larry Harris (2003) | Essential | In progress; initial note prepared | Publisher contents and metadata reviewed; arrange authorized full-text access, then complete the selected chapters. |
-| B02 | *Option Volatility & Pricing*, 2nd ed. — Sheldon Natenberg (2015) | Essential | Queued | Verify edition and legal access route; next in the supplied reading order. |
+| B02 | *Option Volatility & Pricing*, 2nd ed. — Sheldon Natenberg (2015) | Essential | In progress; public-source synthesis prepared | Publisher scope and partial Google Books contents reviewed; full text still requires authorized access. |
 | B03 | *Algorithmic and High-Frequency Trading* — Álvaro Cartea, Sebastian Jaimungal, José Penalva (2015) | Essential | Queued | Review publisher contents and authorized previews. |
 | B04 | *Algorithmic Trading* — Ernest P. Chan (2013) | Important | Queued | Review publisher contents and authorized previews. |
 | B05 | *Volatility Trading*, 2nd ed. — Euan Sinclair (2013) | Essential | Queued | Review publisher contents and authorized previews. |
@@ -21,3 +21,4 @@ Reading and research order follows the supplied HFT project brief. Status reflec
 | B15 | *Building Low Latency Applications with C++* — Sourav Ghosh (2023) | Optional now | Queued | Defer until profiling or route requirements justify low-level implementation. |
 
 The supplied list contains 15 books. Its reading order is Harris, Natenberg, Cartea et al., Chan, Sinclair, then targeted volatility, data, and systems texts. Optional C++ and advanced stochastic-volatility books remain later-stage references.
+
