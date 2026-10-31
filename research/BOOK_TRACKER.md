@@ -6,7 +6,7 @@ Reading and research order follows the supplied HFT project brief. Status reflec
 |---|---|---|---|---|
 | B01 | *Trading and Exchanges: Market Microstructure for Practitioners* — Larry Harris (2003) | Essential | In progress; initial note prepared | Publisher contents and metadata reviewed; arrange authorized full-text access, then complete the selected chapters. |
 | B02 | *Option Volatility & Pricing*, 2nd ed. — Sheldon Natenberg (2015) | Essential | In progress; public-source synthesis prepared | Publisher scope and partial Google Books contents reviewed; full text still requires authorized access. |
-| B03 | *Algorithmic and High-Frequency Trading* — Álvaro Cartea, Sebastian Jaimungal, José Penalva (2015) | Essential | Queued | Review publisher contents and authorized previews. |
+| B03 | *Algorithmic and High-Frequency Trading* — Álvaro Cartea, Sebastian Jaimungal, José Penalva (2015) | Essential | In progress; publisher-preview synthesis prepared | Cambridge frontmatter and legal opening excerpt reviewed; full text and later derivations remain unread. Obtain authorized full text, then read Chapters 1–4 and selected execution/order-flow chapters. |
 | B04 | *Algorithmic Trading* — Ernest P. Chan (2013) | Important | Queued | Review publisher contents and authorized previews. |
 | B05 | *Volatility Trading*, 2nd ed. — Euan Sinclair (2013) | Essential | Queued | Review publisher contents and authorized previews. |
 | B06 | *Market Microstructure in Practice*, 2nd ed. — Charles-Albert Lehalle, Sophie Laruelle (2018) | Important | Queued | Review edition details and authorized access. |
@@ -21,4 +21,3 @@ Reading and research order follows the supplied HFT project brief. Status reflec
 | B15 | *Building Low Latency Applications with C++* — Sourav Ghosh (2023) | Optional now | Queued | Defer until profiling or route requirements justify low-level implementation. |
 
 The supplied list contains 15 books. Its reading order is Harris, Natenberg, Cartea et al., Chan, Sinclair, then targeted volatility, data, and systems texts. Optional C++ and advanced stochastic-volatility books remain later-stage references.
-
