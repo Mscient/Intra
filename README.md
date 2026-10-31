@@ -24,6 +24,8 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - B14: [C++ Concurrency in Action, 2nd ed. — Anthony Williams](research/books/B14-CPP-Concurrency-in-Action-Williams.md)
 - B15: [Building Low Latency Applications with C++ — Sourav Ghosh](research/books/B15-Building-Low-Latency-Applications-with-CPP-Ghosh.md)
 
+- Ten-system research overview: [research/systems/TOP-10-TRADING-SYSTEMS.md](research/systems/TOP-10-TRADING-SYSTEMS.md)
+- System research tracker: [research/systems/SYSTEM_TRACKER.md](research/systems/SYSTEM_TRACKER.md)
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)
@@ -35,6 +37,7 @@ Use publisher pages, authorized previews, library access, and public-domain or o
 ## Repository structure
 
 - research/books/ — individual book research reports.
+- research/systems/ — comparative research notes and status for trading-system archetypes.
 - research/sessions/ — one uniquely named record for each chat that changes project state.
 - research/BOOK_TRACKER.md — status and reading order for the supplied book list.
 - research/SESSION_INDEX.csv — session IDs mapped to commits containing their work.
