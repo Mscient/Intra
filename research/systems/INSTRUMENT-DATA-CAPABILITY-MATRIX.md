@@ -1,6 +1,6 @@
 # Instrument and Data Capability Matrix
 
-**Status:** desk research only; no account access, market-data files, broker connection, or experiment harness have been used.
+**Status:** desk research only; the user reports a static IP is set up. The SmartAPI app mapping and authenticated data response have not been verified.
 **Reviewed:** 2026-11-01 (Asia/Kolkata).
 **Broker/API selected by user:** Angel One SmartAPI.
 **Scope:** select data and instruments for the isolated S01-S10 research lab. This matrix does not authorize trading.
@@ -71,8 +71,8 @@ Keep API keys, client IDs, TOTP seeds, authenticated payloads, and licensed raw 
 
 ## Access and validation checklist
 
-1. Confirm in the Angel One portal whether this account needs a registered static IP for the SmartAPI app and for historical/data-only access. Do not place credentials in this repository.
-2. Use official SmartAPI documentation to choose a read-only historical pull for NIFTY index plus one selected current NIFTY futures token. Capture one response privately and inspect timestamp format, bars returned, gaps, volume, and rate-limit behavior.
+1. The user reports a static IP is set up. Verify in the Angel One portal that it is registered and mapped to the intended SmartAPI app; Angel support says it also applies to data-only access. Do not record the IP address or credentials here.
+2. Run a read-only historical pull locally for NIFTY index token `99926000` using `exchange=NSE`, `interval=ONE_MINUTE`, and a short range from the last completed session. Keep the authentication headers private; review only the redacted candle rows `[timestamp, open, high, low, close, volume]`.
 3. Verify if Angel One currently provides expired-contract history and sandbox access for this account; current public support material indicates expired F&O data is unavailable and no sandbox is confirmed.
 4. If testing execution costs, begin a separate prospective recorder only after data terms and account access are confirmed; record local receive time and never send orders from the lab.
 5. Select the first Wave A execution instrument only after the coverage gate. If only index candles are available, keep tests signal-only. Do not build a broker-connected test harness in HFT 2.
@@ -91,7 +91,3 @@ Keep API keys, client IDs, TOTP seeds, authenticated payloads, and licensed raw 
 - [NSE data sharing and usage policy](https://www.nseindia.com/static/market-data/nse-data-policy)
 - [NSE retail-algo FAQ](https://nsearchives.nseindia.com/web/sites/default/files/inline-files/FAQ_Retail%20Algo_03112025_NSE.pdf)
 - [NSE retail-algo framework page, updated May 2026](https://betanseapi.nseindia.com/static/trade/platform-services-non-neat-decision-support-tools-algorithm-trading)
-
-
-
-
