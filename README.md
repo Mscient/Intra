@@ -30,7 +30,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
 - Wave A signal specification: [research/systems/WAVE-A-SIGNAL-SPEC.md](research/systems/WAVE-A-SIGNAL-SPEC.md)
 - Lab data schema: [research/systems/LAB-DATA-SCHEMA.md](research/systems/LAB-DATA-SCHEMA.md)
-- Wave A status: fixed S01-S03 signal-only rules and statistical decision gates are documented. Six sample candles passed basic checks, but full-session data quality and history coverage remain unverified; no strategy results have been computed.
+- Wave A status: fixed S01-S03 signal-only rules and statistical decision gates are documented. A user-provided 361-row response has no duplicate timestamps or OHLC violations, but it contains a closing-period timestamp gap; the data gate is unresolved and no strategy results have been computed.
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)

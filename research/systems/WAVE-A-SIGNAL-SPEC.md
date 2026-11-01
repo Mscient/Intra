@@ -1,6 +1,6 @@
 # Wave A Signal Specification
 
-**Status:** Draft baseline rules; not run. A six-candle SmartAPI sample passed basic checks; full-session data-quality review is pending.
+**Status:** Draft baseline rules; not run. A 361-row SmartAPI response has valid OHLC values but a closing-period timestamp gap; the data-quality gate is unresolved.
 **Reviewed:** 2026-11-01 (Asia/Kolkata).
 **Scope:** S01-S03 as signal-only research on NIFTY 50 index bars. These rules do not define executable orders or claim a profitable strategy.
 
