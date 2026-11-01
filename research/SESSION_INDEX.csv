@@ -8,3 +8,4 @@ session_id,date,commit_with_session_work,summary
 00cdac26-749b-4b7a-8ea1-38f5331f0f53,2026-11-01,37c36ec8f8f3762ae897d619e623911a527aa03f,"Updated SmartAPI readiness; drafted Wave A rules and isolated lab schema."
 4ccb75e5-3132-47a4-b948-9815234f7e85,2026-11-01,5a398a035f0b6ffa686b36b46eb94e369aa90335,"Defined Wave A session-level statistics, decision states, and lab schema; no data or tests run."
 6b183e0b-5237-4e28-b4b5-cb45440212c5,2026-11-01,30c449596abad459992ddbeba074f76572dc109f,"Reviewed six user-provided SmartAPI candles; updated data readiness with full-session checks still pending."
+6a36b0a9-456e-43e0-977e-daa1a5475d1d,2026-11-01,a737c04591db32b4571cc5f09d56093faad74402,"Parsed 361-candle response; flagged closing-period gap and kept the Wave A data gate closed."
