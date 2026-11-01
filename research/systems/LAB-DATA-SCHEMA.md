@@ -34,11 +34,27 @@ One row per instrument and interval:
 
 Do not stitch NIFTY futures expiries into a continuous contract by default. If a later study constructs a continuous series, preserve each actual contract row and store the roll mapping and adjustment method as a separate, versioned transformation.
 
-### 2. `instrument_master` — dated contract reference
+### 2. `session_scores` — derived Wave A research metric
+
+One row per system and regular session. This derived table is produced only inside the isolated lab after the input bars pass validation.
+
+| Field | Meaning |
+|---|---|
+| `run_id`, `dataset_id`, `system_id` | Run, immutable input, and fixed rule identity. |
+| `session_date` | Exchange session date in Asia/Kolkata. |
+| `eligible` / `exclusion_reason` | Whether required signal inputs and forward labels are complete; missing-data sessions are excluded, not scored as zero. |
+| `signal_count` | Number of signals emitted during the eligible session. |
+| `conditional_mean_aligned_log_return_15m` | Mean direction-aligned 15-minute index log return over that session's signals; null if no signals. |
+| `session_score` | Equal-weight session contribution: the conditional mean when signals exist, zero for a complete eligible session with no signal, null when ineligible. |
+| `rule_spec_hash` | Hash of the frozen signal specification used to derive the row. |
+
+The primary estimate is the mean of eligible `session_score` values. Keep per-signal markouts for audit and descriptive summaries, but do not treat multiple same-session signals as independent observations.
+
+### 3. `instrument_master` — dated contract reference
 
 Store each acquired snapshot as an immutable file and record its retrieval date/time and hash. Normalize at least: exchange, segment, symbol token, trading symbol, underlying, instrument type, expiry, strike, option type, lot size, and tick size. Never replace an older snapshot with a newer one; each run must resolve tokens using the snapshot effective for its data.
 
-### 3. `quotes` and `quote_depth` — prospective market-data capture
+### 4. `quotes` and `quote_depth` — prospective market-data capture
 
 These files are optional and remain empty until a lawful, separate capture is available.
 
@@ -48,7 +64,7 @@ These files are optional and remain empty until a lawful, separate capture is av
 - Treat SmartAPI's documented packet-receive timestamp as unusable. The collector must record local receive timestamps. Index sequence numbers may be unavailable; do not create synthetic sequence values.
 - Five-level snapshots are not a full order-by-order book. This schema does not imply that queue position or all cancellations can be reconstructed.
 
-### 4. `sim_orders` and `sim_fills` — simulator output only
+### 5. `sim_orders` and `sim_fills` — simulator output only
 
 Use generated local IDs; do not reuse broker IDs.
 
@@ -77,6 +93,13 @@ Every experiment gets a UTF-8 JSON manifest stored beside its outputs. Required 
   "split_boundaries": {"development_end": "YYYY-MM-DD", "validation_end": "YYYY-MM-DD"},
   "primary_horizon_minutes": 15,
   "fill_model": "signal-markout-only",
+  "statistical_plan": "WAVE-A-SIGNAL-SPEC.md@hash",
+  "bootstrap_method": "stationary-session-bootstrap",
+  "mean_block_length_sessions": 5,
+  "bootstrap_replicates": 10000,
+  "multiplicity_method": "Bonferroni",
+  "family_size": 6,
+  "familywise_alpha": 0.05,
   "cost_model_id": null,
   "parameters": {},
   "random_seed": null,
@@ -96,6 +119,7 @@ Do not place sensitive fields, raw data, or order credentials in the manifest. I
 5. **Instrument mapping:** ensure every row maps to exactly one dated master record. Keep expiries separate and validate strike/tick/lot metadata as-of date.
 6. **Volume and OI:** distinguish absent/null from a numeric zero. NIFTY index volume zero is expected and must not be treated as traded volume.
 7. **Split integrity:** split by session date, not shuffled rows. Keep forward-label windows within sessions and hold the final time block sealed.
-8. **Isolation:** after staging read-only inputs, disable network access; verify no broker client, credential, app import, or external routing path exists in the experiment environment.
+8. **Statistical plan:** record the split dates, session-score definition, bootstrap seed and block-length sensitivity, six-test correction family, and development-only precision/power summary before opening validation or holdout outcomes.
+9. **Isolation:** after staging read-only inputs, disable network access; verify no broker client, credential, app import, or external routing path exists in the experiment environment.
 
 This schema is a planning document only. It does not create a lab repository, ingest data, validate a broker payload, or authorize a test run.

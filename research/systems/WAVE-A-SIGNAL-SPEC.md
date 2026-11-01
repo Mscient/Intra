@@ -61,6 +61,29 @@ Do not run this rule on NIFTY index bars: the index has no traded volume. Revisi
 
 ## Before any performance run
 
-This document freezes the signal formulas, but not an economic pass/fail threshold. Because the signal series is non-tradable and execution costs are not yet available, do not promote a positive signal markout as a strategy candidate. Before opening the development results, record the research question, minimum sample requirements, any statistical decision rule, and the exact next-stage gate. The final holdout remains sealed until that record exists.
+The formulas and statistical decision rules below are fixed before any outcomes are computed. The exact split dates and a development-only precision/power review still depend on the data-quality review. Do not inspect validation or holdout outcomes until those are recorded. No economic pass/fail threshold is set because these index markouts are not executable returns and dated futures costs are not available.
+
+## Statistical decision and advancement gates
+
+### Primary estimate and inference unit
+
+- For each fully eligible regular session, calculate the direction-aligned 15-minute log return for every signal emitted by that system. The session score is the arithmetic mean of its signal returns; set it to zero when the complete session has no signal. A session with missing required bars or labels is ineligible, not a zero. Report eligible and excluded session counts, signal counts, and the conditional per-signal mean separately.
+- The primary estimate is the equal-weight mean of complete-session scores. This makes the session, rather than each intraday S02 signal, the inference unit and includes no-signal sessions in the fixed rule's overall signal score.
+- Estimate uncertainty with a stationary bootstrap of the chronological session-score sequence, using a mean block length of five sessions and 10,000 resamples. Record the random seed. Report two-session and ten-session mean-block-length sensitivities; they are diagnostics and cannot replace the primary result. This time-series bootstrap relies on weak-dependence/stability assumptions; if data breaks make those assumptions implausible or results too unstable to interpret, classify the result as inconclusive. [1]
+- There are six confirmatory comparisons: three fixed systems in validation and the same three in the final holdout. Use two-sided 99.1667% bootstrap intervals for each comparison (Bonferroni familywise error rate 5% across all six). The 5- and 30-minute horizons, hit rates, time-of-day splits, and other breakdowns remain descriptive; they cannot rescue a failed primary result. Predeclare any additional confirmatory outcomes as new tests before viewing them.
+
+### Decision states
+
+- **Pass — signal evidence only:** a system's primary mean is positive and its adjusted interval is entirely above zero in both validation and the final holdout. The primary five-session bootstrap is used for this decision. A pass allows only a separately frozen, isolated study using dated NIFTY futures, executable quotes, applicable costs, and a declared fill/risk model.
+- **Reject — negative signal evidence:** the adjusted final-holdout interval is entirely below zero. Record the validation estimate and interval as context; do not retune this baseline against the holdout.
+- **Inconclusive:** the adjusted interval includes zero, validation and holdout disagree, available session counts/precision do not support a stable estimate, or the inference assumptions are not credible. Do not change the rule and reuse the same holdout; a revised rule requires a new untouched evaluation period.
+- **Not testable with current data:** the timestamp, completeness, session-calendar, label, or provenance gates fail. Stop before computing performance results.
+
+Before opening validation, use development data only to report session counts and precision/power over a range of detectable mean effects. No universal row-count cutoff is asserted: the number of intraday bars is not the number of independent observations. A statistically positive index markout does not establish a cost-covering edge. Until contract history, quotes, and dated costs are available, no result can pass an economic or paper-trading gate.
 
 A later futures test must use a distinct dated contract series, actual applicable costs, and conservative fills. SmartAPI index signals must not be converted directly into futures/options P&L. All experiment code remains in the separate `Intra-Systems-Lab`, not in HFT 2.
+
+## Statistical references
+
+1. [Politis & Romano (1994), “The Stationary Bootstrap,” *Journal of the American Statistical Association*](https://doi.org/10.1080/01621459.1994.10476870) — block resampling for inference with weakly dependent stationary observations.
+2. [Romano & Wolf (2005), “Stepwise Multiple Testing as Formalized Data Snooping,” *Econometrica*](https://doi.org/10.1111/j.1468-0262.2005.00615.x) — multiple comparisons and familywise error control. This specification uses the simpler Bonferroni adjustment across its fixed six comparisons.
