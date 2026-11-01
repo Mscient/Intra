@@ -1,77 +1,97 @@
 # Instrument and Data Capability Matrix
 
-**Status:** desk research only; no market-data files, broker connection, or experiment harness have been created.
+**Status:** desk research only; no account access, market-data files, broker connection, or experiment harness have been used.
 **Reviewed:** 2026-11-01 (Asia/Kolkata).
-**Scope:** select data and instruments for the isolated S01-S10 research lab. This matrix does not select a broker or authorize trading.
+**Broker/API selected by user:** Angel One SmartAPI.
+**Scope:** select data and instruments for the isolated S01-S10 research lab. This matrix does not authorize trading.
 
-## What is confirmed
+## Angel One SmartAPI findings
 
-- NSE's published real-time product describes Level 1 (best bid/ask), Level 2 (up to five price levels), Level 3 (up to twenty levels), and tick-by-tick (full order book) data. Its direct feed is multicast over a dedicated leased line, or customers can use an authorized vendor. This is not assumed to be a free retail feed.
-- NSE also lists 1- and 5-minute snapshot products, 15-minute delayed snapshots, and EOD/historical data products. NSE's EOD/historical page says F&O EOD order/trade data is delivered through SFTP and historical order/trade data is available through an online platform. A product being listed does not establish its price, license, completeness, or suitability for this project.
-- NSE's data policy says the applicable agreement governs intended use and handling. Verify storage, replay, research/trading use, and redistribution terms before collecting or copying any licensed data.
-- NSE's contract reference pages describe instrument identifiers, expiries, strike/tick information, and quantity-freeze references. Treat these as dated reference data: save the contract master used with each experiment instead of hard-coding today's values.
+### Historical data
+
+- Angel One's FAQ currently describes SmartAPI and historical data as free of API charges. This does not include brokerage or exchange/statutory charges on trades, and does not establish any rights to redistribute data.
+- The Historical API supports NSE (including indices) and NFO (futures/options) symbols. The documented candle response is `[timestamp, open, high, low, close, volume]` with an ISO timestamp example carrying `+05:30`. Intervals are 1, 3, 5, 10, 15, and 30 minutes, 1 hour, and 1 day.
+- Published per-request windows are 30 days/8,000 records for 1-minute data, 60 days for 3-minute, 100 for 5- and 10-minute, 200 for 15- and 30-minute, 400 for hourly, and 2,000 for daily. These are request limits, not a promise of total lookback. The documented historical endpoint rate limit is 3 requests/second; confirm current account limits in the portal.
+- SmartAPI support identifies NIFTY 50 token `99926000` and says index candle volume is zero because the index itself is not traded. Use NIFTY index candles for price-signal research, not VWAP or executable fills.
+- SmartAPI's public support responses say historical data for expired F&O contracts is not provided. The latest explicit answer found is older, so confirm with Angel One before relying on it; until confirmed otherwise, treat this as a hard limitation. It prevents a normal multi-expiry historical futures/options backtest using SmartAPI alone.
+- The daily instrument master provides token/symbol mappings. Capture a dated copy for every data pull; do not hard-code a token or assume the current master maps expired contracts.
+
+### Live quotes and streaming
+
+- The REST FULL quote mode documents LTP, OHLC, last trade quantity, exchange feed and trade times, average price, traded volume, open interest, circuit limits, total buy/sell quantities, and best-five bid/ask depth. The docs say up to 50 symbols per request, but conflict on the rate: the market-data section says 1 request/second while the rate table lists 10. Use the conservative 1 request/second until Angel confirms the current client-code limit. This is a snapshot endpoint, not a historical quote archive.
+- SmartWebSocket V2 supports live streaming. Published limits are three concurrent connections per client code and 1,000 token/mode subscriptions per connection. The client must send a heartbeat every 30 seconds. Current depth is best five; SmartAPI announced that 20-depth support was deprecated effective April 25, 2025.
+- The WebSocket packet's “received time” is documented as a dummy field; the docs also say index feed sequence numbers are unavailable. Record a local receive timestamp and monitor reconnects/gaps. Exchange/last-trade timestamps are useful but do not replace a local receive clock.
+- Five-level snapshots do not expose order-by-order queue position, all additions/cancellations, or a historical depth archive. They can support prospective quote capture and limited top-of-book research, but do not satisfy the isolated plan's data needs for a realistic market-making queue model.
+
+### Orders, access, and paper testing
+
+- SmartAPI offers an order-update WebSocket, with a documented maximum of three connections per client code. A successful place-order response returns an order ID; it is not the final order status. Any later paper system must reconcile updates against order/trade-book state.
+- The SmartAPI docs list order APIs with a combined rate limit of 9 requests/second for place/modify/cancel. The docs also say market orders are converted to limit orders under MPP; the NSE retail-algo FAQ says algo market orders are not permitted. Confirm the applicable order types, limits, and tagging for this account before any route is designed.
+- Angel One's exchange-regulations page states API order execution is accepted only from a registered static IP from April 1, 2026. A SmartAPI moderator further stated in October 2026 that Angel applies static IP to all SmartAPI app types, including historical/data-only access. NSE's FAQ describes the exchange static-IP requirement for the Tech-Savvy API category; Angel's account policy may be broader. Confirm the requirement for this account and intended API app in the Angel portal/support before planning access.
+- No current paper/sandbox environment is documented in the SmartAPI FAQ/docs reviewed. Angel's older forum response said no paper account was available then; treat a broker sandbox as unconfirmed. The project should use the existing local, offline simulator plan and must not use live orders as a test substitute.
 
 ## Candidate instruments and minimum evidence
 
-| Candidate | Intended role | Minimum data needed | Current evidence and gaps | Readiness |
-|---|---|---|---|---|
-| NIFTY 50 index/reference series | Signal and benchmark input for S01-S04 | Session calendar; dated, exchange-timestamped index observations or bars; source and interval metadata | NSE publishes index/reference information. An index series alone does not provide executable fills; broker history, granularity, and retention are unknown. | Candidate for signals only; not enough for execution-cost claims. |
-| NIFTY index futures, one explicitly dated contract at a time | Possible common executable instrument for Wave A and S05 | Contract master; timestamped trades or bars; volume; best bid/ask for fill sensitivity; expiry and roll mapping; costs | NSE publishes contract specifications and F&O data products. No broker, API, history depth, quote granularity, or entitlement has been identified. Front-month selection is not yet approved. | Unselected; can be considered after broker/data review. |
-| NIFTY index options | Deferred options research (especially S10) | Per-contract identifiers; expiry, strike, CE/PE, lot/tick; synchronized bid/ask and sizes; trades/volume; underlying futures/index; dated model inputs for Greeks/IV; expiry handling | NSE publishes option contract references and F&O products. No option quote-history source, surface completeness, timestamps, or retention terms are confirmed. A displayed chain alone is not a historical replay dataset. | Not ready for P&L testing. |
-| Quote/depth/order events | S08 imbalance, S09 market making, and higher-fidelity fills | Exchange/source timestamp; local receive timestamp; sequence/gap/reconnect behavior; bid/ask prices and sizes; depth levels; trades and event types; queue/cancel information where relevant | NSE describes depth/tick products, but direct access path and cost are not established for this project. Broker API event coverage is unknown. | Mark S08/S09 not testable until the required event data are verified. |
-| Broker order lifecycle | Later paper workflow; S06 execution simulation remains offline first | Submit/ack/modify/cancel/reject/partial/fill events; broker and exchange IDs; timestamps; requested/filled quantities; prices; rejection reasons; rate limits | Broker has not been named. No API, sandbox, order-event sample, or broker paper mode has been verified. | Blocked on broker selection and official API documentation. |
+| Candidate | Intended role | SmartAPI evidence | Readiness and limitation |
+|---|---|---|---|
+| NIFTY 50 index/reference series | Price signal and benchmark for S01-S03 | NSE index token is documented; historical OHLC candles are available through NSE segment. Volume is zero. | Usable for signal-only price research. Not executable and not suitable for S04 VWAP. Total available lookback and data quality still need a private sample request through the user account. |
+| NIFTY index futures, dated contracts | Possible executable proxy for Wave A; S05 | NFO candles and current live quotes are supported. SmartAPI support says expired F&O history is not provided. Live streaming supplies best-five depth, not archived quotes. | Historical multi-expiry P&L is not testable from SmartAPI alone. Could begin prospective capture; preserve each contract and expiry separately. |
+| NIFTY index options | S10, later | NFO historical candles/live quotes are supported for contracts available to the API; current option Greeks endpoint is documented. Expired-contract history is reported unavailable. | No retrospective option-surface/expiry backtest from SmartAPI alone. Requires a licensed external archive or a forward capture spanning expiries. Greeks endpoint is not documented as historical. |
+| Top-five quote/depth stream | Prospective cost/fill observations; limited S08 research | Live REST FULL quote and WebSocket V2 include up to five bid/ask levels. | No historical quote/depth archive or order-level queue events. S08 is limited to a prospective snapshot/quote study; S09 remains not testable with these fields alone. |
+| Broker order lifecycle | Future paper workflow; S06 remains offline first | Order-update WebSocket and REST order/trade status APIs are documented. | No sandbox verified. Start with a local simulator; keep order routing out of the research lab. |
 
 ## Experiment data gates
 
 ### Wave A — S01-S04
 
-Choose one signal series and one execution instrument, and record the mapping between them. For bar-based tests, require dated session data and a predeclared bar interval. S04 also needs a volume series suitable for its VWAP definition. If only bars are available, use the isolated plan's conservative next-bar/next-quote fill rule and label the result as a bar-data approximation. Do not treat an index close as an executable price.
+- S01-S03 can begin as **signal-only** tests on NIFTY index OHLC after a sample pull confirms timestamps, sessions, missing bars, and actual history coverage. Do not translate index-price returns into executable futures P&L.
+- To test executable futures fills, SmartAPI historical candles may cover the currently available contract, but the inability to retrieve expired contracts makes multi-expiry history incomplete. Start prospective recording or obtain a licensed continuous futures/expired-contract archive before evaluating rolled futures performance.
+- S04 is **not testable on NIFTY index candles** because index volume is zero. It needs dated traded volume and VWAP-appropriate prices for the actual traded instrument. SmartAPI active-contract futures volume may help going forward, but expired-contract history remains the blocker.
+- Use the isolated plan's next-bar/next-quote fill rule for any bar-only signal run. Mark it as a bar-data approximation, not a realistic fill simulation.
 
 ### Wave B — S05-S07
 
-S05 needs synchronized spot/index and futures inputs plus a two-leg cost/fill model. S06 needs fixed parent orders and decision prices, then compares schedules in the lab simulator; it does not need broker routing. S07 needs a specific pair selected from training data and both-leg data. Record partial-leg risk rather than assuming simultaneous fills.
+S05 requires synchronized index/futures series and both-leg cost assumptions; missing expired futures history limits long-period basis tests. S06 remains an offline execution simulator. A prospective SmartAPI quote/order recorder may inform later fill assumptions, but it is not a sandbox. S07 requires a specific pair and two-leg data; no pair is selected.
 
 ### Wave C — S08-S10
 
-Require the event-level, depth, queue, or synchronized option-surface inputs described in the testing plan. If the selected source lacks them, record `not testable with current data`; do not synthesize order flow or queue position from candles.
+S08 can only be considered as a prospective best-five quote study after timestamp/gap behavior is measured; SmartAPI does not document historical depth replay or index sequence numbers. S09 requires queue/order-event evidence absent from the documented five-level feed and remains not testable. S10 requires expired option contracts and an option surface; SmartAPI alone does not provide the retrospective expired-contract history needed.
 
 ## Required data dictionary
 
-For every staged file or stream, record:
+For each staged file or stream, record:
 
-- source/vendor, product or entitlement, permitted purpose, retention terms, and acquisition date;
-- exchange trading date, timezone, exchange timestamp, receive timestamp if available, interval/event type, sequence or gap indicators, and clock assumptions;
-- instrument ID, exchange symbol, segment, underlying, contract type, expiry, strike, option type, lot size, tick size, and the dated master-file version;
-- OHLC, traded quantity/volume, open interest, and settlement/reference fields when provided;
-- bid/ask prices, displayed sizes, available depth levels, quote age, trade price/quantity, and the exact meaning of each field;
-- raw-versus-derived status, missingness, duplicate handling, corrections, and file hash.
+- source/vendor, API endpoint/version, product or entitlement, permitted purpose, retention terms, and acquisition date;
+- exchange trading date, timezone, exchange timestamp, local receive timestamp, interval/event type, sequence/gap indicators, and clock assumptions;
+- instrument ID, exchange symbol, segment, underlying, contract type, expiry, strike, option type, lot size, tick size, and the dated instrument-master file;
+- OHLC, traded quantity/volume, open interest, bid/ask prices and sizes, available depth levels, quote age, trade price/quantity, and exact field meanings;
+- raw-versus-derived status, missingness, duplicate handling, corrections, session boundary, and file hash.
 
-Keep licensed raw inputs outside Git unless the applicable license explicitly permits committing them. Experiment manifests may store source identifiers, dates, schema version, and hashes without containing restricted market data.
+Keep API keys, client IDs, TOTP seeds, authenticated payloads, and licensed raw market data outside Git. Do not send secrets in chat. Store experiment manifests without restricted data.
 
-## Broker/API verification checklist
+## Access and validation checklist
 
-The broker is not identified in the project brief currently present in this repository. Before choosing an instrument or building the lab input adapter, obtain official documentation or a sample payload for:
-
-1. historical and live data products by segment and instrument;
-2. bar intervals, quote depth, trade/volume/OI fields, timestamp semantics, history length, and missing-data/backfill behavior;
-3. subscription charges, rate limits, connection limits, API versioning, and availability during reconnects;
-4. market-data retention/replay rights and whether use for own-account research is covered;
-5. paper/sandbox availability and the complete order-event lifecycle, without placing live orders;
-6. broker-specific API-algo classification and operational requirements applicable on the intended route.
-
-Do not place API keys, account IDs, or authenticated payloads in this repository. Redact personal/account data from any sample used for schema review.
-
-## Next actions
-
-1. Identify the intended broker/API product; review only its official documentation and a redacted sample response.
-2. Fill the unknown cells above with source-backed facts and dated terms; obtain a lawful sample dataset or mark each candidate unavailable.
-3. Select one common Wave A signal/execution instrument only after checking available history, timestamps, volume, quotes, and cost inputs.
-4. Freeze a small, licensed dataset manifest and validate the lab-only ingestion schema. No strategy backtest is authorized by this matrix itself.
+1. Confirm in the Angel One portal whether this account needs a registered static IP for the SmartAPI app and for historical/data-only access. Do not place credentials in this repository.
+2. Use official SmartAPI documentation to choose a read-only historical pull for NIFTY index plus one selected current NIFTY futures token. Capture one response privately and inspect timestamp format, bars returned, gaps, volume, and rate-limit behavior.
+3. Verify if Angel One currently provides expired-contract history and sandbox access for this account; current public support material indicates expired F&O data is unavailable and no sandbox is confirmed.
+4. If testing execution costs, begin a separate prospective recorder only after data terms and account access are confirmed; record local receive time and never send orders from the lab.
+5. Select the first Wave A execution instrument only after the coverage gate. If only index candles are available, keep tests signal-only. Do not build a broker-connected test harness in HFT 2.
 
 ## Sources
 
-- [NSE real-time data products](https://www.nseindia.com/static/market-data/real-time-data-subscription)
-- [NSE EOD and historical data products](https://betanseapi.nseindia.com/static/market-data/eod-historical-data-subscription)
+- [SmartAPI FAQ: charges and data services](https://smartapi.angelone.in/faq)
+- [SmartAPI API documentation: historical, quote, WebSocket, and order endpoints](https://smartapi.angelone.in/docs/MarketData)
+- [SmartAPI published API rate limits](https://smartapi.angelone.in/docs/RateLimit)
+- [Official SmartAPI Python SDK](https://github.com/angel-one/smartapi-python)
+- [SmartAPI support: index candles, zero index volume, and expired-contract history](https://smartapi.angelone.in/smartapi/forum/topic/602/how-do-i-get-historical-index-data-for-nifty-sensex)
+- [SmartAPI support: WebSocket depth reduction](https://smartapi.angelone.in/smartapi/forum/topic/5217/deprecation-of-20-market-depth-from-websocket-2-0-effective-april-25-2025/2)
+- [Angel One: SmartAPI static-IP access update](https://smartapi.angelone.in/exchange-regulations)
+- [Angel One SmartAPI moderator: static IP applied to data-only apps as well](https://smartapi.angelone.in/smartapi/forum/topic/5671/asking-for-static-ip-for-getting-api-for-historical-data/4)
+- [Angel One SmartAPI forum: paper account response (older; current availability unconfirmed)](https://smartapi.angelone.in/smartapi/forum/topic/1120/how-to-test-the-logic-before-using-it-on-live-market-is-there-something-like-a-paper-trading-option-or-something/5?lang=en-GB)
 - [NSE data sharing and usage policy](https://www.nseindia.com/static/market-data/nse-data-policy)
-- [NSE equity-derivative contract specifications](https://www.nseindia.com/static/products-services/equity-derivatives-contract-specifications)
-- [SEBI circular on safer participation of retail investors in algorithmic trading](https://www.sebi.gov.in/legal/circulars/feb-2025/safer-participation-of-retail-investors-in-algorithmic-trading_91614.html)
+- [NSE retail-algo FAQ](https://nsearchives.nseindia.com/web/sites/default/files/inline-files/FAQ_Retail%20Algo_03112025_NSE.pdf)
+- [NSE retail-algo framework page, updated May 2026](https://betanseapi.nseindia.com/static/trade/platform-services-non-neat-decision-support-tools-algorithm-trading)
+
+
+
+

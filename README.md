@@ -1,6 +1,6 @@
 # Nifty Intraday Research Project
 
-This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, a retail broker API, no paid tick feed at the outset, and a 90-day paper-system target.
+This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, no paid tick feed at the outset, and a 90-day paper-system target. The user has selected Angel One SmartAPI; documented capabilities and limits are in the [instrument/data matrix](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md). No account credentials or live feed have been connected.
 
 The reports translate book material and lawful public-source evidence into pre-build requirements. They distinguish publisher descriptions and previews from complete-book reading, and they do not claim that any strategy is profitable or ready for live trading.
 
@@ -43,4 +43,3 @@ Use publisher pages, authorized previews, library access, and public-domain or o
 - research/sessions/ — one uniquely named record for each chat that changes project state.
 - research/BOOK_TRACKER.md — status and reading order for the supplied book list.
 - research/SESSION_INDEX.csv — session IDs mapped to commits containing their work.
-
