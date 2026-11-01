@@ -26,6 +26,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 
 - Ten-system research overview: [research/systems/TOP-10-TRADING-SYSTEMS.md](research/systems/TOP-10-TRADING-SYSTEMS.md)
 - System research tracker: [research/systems/SYSTEM_TRACKER.md](research/systems/SYSTEM_TRACKER.md)
+- Instrument/data capability matrix: [research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
@@ -42,3 +43,4 @@ Use publisher pages, authorized previews, library access, and public-domain or o
 - research/sessions/ — one uniquely named record for each chat that changes project state.
 - research/BOOK_TRACKER.md — status and reading order for the supplied book list.
 - research/SESSION_INDEX.csv — session IDs mapped to commits containing their work.
+
