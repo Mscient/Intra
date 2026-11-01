@@ -1,6 +1,6 @@
 # Nifty Intraday Research Project
 
-This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, no paid tick feed at the outset, and a 90-day paper-system target. The user has selected Angel One SmartAPI; documented capabilities and limits are in the [instrument/data matrix](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md). No account credentials or live feed have been connected.
+This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, no paid tick feed at the outset, and a 90-day paper-system target. The user has selected Angel One SmartAPI; documented capabilities and limits are in the [instrument/data matrix](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md). A user-run read-only candle request succeeded; no credentials are stored here and no streaming feed or order route has been connected.
 
 The reports translate book material and lawful public-source evidence into pre-build requirements. They distinguish publisher descriptions and previews from complete-book reading, and they do not claim that any strategy is profitable or ready for live trading.
 
@@ -30,7 +30,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
 - Wave A signal specification: [research/systems/WAVE-A-SIGNAL-SPEC.md](research/systems/WAVE-A-SIGNAL-SPEC.md)
 - Lab data schema: [research/systems/LAB-DATA-SCHEMA.md](research/systems/LAB-DATA-SCHEMA.md)
-- Wave A status: fixed S01-S03 signal-only rules and statistical decision gates are documented; no SmartAPI sample has been reviewed and no results have been computed.
+- Wave A status: fixed S01-S03 signal-only rules and statistical decision gates are documented. Six sample candles passed basic checks, but full-session data quality and history coverage remain unverified; no strategy results have been computed.
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)

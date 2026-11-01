@@ -1,6 +1,6 @@
 # Instrument and Data Capability Matrix
 
-**Status:** desk research only; the user reports a static IP is set up. The SmartAPI app mapping and authenticated data response have not been verified.
+**Status:** desk research plus a user-provided six-candle sample. A read-only historical request returned `SUCCESS` from the user's run environment on 2026-11-01; a full-session quality review and SmartAPI portal inspection remain pending. The user reports the static IP is set up.
 **Reviewed:** 2026-11-01 (Asia/Kolkata).
 **Broker/API selected by user:** Angel One SmartAPI.
 **Scope:** select data and instruments for the isolated S01-S10 research lab. This matrix does not authorize trading.
@@ -34,7 +34,7 @@
 
 | Candidate | Intended role | SmartAPI evidence | Readiness and limitation |
 |---|---|---|---|
-| NIFTY 50 index/reference series | Price signal and benchmark for S01-S03 | NSE index token is documented; historical OHLC candles are available through NSE segment. Volume is zero. | Usable for signal-only price research. Not executable and not suitable for S04 VWAP. Total available lookback and data quality still need a private sample request through the user account. |
+| NIFTY 50 index/reference series | Price signal and benchmark for S01-S03 | NSE index token `99926000` is documented; historical OHLC candles are available through NSE segment. Volume is zero. | The user supplied six consecutive 1-minute candles for 2026-10-30 09:15-09:20 IST; all six have valid OHLC bounds, and timestamps are ISO/IST with zero volume. Assuming this was the instructed NSE/99926000 query, basic access and row integrity are confirmed for this small sample. Full-session coverage, timestamp role, requested range, and total lookback remain unverified. Not executable and not suitable for S04 VWAP. |
 | NIFTY index futures, dated contracts | Possible executable proxy for Wave A; S05 | NFO candles and current live quotes are supported. SmartAPI support says expired F&O history is not provided. Live streaming supplies best-five depth, not archived quotes. | Historical multi-expiry P&L is not testable from SmartAPI alone. Could begin prospective capture; preserve each contract and expiry separately. |
 | NIFTY index options | S10, later | NFO historical candles/live quotes are supported for contracts available to the API; current option Greeks endpoint is documented. Expired-contract history is reported unavailable. | No retrospective option-surface/expiry backtest from SmartAPI alone. Requires a licensed external archive or a forward capture spanning expiries. Greeks endpoint is not documented as historical. |
 | Top-five quote/depth stream | Prospective cost/fill observations; limited S08 research | Live REST FULL quote and WebSocket V2 include up to five bid/ask levels. | No historical quote/depth archive or order-level queue events. S08 is limited to a prospective snapshot/quote study; S09 remains not testable with these fields alone. |
@@ -71,8 +71,8 @@ Keep API keys, client IDs, TOTP seeds, authenticated payloads, and licensed raw 
 
 ## Access and validation checklist
 
-1. The user reports a static IP is set up. Verify in the Angel One portal that it is registered and mapped to the intended SmartAPI app; Angel support says it also applies to data-only access. Do not record the IP address or credentials here.
-2. Run a read-only historical pull locally for NIFTY index token `99926000` using `exchange=NSE`, `interval=ONE_MINUTE`, and a short range from the last completed session. Keep the authentication headers private; review only the redacted candle rows `[timestamp, open, high, low, close, volume]`.
+1. The user reports a static IP is set up, and the read-only historical request succeeded from the run environment. Verify in the Angel One portal that the IP is registered and mapped to the intended SmartAPI app; do not record the IP address or credentials here.
+2. The initial six-row sample passes basic timestamp-order and OHLC checks. Next, run a full regular-session pull locally for NIFTY token `99926000` (`exchange=NSE`, `interval=ONE_MINUTE`) and report only the request dates, returned row count, first/last timestamps, gaps/duplicates, and OHLC violations. Keep authentication headers private and raw market data out of Git. Do not assume bar-start/bar-end semantics until verified.
 3. Verify if Angel One currently provides expired-contract history and sandbox access for this account; current public support material indicates expired F&O data is unavailable and no sandbox is confirmed.
 4. If testing execution costs, begin a separate prospective recorder only after data terms and account access are confirmed; record local receive time and never send orders from the lab.
 5. Select the first Wave A execution instrument only after the coverage gate. If only index candles are available, keep tests signal-only. Do not build a broker-connected test harness in HFT 2.

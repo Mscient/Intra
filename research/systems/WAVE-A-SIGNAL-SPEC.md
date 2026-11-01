@@ -1,6 +1,6 @@
 # Wave A Signal Specification
 
-**Status:** Draft baseline rules; not run. SmartAPI sample-quality review is pending.
+**Status:** Draft baseline rules; not run. A six-candle SmartAPI sample passed basic checks; full-session data-quality review is pending.
 **Reviewed:** 2026-11-01 (Asia/Kolkata).
 **Scope:** S01-S03 as signal-only research on NIFTY 50 index bars. These rules do not define executable orders or claim a profitable strategy.
 
