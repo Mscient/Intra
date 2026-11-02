@@ -26,6 +26,11 @@ public final class RunArtifactWriter {
         Path runFolder = outputRoot.toAbsolutePath().normalize().resolve(runId);
         Files.createDirectory(runFolder);
 
+        writeNew(runFolder.resolve("signals.csv"), csv(
+                "bar_number,decision_timestamp,session_date,instrument_id,fast_sma,slow_sma,target_lots,status",
+                result.signals().stream().map(signal -> row(signal.barNumber(), signal.decisionTimestamp(),
+                        signal.sessionDate(), signal.instrumentId(), signal.fastAverage(), signal.slowAverage(),
+                        signal.targetLots(), signal.status())).toList()));
         writeNew(runFolder.resolve("orders.csv"), csv(
                 "order_id,decision_timestamp,submit_timestamp,fill_timestamp,side,target_lots,requested_units,order_type,status,reason",
                 result.orders().stream().map(order -> row(order.orderId(), order.decisionTimestamp(), order.submitTimestamp(),
@@ -52,7 +57,7 @@ public final class RunArtifactWriter {
 
         writeNew(runFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
         Map<String, String> outputHashes = new TreeMap<>();
-        for (String name : List.of("orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "summary.json")) {
+        for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "summary.json")) {
             outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(runFolder.resolve(name))));
         }
         writeNew(runFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -65,6 +70,7 @@ public final class RunArtifactWriter {
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"
                 + "  \"bars\": " + data.bars().size() + ",\n"
+                + "  \"signals\": " + result.signals().size() + ",\n"
                 + "  \"orders\": " + result.orders().size() + ",\n"
                 + "  \"fills\": " + result.fills().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
@@ -115,7 +121,7 @@ public final class RunArtifactWriter {
                 + ", \"end\": " + q(bars.getLast().sessionDate().toString()) + "},\n"
                 + "  \"bar_timestamp_range\": {\"start\": " + q(bars.getFirst().timestamp().toString())
                 + ", \"end\": " + q(bars.getLast().timestamp().toString()) + "},\n"
-                + "  \"strategy\": {\"id\": \"SMA_CROSSOVER_LONG_ONLY_V1\", \"fast_bars\": " + config.fastBars()
+                + "  \"strategy\": {\"id\": " + q(SmaCrossoverStrategy.ID) + ", \"fast_bars\": " + config.fastBars()
                 + ", \"slow_bars\": " + config.slowBars() + ", \"lots\": " + config.requestedLots() + "},\n"
                 + "  \"fill_model\": \"NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1\",\n"
                 + "  \"passive_orders_supported\": false,\n"
@@ -126,7 +132,8 @@ public final class RunArtifactWriter {
                 + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr())) + "},\n"
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
-                + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr())) + "},\n"
+                + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
+                + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders() + "},\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"

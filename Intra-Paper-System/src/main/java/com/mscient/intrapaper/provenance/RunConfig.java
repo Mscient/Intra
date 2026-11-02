@@ -41,6 +41,7 @@ public record RunConfig(
         int maxPositionLots,
         BigDecimal maxNotionalInr,
         BigDecimal maxDailyLossInr,
+        boolean allowNextSessionOrders,
         String costStatus,
         Optional<String> costEvidenceReference,
         int slippageTicks,
@@ -56,7 +57,7 @@ public record RunConfig(
             "reference.file", "calendar.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
             "risk.max_position_lots", "risk.max_notional_inr", "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "run.commit_id");
+            "orders.allow_next_session", "run.commit_id");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -88,6 +89,10 @@ public record RunConfig(
         }
         if (synthetic && (dataStatus != DataRightsStatus.UNVERIFIED || !costStatus.equals("UNVERIFIED"))) {
             throw new IllegalArgumentException("Synthetic fixtures must remain UNVERIFIED for data rights and costs");
+        }
+        String allowCrossSessionText = required(p, "orders.allow_next_session").toLowerCase(java.util.Locale.ROOT);
+        if (!Set.of("true", "false").contains(allowCrossSessionText)) {
+            throw new IllegalArgumentException("orders.allow_next_session must be true or false");
         }
 
         TimestampRole role = TimestampRole.valueOf(required(p, "dataset.timestamp_role"));
@@ -132,6 +137,7 @@ public record RunConfig(
                 maxPosition,
                 notional,
                 dailyLoss,
+                Boolean.parseBoolean(allowCrossSessionText),
                 costStatus,
                 costEvidence.map(value -> logicalId(value, "cost.evidence_reference")),
                 slippage,

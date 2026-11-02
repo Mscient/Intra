@@ -57,6 +57,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `reference.file`, `calendar.file`: paths relative to the properties file unless absolute.
 - `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: long-only SMA crossover harness settings.
 - `risk.max_position_lots`, `risk.max_notional_inr`, `risk.max_daily_loss_inr`: mandatory configured limits. The sample values are arbitrary and must never be carried into a real deployment.
+- `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
 - `cost.status`: `UNVERIFIED` or `VERIFIED`. `VERIFIED` requires `cost.evidence_reference`. Fee-per-order, fee-per-unit, and adverse slippage ticks are always explicit.
 - `run.commit_id`: the source commit associated with the run; the sample uses a fixture label.
 
@@ -64,12 +65,13 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 
 The strategy reads a completed bar's close and may create a local market order. It can fill only at the next bar's open. BUY fills add the configured slippage ticks; SELL fills subtract them. Fees are charged per order and per unit. A candle's high/low touching a price never creates a passive fill because passive orders are not supported.
 
-The simulator is long-only and uses full fills. It checks maximum lots and notional before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar in that same session. No partial fills, latency, exchange priority, margin, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
+The simulator is long-only and uses full fills. It checks maximum lots and notional before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, margin, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
 
 ## Run artifacts
 
 - `run-manifest.json`: dataset and reference identifiers, input hashes, model/configuration, limits, output hashes, and the always-false performance-claim flag.
 - `summary.json`: diagnostic counts and P&L accounting only.
+- `signals.csv`: one row per completed-bar strategy decision, including the indicator values or warm-up state.
 - `orders.csv`, `order-events.csv`: local simulated lifecycle; not broker observations.
 - `fills.csv`: reference open, modeled fill, slippage, fees, and resulting position.
 - `trades.csv`: completed long trades. Open positions are represented in the equity file and final position summary.

@@ -8,6 +8,7 @@ An isolated, offline-first Java 21 futures backtesting and paper-execution simul
 - Strict normalized-candle CSV parsing, monotonic timestamp checks, OHLC/tick validation, and explicit timestamp-role handling.
 - Required open-session calendar and effective-dated instrument-master resolution for every candle. A run is restricted to one dated futures contract; expiry stitching and index-to-futures substitution are rejected.
 - Long-only SMA crossover harness. A signal computed from a completed candle can execute only as a simulated market order at the next eligible candle's open.
+- One signal-audit row per candle, with the moving averages and warm-up status recorded.
 - Fixed adverse tick slippage, explicit fee inputs, position/notional caps, and a per-session loss halt. These settings are recorded in each run.
 - Local simulated order lifecycle, fills, completed trades, marked equity curve, run summary, input hashes, and output hashes.
 - Content-addressed run IDs and create-new output directories. Results default outside the repository under `%LOCALAPPDATA%\Intra-Paper-System\runs`.
@@ -36,6 +37,7 @@ See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and ru
 - No live quotes, API credentials, broker connectivity, or live order route. Simulated acknowledgements are local ledger events.
 - The fixed-fee/tick-slippage cost model is a configurable diagnostic, not a current exchange/broker cost schedule. No margin calculator or contract-sizing advice is included.
 - The simulator does not implement a complete exchange-hours rule engine, forced end-of-day liquidation, or overnight gap policy. The input calendar must be supplied and reviewed; positions can remain open at the end of data.
+- Cross-session pending orders are disabled by default and must be enabled explicitly in configuration. This does not define a safe overnight position policy.
 - The sample strategy and all synthetic inputs are plumbing examples, not trading recommendations or evidence of an edge. Current data rights, costs, operating limits, and G0/G1/G2 evidence remain open.
 - No test suite is included in this increment. The Java 21 compile is the build check; behavioral validation remains a separate work item.
 

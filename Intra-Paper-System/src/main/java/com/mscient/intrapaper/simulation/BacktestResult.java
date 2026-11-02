@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record BacktestResult(
+        List<StrategySignal> signals,
         List<SimOrder> orders,
         List<SimOrderEvent> orderEvents,
         List<SimFill> fills,
@@ -19,6 +20,7 @@ public record BacktestResult(
         int riskHalts,
         String resultClassification) {
     public BacktestResult {
+        signals = List.copyOf(signals);
         orders = List.copyOf(orders);
         orderEvents = List.copyOf(orderEvents);
         fills = List.copyOf(fills);

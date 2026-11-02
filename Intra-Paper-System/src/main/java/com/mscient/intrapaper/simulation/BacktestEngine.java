@@ -29,6 +29,7 @@ public final class BacktestEngine {
 
     public BacktestResult run(ValidatedDataset dataset, RunConfig config) {
         List<Bar> bars = dataset.bars();
+        List<StrategySignal> signals = new ArrayList<>();
         List<SimOrder> orders = new ArrayList<>();
         List<SimOrderEvent> events = new ArrayList<>();
         List<SimFill> fills = new ArrayList<>();
@@ -45,6 +46,7 @@ public final class BacktestEngine {
         BigDecimal netAtPriorClose = BigDecimal.ZERO;
         int riskHalts = 0;
         RiskGate riskGate = new RiskGate(config);
+        SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
         BigDecimal highWater = BigDecimal.ZERO;
         BigDecimal maxDrawdown = BigDecimal.ZERO;
         var interval = IntervalSupport.duration(config.interval());
@@ -56,9 +58,10 @@ public final class BacktestEngine {
             Instant barEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
                     ? bar.timestamp() : bar.timestamp().plus(interval);
             boolean sameSessionNextBar = i + 1 < bars.size() && bars.get(i + 1).sessionDate().equals(bar.sessionDate());
+            boolean nextBarEligible = i + 1 < bars.size() && (sameSessionNextBar || config.allowNextSessionOrders());
 
             if (activeSession == null || !activeSession.equals(bar.sessionDate())) {
-                if (pending != null) {
+                if (pending != null && !config.allowNextSessionOrders()) {
                     expire(orders, events, pending, barStart, "SESSION_BOUNDARY");
                     pending = null;
                 }
@@ -122,6 +125,8 @@ public final class BacktestEngine {
             BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
                     : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * bar.lotSize()));
             BigDecimal net = realized.add(unrealized).subtract(fees);
+            StrategySignal signal = strategy.evaluate(bars, i, barEnd);
+            signals.add(signal);
             if (net.compareTo(highWater) > 0) highWater = net;
             BigDecimal drawdown = highWater.subtract(net);
             if (drawdown.compareTo(maxDrawdown) > 0) maxDrawdown = drawdown;
@@ -138,8 +143,8 @@ public final class BacktestEngine {
                 targetLots = 0;
                 reason = "RISK_FLATTEN";
             } else {
-                targetLots = desiredLots(bars, i, config);
-                reason = "SMA_CROSSOVER_TARGET";
+                targetLots = signal.targetLots() == null ? positionLots : signal.targetLots();
+                reason = signal.status().equals("ACTIVE") ? "SMA_CROSSOVER_TARGET" : "STRATEGY_WARMING_UP";
             }
 
             curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionLots * bar.lotSize(),
@@ -147,7 +152,7 @@ public final class BacktestEngine {
 
             if (targetLots != positionLots) {
                 Pending created = createOrder(orders, events, bar, barEnd, targetLots, positionLots, bar.lotSize(), reason);
-                if (sameSessionNextBar) {
+                if (nextBarEligible) {
                     pending = created;
                 } else {
                     String expiryReason = i + 1 < bars.size() ? "SESSION_BOUNDARY" : "NO_NEXT_BAR";
@@ -162,23 +167,8 @@ public final class BacktestEngine {
                 : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * last.lotSize()));
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
-        return new BacktestResult(orders, events, fills, trades, curve, realized, unrealized, fees, slippage,
+        return new BacktestResult(signals, orders, events, fills, trades, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification);
-    }
-
-    private static int desiredLots(List<Bar> bars, int index, RunConfig config) {
-        if (index + 1 < config.slowBars()) return 0;
-        BigDecimal fastSum = sumCloses(bars, index - config.fastBars() + 1, index);
-        BigDecimal slowSum = sumCloses(bars, index - config.slowBars() + 1, index);
-        BigDecimal fastWeighted = fastSum.multiply(BigDecimal.valueOf(config.slowBars()));
-        BigDecimal slowWeighted = slowSum.multiply(BigDecimal.valueOf(config.fastBars()));
-        return fastWeighted.compareTo(slowWeighted) > 0 ? config.requestedLots() : 0;
-    }
-
-    private static BigDecimal sumCloses(List<Bar> bars, int from, int through) {
-        BigDecimal sum = BigDecimal.ZERO;
-        for (int i = from; i <= through; i++) sum = sum.add(bars.get(i).close());
-        return sum;
     }
 
     private static Pending createOrder(List<SimOrder> orders, List<SimOrderEvent> events, Bar bar,
