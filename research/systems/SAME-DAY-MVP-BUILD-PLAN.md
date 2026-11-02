@@ -1,7 +1,7 @@
 # Same-Day Wave A Paper/Research MVP Build Plan
 
 **Target date:** 2026-11-02 (Asia/Kolkata)  
-**Status:** Offline runner and chronological evaluation harness implemented locally; 30 unit tests pass. The current partial 2 Nov sample produces `NOT_TESTABLE`, so the holdout remains closed. A one-time local read-only refresh and offline run is scheduled for 15:35 IST; full-session review and any eligible evaluation remain pending. Lab commit: `22d0621`.
+**Status:** Offline runner and chronological evaluation harness implemented locally; 30 unit tests pass. Evaluation reports per-system exclusions and signal counts; the current partial 2 Nov sample produces `NOT_TESTABLE`, so the holdout remains closed. A one-time local read-only refresh and offline run is scheduled for 15:35 IST; full-session review and any eligible evaluation remain pending. Lab commit: `ee3a3d0`.
 **Goal:** Create an isolated, offline Python runner for S01-S03 and smoke-test it on the user's completed NIFTY candles for 2 Nov 2026.
 
 ## What “built today” means
