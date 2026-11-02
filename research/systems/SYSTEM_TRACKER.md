@@ -1,6 +1,6 @@
 # Trading System Research Tracker
 
-Status reflects source review, an isolated MVP runner, and limited data readiness. No system below has been validated as a strategy. The runner passes 20 unit tests and its partial 2 Nov smoke sample is marked ineligible in the per-session score ledger. Manifests now hash the source revision and generated reports as well as inputs. A local one-time completed-session refresh/run is scheduled for 15:35 IST and review remains pending. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [LAB-DATA-SCHEMA.md](LAB-DATA-SCHEMA.md).
+Status reflects source review, an isolated MVP runner, and limited data readiness. No system below has been validated as a strategy. The runner passes 22 unit tests; the partial 2 Nov smoke sample has no eligible session-score rows. It produces per-session score rows and an equal-weight descriptive mean across eligible sessions, without inference. Manifests hash the source revision and generated reports as well as inputs. A local one-time completed-session refresh/run is scheduled for 15:35 IST and review remains pending. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [LAB-DATA-SCHEMA.md](LAB-DATA-SCHEMA.md).
 
 | ID | System | Research state | Main data / execution gap | Next action |
 |---|---|---|---|---|
