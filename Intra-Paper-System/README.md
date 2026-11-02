@@ -4,7 +4,7 @@ An isolated, offline-first Java 21 futures and single-option premium-bar backtes
 
 ## Built in this increment
 
-- JDK 21 command-line application with `validate` and `run` commands.
+- JDK 21 command-line application with `validate`, `run`, run-artifact `verify`, and quote-journal `journal-verify` commands.
 - Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
 - Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures or single-option contract; expiry stitching and index-to-futures substitution are rejected.
 - Long-only SMA crossover harness. A signal computed from a completed candle can execute only as a simulated market order at the next eligible candle's open.
@@ -28,7 +28,7 @@ $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
 & $java -jar $jar run .\examples\synthetic-futures-bars.csv .\examples\synthetic-run.properties
 ```
 
-Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts. A run verifier recomputes the eight output-ledger SHA-256 hashes from run-manifest.json; it does not verify source rights or re-hash input files.
+Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts. The `verify` command recomputes eight output-ledger SHA-256 hashes from the manifest; it does not verify source rights or re-hash input files. `journal-verify` scans a quote journal and validates its framing, canonical encoding, sequence ordering, and SHA-256 hash chain without connecting to a data source.
 
 See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and run files.
 

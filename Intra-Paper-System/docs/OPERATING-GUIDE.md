@@ -30,7 +30,15 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 & $java -jar $jar verify $runFolder
 ```
 
-`verify` recomputes the SHA-256 hashes for the eight output ledgers in run-manifest.json and checks the folder ID. It does not re-open or re-authorize source inputs.
+`verify` recomputes the SHA-256 hashes for the eight output ledgers in `run-manifest.json` and checks the folder ID. It does not re-open or re-authorize source inputs.
+
+## Verify a quote journal
+
+```powershell
+& $java -jar $jar journal-verify .\path\to\quotes.qjr
+```
+
+`journal-verify` reads the complete journal and checks its header, record framing, canonical quote encoding, strictly increasing sequence numbers, and SHA-256 hash chain. It emits a final event count, sequence number, byte count, and chain hash. It does not contact or authenticate to a market-data source.
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
@@ -72,7 +80,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: long-only SMA crossover harness settings.
 - `risk.max_position_lots`, `risk.max_notional_inr`, `risk.margin_per_lot_inr`, `risk.max_margin_inr`, and `risk.max_daily_loss_inr`: mandatory configured limits. Margin is a fixed user-supplied proxy used only to cap simulated entries; it is not an exchange SPAN/ELM calculation. Sample values are arbitrary and must never be carried into a real deployment.
 - `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
-- `position.cross_session_policy`: `ALLOW_OVERNIGHT` retains the current mark-to-market behavior. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end of the data; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.
+- `position.cross_session_policy`: `ALLOW_OVERNIGHT` permits positions to cross session boundaries and be marked at end of data. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.
 - `cost.status`: `UNVERIFIED` or `VERIFIED`. `VERIFIED` requires `cost.evidence_reference`. Fee-per-order, fee-per-unit, and adverse slippage ticks are always explicit.
 - `run.commit_id`: the source commit associated with the run. It defaults to `BUILD_COMMIT`, read from the JAR manifest. A non-synthetic replay requires a full 40-character commit ID or a JAR built from a Git checkout; the sample uses a synthetic fixture label.
 

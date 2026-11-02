@@ -4,7 +4,7 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Current gate:** S0 / G0 remains open. Offline implementation is active; downstream evidence gates are not closed.
-**Build:** Java 21 core and CLI compile successfully. The synthetic CLI validation and 30-bar replay completed with one complete supplied session; run `e9c5e0585cbf2dba6c24d632` is `SYNTHETIC_PLUMBING_ONLY`, records `REQUIRE_FLAT` with final position 0, and has diagnostic net P&L `-1.36 INR`. No tests or real-data strategy evaluation were performed.
+**Build:** Java 21 core and CLI compile successfully. Synthetic replay `e9c5e0585cbf2dba6c24d632` validated 30 bars and one complete supplied session; it is `SYNTHETIC_PLUMBING_ONLY`, records `REQUIRE_FLAT`, ends flat, and has diagnostic net P&L `-1.36 INR`. No tests or real-data strategy evaluation were performed.
 
 ## Gate and work-package tracker
 
@@ -34,6 +34,7 @@
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
 - [x] Run artifacts are written to a sibling staging directory and published by atomic move only after ledgers and hashes are complete; ordinary write failures remove staging files.
 - [x] A run-folder verifier checks the manifest ID and recomputes all eight output-ledger hashes; it does not validate original inputs or data rights.
+- [x] CLI quote-journal verification replays the full local journal and checks framing, canonical records, sequence order, and the SHA-256 chain; it performs no network access.
 - [x] Explicit cross-session position policy: `REQUIRE_FLAT` fails closed on an overnight or end-of-data position; it does not synthesize a forced close.
 - [x] Synthetic fixture and operating guide. Synthetic reports are plumbing-only; every report marks `performance_claim_eligible=false`.
 - [x] Java 21 build and synthetic CLI validation/replay completed; no tests were added or run. The 30-bar sample is plumbing-only and is not real-data strategy evidence.
