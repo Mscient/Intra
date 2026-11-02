@@ -1,7 +1,7 @@
 # Same-Day Wave A Paper/Research MVP Build Plan
 
 **Target date:** 2026-11-02 (Asia/Kolkata)  
-**Status:** Offline runner implemented locally; 13 unit tests pass. Partial 2 Nov data through 10:58 IST smoke-tested; the completed-session run remains pending. The run manifest now includes a frozen-rule hash. Local lab commit: `e720fec`.
+**Status:** Offline runner implemented locally; 13 unit tests pass. Partial 2 Nov data through 10:58 IST smoke-tested. A one-time local read-only refresh and offline run is scheduled for 15:35 IST; final-session review remains pending. The run manifest includes a frozen-rule hash. Local lab commit: `e720fec`.
 **Goal:** Create an isolated, offline Python runner for S01-S03 and smoke-test it on the user's completed NIFTY candles for 2 Nov 2026.
 
 ## What “built today” means
