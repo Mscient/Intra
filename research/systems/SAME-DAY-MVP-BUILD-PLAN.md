@@ -24,7 +24,7 @@ Deliver a repeatable local command that reads a private candle file, validates i
 2. **Input and quality checks — done:** the CLI reads the SmartAPI printed response/JSON, validates OHLC/timestamps, and truncates at the first missing one-minute interval without filling it.
 3. **Signal engine — done for MVP:** S01 opening-range breakout and S02 fixed momentum are implemented; S03 requires a prior close and is skipped when it is not supplied.
 4. **Markouts and report — done:** computes 5/15/30-minute index markouts only where all forward bars are present; pending horizons are explicitly marked.
-5. **Unit tests — done:** five deterministic tests pass for invalid OHLC, gap truncation, S02 cadence, pending forward labels, and the S03 prior-close prerequisite.
+5. **Unit tests — done:** eight deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, gap truncation, S01 first-break behavior, S02 cadence, pending forward labels, and S03 prior-close/reversal behavior.
 6. **Today's data smoke run — partial:** the 2 Nov response covering 09:15-10:44 IST passed parsing and quality checks and produced S01/S02 signals. The final session candles are still needed to finish today's smoke run. Two rate-limit errors appeared before the API request succeeded.
 
 ## Acceptance criteria
@@ -46,3 +46,5 @@ Deliver a repeatable local command that reads a private candle file, validates i
 The user runs the existing SmartAPI script locally with `exchange=NSE`, symbol token `99926000`, interval `ONE_MINUTE`, and a 2 Nov 2026 range through the last completed candle (or the completed session after 15:30 IST). Save the response as a private CSV/JSON. Do not include API keys, PIN/TOTP, authentication/session tokens, HTTP auth headers, or account data in the file shared with the lab. A full session is required for today's smoke run; partial-session data may be used only to test parsing and early signal generation.
 
 The first 90-row 2 Nov sample has already been smoke-tested from the pasted response. It contained no gaps or duplicate timestamps and no OHLC violations; all index volume values were zero. The latest S02 15/30-minute outcomes remain pending because the sample ends at 10:44. S03 was unavailable without the prior session close. The runner prints observed markouts as diagnostics only and does not calculate statistical confidence from one session.
+
+Each run also writes a private text report and a JSON manifest with the input SHA-256 under the ignored `reports/private/` directory. Neither report nor raw candles are committed.
