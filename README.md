@@ -28,6 +28,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - System research tracker: [research/systems/SYSTEM_TRACKER.md](research/systems/SYSTEM_TRACKER.md)
 - Instrument/data capability matrix: [research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
+- Same-day Wave A MVP build plan: [research/systems/SAME-DAY-MVP-BUILD-PLAN.md](research/systems/SAME-DAY-MVP-BUILD-PLAN.md)
 - Wave A signal specification: [research/systems/WAVE-A-SIGNAL-SPEC.md](research/systems/WAVE-A-SIGNAL-SPEC.md)
 - Lab data schema: [research/systems/LAB-DATA-SCHEMA.md](research/systems/LAB-DATA-SCHEMA.md)
 - Wave A status: fixed S01-S03 signal-only rules and statistical decision gates are documented. The full-session and targeted SmartAPI responses both reproduce a closing-period timestamp gap; the data gate is unresolved and no strategy results have been computed.

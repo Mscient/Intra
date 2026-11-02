@@ -1,6 +1,6 @@
 # Trading System Research Tracker
 
-Status reflects source review and limited data readiness only. No system below has been backtested on current Nifty data. The 14-minute closing-period gap in the full-session SmartAPI response was reproduced by a targeted request; cross-check the source/interval before the data gate can pass. See the [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [lab data schema](LAB-DATA-SCHEMA.md) for data gates, draft rules, and the isolated input contract.
+Status reflects source review and limited data readiness only. No system below has been backtested on current Nifty data. The 14-minute closing-period gap in the 30 Oct SmartAPI response was reproduced by a targeted request; the new same-day offline MVP plan uses a fixed cutoff and today's clean candles while that older gap remains under review. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [lab data schema](LAB-DATA-SCHEMA.md).
 
 | ID | System | Research state | Main data / execution gap | Next action |
 |---|---|---|---|---|
