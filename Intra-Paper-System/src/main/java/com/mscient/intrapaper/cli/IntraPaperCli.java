@@ -55,7 +55,7 @@ public final class IntraPaperCli {
         System.out.println("Intra Paper System (offline only)\n"
                 + "  java -jar intra-paper-system.jar validate <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n\n"
-                + "Run artifacts are written beside the properties file in runs/<content-id>/.\n"
-                + "Only dated futures are supported. There is no broker connectivity or live-order route.");
+                + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
+                + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 }

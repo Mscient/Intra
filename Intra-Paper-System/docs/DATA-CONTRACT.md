@@ -1,8 +1,8 @@
 # Offline data contract — first cut
 
-This contract now has an offline futures-bar validator and replay path. It still does not capture market files, connect to a broker, determine entitlements, or authorize strategy-performance claims.
+This contract now has an offline derivatives-bar validator and replay path. It still does not capture market files, connect to a broker, determine entitlements, or authorize strategy-performance claims.
 
-The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation deliberately accepts only one dated futures contract per run.
+The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation accepts one dated futures contract or one listed-option premium series per run. For options, the supplied bars are premiums; valuation, Greeks, multi-leg positions, exercise, and settlement are not modeled.
 
 ## Instrument master
 
