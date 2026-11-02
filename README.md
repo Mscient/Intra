@@ -1,6 +1,6 @@
 # Nifty Intraday Research Project
 
-This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, no paid tick feed at the outset, and a 90-day paper-system target. The user has selected Angel One SmartAPI; documented capabilities and limits are in the [instrument/data matrix](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md). A user-run read-only candle request succeeded; no credentials are stored here and no streaming feed or order route has been connected.
+This repository tracks research for a cost-aware Nifty intraday paper-trading system in India. The initial brief sets the constraints: own account, Nifty first, Python/research-first, no paid tick feed at the outset, and a 90-day paper-system target. The user has selected Angel One SmartAPI; documented capabilities and limits are in the [instrument/data matrix](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md). A separate local paper-system repository now contains the initial implementation; no account credentials or market data were used, and no broker order route exists. See the [paper-system roadmap](research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md) for implementation scope and remaining gates.
 
 The reports translate book material and lawful public-source evidence into pre-build requirements. They distinguish publisher descriptions and previews from complete-book reading, and they do not claim that any strategy is profitable or ready for live trading.
 
@@ -31,7 +31,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Same-day Wave A MVP build plan: [research/systems/SAME-DAY-MVP-BUILD-PLAN.md](research/systems/SAME-DAY-MVP-BUILD-PLAN.md)
 - Wave A signal specification: [research/systems/WAVE-A-SIGNAL-SPEC.md](research/systems/WAVE-A-SIGNAL-SPEC.md)
 - Lab data schema: [research/systems/LAB-DATA-SCHEMA.md](research/systems/LAB-DATA-SCHEMA.md)
-- Nifty futures/options paper-system roadmap: [research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md](research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md). Angel One SmartAPI is selected; futures are sequenced before options.
+- Nifty futures/options paper-system roadmap: [research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md](research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md). Angel One SmartAPI is selected; the local paper simulator is implemented as a first scaffold; dated data, tests, fee verification, and option expiry handling remain open.
 - Wave A status: the isolated Python runner is built and nine unit tests pass. It smoke-tested 104 consecutive 2 Nov candles through 10:58 IST, generated S01/S02 signals, and skipped S03 because the prior close was absent. This is a partial-session pipeline check, not a strategy backtest; full-session candles are still pending. Runs save a private report, signal ledger, and input-hash manifest locally.
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
