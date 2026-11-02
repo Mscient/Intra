@@ -1,12 +1,12 @@
 # Intra Paper System
 
-An isolated, offline-first Java 21 futures backtesting and paper-execution simulator. It is separate from the HFT 2 research notes and has no broker or network adapter.
+An isolated, offline-first Java 21 futures and single-option premium-bar backtesting simulator. It is separate from the HFT 2 research notes and has no broker or network adapter.
 
 ## Built in this increment
 
 - JDK 21 command-line application with `validate` and `run` commands.
 - Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
-- Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures contract; expiry stitching and index-to-futures substitution are rejected.
+- Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures or single-option contract; expiry stitching and index-to-futures substitution are rejected.
 - Long-only SMA crossover harness. A signal computed from a completed candle can execute only as a simulated market order at the next eligible candle's open.
 - One signal-audit row per candle, with the moving averages and warm-up status recorded.
 - Fixed adverse tick slippage, explicit fee inputs, position/notional caps, and a per-session loss halt. These settings are recorded in each run.
@@ -33,7 +33,7 @@ See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and ru
 
 ## Scope and limitations
 
-- Futures only, one dated contract per run, long-only SMA harness. Options valuation/expiry settlement, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
+- One dated futures or one listed option premium series per run, long-only SMA harness. Option valuation/Greeks, multi-leg strategies, expiry exercise/settlement, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
 - No live quotes, API credentials, broker connectivity, or live order route. Simulated acknowledgements are local ledger events.
 - The fixed-fee/tick-slippage cost model is a configurable diagnostic, not a current exchange/broker cost schedule. The entry gate also accepts a fixed user-supplied margin-per-lot proxy; it is not an exchange margin calculation or contract-sizing advice.
 - The simulator does not implement a complete exchange-hours rule engine, forced end-of-day liquidation, or overnight gap policy. The input calendar must be supplied and reviewed; positions can remain open at the end of data.

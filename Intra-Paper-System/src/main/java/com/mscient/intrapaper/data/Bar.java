@@ -1,12 +1,14 @@
 package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.reference.ContractKind;
+import com.mscient.intrapaper.reference.OptionRight;
 import com.mscient.intrapaper.reference.TimestampRole;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.Optional;
 
 /** One normalized candle tied to a dated contract reference. */
 public record Bar(
@@ -20,6 +22,8 @@ public record Bar(
         ContractKind contractKind,
         String underlying,
         LocalDate expiry,
+        Optional<BigDecimal> strike,
+        Optional<OptionRight> optionRight,
         int lotSize,
         BigDecimal tickSize,
         String interval,
@@ -44,6 +48,8 @@ public record Bar(
         contractKind = Objects.requireNonNull(contractKind, "contractKind");
         underlying = required(underlying, "underlying");
         expiry = Objects.requireNonNull(expiry, "expiry");
+        strike = Objects.requireNonNull(strike, "strike").map(value -> Objects.requireNonNull(value, "strike value").stripTrailingZeros());
+        optionRight = Objects.requireNonNull(optionRight, "optionRight");
         interval = required(interval, "interval");
         timestampRole = Objects.requireNonNull(timestampRole, "timestampRole");
         tickSize = positive(tickSize, "tickSize");
@@ -53,6 +59,15 @@ public record Bar(
         close = positive(close, "close");
         if (lotSize < 1 || volume < 0 || (openInterest != null && openInterest < 0)) {
             throw new IllegalArgumentException("lot size must be positive; volume/open interest must be non-negative");
+        }
+        if (contractKind == ContractKind.FUTURE && (strike.isPresent() || optionRight.isPresent())) {
+            throw new IllegalArgumentException("Future bars must not have strike or option right");
+        }
+        if (contractKind == ContractKind.OPTION && (strike.isEmpty() || strike.orElseThrow().signum() <= 0 || optionRight.isEmpty())) {
+            throw new IllegalArgumentException("Option bars require a positive strike and call/put right");
+        }
+        if (contractKind != ContractKind.FUTURE && contractKind != ContractKind.OPTION) {
+            throw new IllegalArgumentException("Only futures and option premium bars are supported");
         }
         if (high.compareTo(low) < 0 || high.compareTo(open) < 0 || high.compareTo(close) < 0
                 || low.compareTo(open) > 0 || low.compareTo(close) > 0) {

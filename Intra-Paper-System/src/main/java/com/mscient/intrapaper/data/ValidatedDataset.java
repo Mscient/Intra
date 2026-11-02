@@ -43,6 +43,9 @@ public record ValidatedDataset(
         String onlyToken = first.sourceToken();
         String onlySymbol = first.tradingSymbol();
         LocalDate onlyExpiry = first.expiry();
+        var onlyKind = first.contractKind();
+        var onlyStrike = first.strike();
+        var onlyRight = first.optionRight();
         ZoneId timezone = ZoneId.of(config.timezone());
 
         for (Bar bar : bars) {
@@ -50,14 +53,16 @@ public record ValidatedDataset(
                 throw new IllegalArgumentException("Bar interval " + bar.interval() + " differs from configured " + config.interval());
             }
             if (!bar.instrumentId().equals(onlyInstrument) || !bar.sourceToken().equals(onlyToken)
-                    || !bar.tradingSymbol().equals(onlySymbol) || !bar.expiry().equals(onlyExpiry)) {
-                throw new IllegalArgumentException("One dated futures contract is required per run; found " + bar.instrumentId());
+                    || !bar.tradingSymbol().equals(onlySymbol) || !bar.expiry().equals(onlyExpiry)
+                    || bar.contractKind() != onlyKind || !sameStrike(bar.strike(), onlyStrike)
+                    || !bar.optionRight().equals(onlyRight)) {
+                throw new IllegalArgumentException("One dated derivative contract is required per run; found " + bar.instrumentId());
             }
             if (!bar.source().equals(config.datasetSourceName())) {
                 throw new IllegalArgumentException("Bar source does not match dataset.source_name: " + bar.source());
             }
-            if (bar.contractKind() != ContractKind.FUTURE) {
-                throw new IllegalArgumentException("This build supports dated futures only; found " + bar.contractKind());
+            if (bar.contractKind() != ContractKind.FUTURE && bar.contractKind() != ContractKind.OPTION) {
+                throw new IllegalArgumentException("This build supports dated futures and single-option premium bars only; found " + bar.contractKind());
             }
             if (!bar.expiry().isAfter(bar.sessionDate())) {
                 throw new IllegalArgumentException("Expired contract bar is not eligible: " + bar.instrumentId() + " on " + bar.sessionDate());
@@ -68,6 +73,8 @@ public record ValidatedDataset(
                     || bar.contractKind() != reference.contractKind()
                     || !reference.underlying().orElse("").equals(bar.underlying())
                     || !reference.expiry().orElseThrow().equals(bar.expiry())
+                    || !sameStrike(bar.strike(), reference.strike())
+                    || !bar.optionRight().equals(reference.optionRight())
                     || bar.lotSize() != reference.lotSize()
                     || bar.tickSize().compareTo(reference.tickSize()) != 0) {
                 throw new IllegalArgumentException("Bar contract metadata does not match dated instrument master at " + bar.timestamp());
@@ -164,5 +171,10 @@ public record ValidatedDataset(
         return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
                 barsHash, config.configSha256(), calendarHash, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
+    }
+
+    private static boolean sameStrike(Optional<java.math.BigDecimal> left, Optional<java.math.BigDecimal> right) {
+        if (left.isEmpty() || right.isEmpty()) return left.isEmpty() == right.isEmpty();
+        return left.orElseThrow().compareTo(right.orElseThrow()) == 0;
     }
 }

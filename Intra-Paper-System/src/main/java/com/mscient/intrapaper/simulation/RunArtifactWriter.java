@@ -125,6 +125,8 @@ public final class RunArtifactWriter {
                 + "  \"trading_symbol\": " + q(first.tradingSymbol()) + ",\n"
                 + "  \"contract_kind\": " + q(first.contractKind().name()) + ",\n"
                 + "  \"expiry\": " + q(first.expiry().toString()) + ",\n"
+                + "  \"strike\": " + first.strike().map(value -> q(num(value))).orElse("null") + ",\n"
+                + "  \"option_right\": " + first.optionRight().map(Enum::name).map(RunArtifactWriter::q).orElse("null") + ",\n"
                 + "  \"instrument_master_snapshot_id\": " + q(data.instrumentMaster().snapshotId()) + ",\n"
                 + "  \"instrument_master_sha256\": " + q(data.instrumentMaster().rawFileSha256()) + ",\n"
                 + "  \"session_calendar_sha256\": " + q(data.calendarSha256()) + ",\n"

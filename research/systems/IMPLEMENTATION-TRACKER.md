@@ -4,11 +4,11 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Implementation:** [`Intra-Paper-System/`](../../Intra-Paper-System/README.md), Java 21, offline only.
-**Current gate:** S0 / G0 remains open. The compiled system is an offline futures replay MVP, not completion of the full staged plan.
+**Current gate:** S0 / G0 remains open. The compiled system is an offline single-contract derivatives replay MVP; option inputs are premium bars only. It is not completion of the full staged plan.
 
 ## Current position
 
-- The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract at a time, including supplied session-boundary completeness checks and strict same-session interval spacing unless an explicit diagnostic override is set.
+- The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract or one option premium series at a time, including supplied session-boundary completeness checks and strict same-session interval spacing unless an explicit diagnostic override is set.
 - The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity/session-reconciliation artifacts.
 - Effective-dated contract resolution, explicit session calendars, and hashed run manifests are required. Expiry stitching, index-to-futures substitution, passive-touch fills, and live order egress are not supported.
 - A clearly synthetic fixture is included for plumbing. No behavior test or strategy run was performed in the latest implementation increment; no real market data, credentials, account, or broker API were accessed.
@@ -20,7 +20,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | **Open; work started** | Confirm operator/stop authority, route and current rules, data rights/retention, current source set, private risk budgets, and unresolved A1–A15 assumptions. Keep order egress disabled. |
 | S1 / G1 — foundations (WP1) | Implementation started; gate open | Review market-model assumptions and freeze a research card with mechanism, horizon, benchmark, costs, data, variant count, universe, and rejection rules. The SMA is only a harness. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline futures replay slice built; incomplete | Raw capture/import, full quality/completeness checks, session-hours policy, reproducible recovery, margin, verified fees, option accounting, and broader simulator evidence remain open. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline single-contract replay slice built; incomplete | Raw capture/import, full quality/completeness checks, session-hours policy, reproducible recovery, exchange margin, verified fees, option valuation/settlement, and broader simulator evidence remain open. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 | Preregister a candidate; use authorized dated data, verified execution/cost assumptions, chronological development/validation/holdout, and independent review. No performance claim is currently eligible. |
 | S4 / G4 — forward paper (WP8) | Not started | 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no open severe incident. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized | Requires a separate human decision and independent review after all G4 evidence. No live route exists in the project. |
@@ -39,5 +39,5 @@
 1. Keep G0 unresolved items out of public Git where they contain private budgets or account-specific information.
 2. Add raw source capture/import, stronger stale/gap/completeness rules, and recovery/reconciliation artifacts.
 3. Define reviewed session-hours, overnight, and end-of-run liquidation behavior before intraday deployment.
-4. Extend the simulator only with verified data and cost assumptions; add options and portfolio accounting after the futures path is reviewed.
+4. Extend the simulator only with verified data and cost assumptions; add option valuation/settlement and portfolio accounting after the futures and premium-bar paths are reviewed.
 5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.

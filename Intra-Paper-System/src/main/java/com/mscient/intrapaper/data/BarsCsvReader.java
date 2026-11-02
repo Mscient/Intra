@@ -2,6 +2,7 @@ package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.reference.ContractKind;
+import com.mscient.intrapaper.reference.OptionRight;
 import com.mscient.intrapaper.reference.TimestampRole;
 
 import java.io.IOException;
@@ -12,11 +13,12 @@ import java.time.ZoneId;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public final class BarsCsvReader {
     private static final String[] REQUIRED = {
             "timestamp", "instrument_id", "exchange", "segment", "source_token", "trading_symbol",
-            "contract_kind", "underlying", "expiry", "lot_size", "tick_size", "interval",
+            "contract_kind", "underlying", "expiry", "strike", "option_right", "lot_size", "tick_size", "interval",
             "timestamp_role", "open", "high", "low", "close", "volume", "open_interest",
             "source", "raw_record_hash"
     };
@@ -54,6 +56,8 @@ public final class BarsCsvReader {
                         ContractKind.valueOf(required(row, "contract_kind")),
                         required(row, "underlying"),
                         LocalDate.parse(required(row, "expiry")),
+                        optional(row, "strike").map(BigDecimal::new),
+                        optional(row, "option_right").map(OptionRight::valueOf),
                         Integer.parseInt(required(row, "lot_size")),
                         new BigDecimal(required(row, "tick_size")),
                         required(row, "interval"),
@@ -89,5 +93,12 @@ public final class BarsCsvReader {
         long parsed = Long.parseLong(value);
         if (parsed < 0) throw new IllegalArgumentException(name + " must be non-negative or blank");
         return parsed;
+    }
+
+    private static Optional<String> optional(java.util.Map<String, String> row, String name) {
+        String value = row.get(name);
+        if (value == null || value.isBlank()) return Optional.empty();
+        if (!value.equals(value.strip())) throw new IllegalArgumentException(name + " must be trimmed");
+        return Optional.of(value);
     }
 }

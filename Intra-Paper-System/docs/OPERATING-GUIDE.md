@@ -28,7 +28,7 @@ Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set
 
 The header must include these fields in any order:
 
-`timestamp,instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,lot_size,tick_size,interval,timestamp_role,open,high,low,close,volume,open_interest,source,raw_record_hash`
+`timestamp,instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,interval,timestamp_role,open,high,low,close,volume,open_interest,source,raw_record_hash`
 
 - `timestamp` must include an explicit UTC offset. `timestamp_role` must be `BAR_START` or `BAR_END` and must agree with the run configuration.
 - The supported interval labels are `ONE_MINUTE`, `FIVE_MINUTE`, `FIFTEEN_MINUTE`, `THIRTY_MINUTE`, `ONE_HOUR`, and `ONE_DAY`.
@@ -44,7 +44,7 @@ The UTF-8 CSV has columns:
 
 `instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through`
 
-Every bar resolves by exchange, segment, source token, and session date. Its contract identity, expiry, lot size, tick size, and symbol must match the resolved row. This build accepts only `FUTURE`, and each run must contain exactly one dated contract.
+Every bar resolves by exchange, segment, source token, and session date. Its contract identity, expiry, strike/right where applicable, lot size, tick size, and symbol must match the resolved row. Each run must contain exactly one dated `FUTURE` or `OPTION` contract. Bars on or after expiry are rejected; option exercise and settlement are not modeled.
 
 ## Open-session calendar
 
@@ -69,7 +69,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 
 The strategy reads a completed bar's close and may create a local market order. It can fill only at the next bar's open. BUY fills add the configured slippage ticks; SELL fills subtract them. Fees are charged per order and per unit. A candle's high/low touching a price never creates a passive fill because passive orders are not supported.
 
-The simulator is long-only and uses full fills. It checks maximum lots, notional, and the fixed user-supplied margin proxy before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, exchange margin formula, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
+The simulator is long-only and uses full fills. For options it treats the supplied premium bars as marks and fills; it does not calculate theoretical option values or Greeks. It checks maximum lots, notional, and the fixed user-supplied margin proxy before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, exchange margin formula, exercise, settlement, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
 
 ## Run artifacts
 
