@@ -1,0 +1,2 @@
+instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through
+SYN-NIFTY-FUT-2030,SYN,FUT,SYNTHETIC-001,SYNTHETIC-FUTURE,FUTURE,SYNTHETIC,2030-12-26,,,1,0.05,2030-01-01,

@@ -1,44 +1,43 @@
 # Jane Street-Class System — Implementation Tracker
 
-**Plan source:** [Final Implementation Plan](FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.md), prepared 2026-11-03. This tracker records progress against the plan. Instructions and recommendations inside the attached document are treated as design requirements; this tracker does not authorize account access, data capture, broker orders, or live trading.
+**Plan source:** [Final Implementation Plan](FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.md), prepared 2026-11-03. The plan is treated as design guidance; it does not authorize account access, data capture, broker orders, or live trading.
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
-
-**Current gate:** S0 / G0 — open; offline work only.
-**Implementation target:** a separately scoped `Intra-Paper-System/` subproject following the plan's Java 21 shared-core decision. The tracker records implementation in that folder and the stage evidence centrally.
+**Implementation:** [`Intra-Paper-System/`](../../Intra-Paper-System/README.md), Java 21, offline only.
+**Current gate:** S0 / G0 remains open. The compiled system is an offline futures replay MVP, not completion of the full staged plan.
 
 ## Current position
 
-- Created a separate local `Intra-Paper-System` implementation folder in the active workspace.
-- Started an offline Java 21 data/replay slice: versioned quote record, explicit quote-quality flags, deterministic canonical encoding, SHA-256 chaining, append-only journal writer, integrity-checked reader, effective-dated instrument references, and a dataset-provenance model.
-- Reviewed and linked the existing roadmap, system design, lab schema, isolation plan, instrument/data matrix, and Wave A signal specification. Reusable backtesting research and its limitations are summarized in the implementation folder.
-- Existing session records describe a separate Python offline backtest engine with 18 passing tests. That code was not present in this HFT 2 workspace, so it was not inspected, changed, or treated as a verified baseline in this session. The new Java scaffold is not a port of that engine.
-- No Java 21 build was run: the active host exposes Java 8. No market data, credentials, broker API, or live order route was accessed.
+- The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract at a time.
+- The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity artifacts.
+- Effective-dated contract resolution, explicit session calendars, and hashed run manifests are required. Expiry stitching, index-to-futures substitution, passive-touch fills, and live order egress are not supported.
+- A clearly synthetic fixture is included for plumbing. No behavior test or strategy run was performed in the latest implementation increment; no real market data, credentials, account, or broker API were accessed.
+- A separate Python offline backtest engine is described in earlier session records but its implementation was not present in the checked-out HFT 2 workspace; the Java simulator is not represented as a port of it.
 
 ## Gate tracker
 
 | Stage / gate | Status | Evidence needed to close |
 |---|---|---|
-| S0 / G0 — charter (WP0) | **Open; work started** | Confirm operator and stop authority, route and current API rules, data rights/retention, source fallback, current rule set, private cost/loss budgets, and unresolved A1–A15 assumptions. Keep order egress disabled. |
-| S1 / G1 — foundations (WP1) | Not started | Complete the market model and toy simulator; freeze one research card with mechanism, horizon, benchmark, costs, data, variant count, universe candidates, and rejection rules. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline data/replay contracts started; incomplete | Manifest serialization, raw capture/import, data-quality/completeness gates, session/reference-data loaders, independent risk state, simulated OMS/broker, and cost/accounting evidence remain open. |
-| S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 | Preregister candidates and evaluation; use realistic data, costs, fills, and holdout evidence. A queue-aware market maker remains simulator/paper-only. |
+| S0 / G0 — charter (WP0) | **Open; work started** | Confirm operator/stop authority, route and current rules, data rights/retention, current source set, private risk budgets, and unresolved A1–A15 assumptions. Keep order egress disabled. |
+| S1 / G1 — foundations (WP1) | Implementation started; gate open | Review market-model assumptions and freeze a research card with mechanism, horizon, benchmark, costs, data, variant count, universe, and rejection rules. The SMA is only a harness. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline futures replay slice built; incomplete | Raw capture/import, full quality/completeness checks, session-hours policy, reproducible recovery, margin, verified fees, option accounting, and broader simulator evidence remain open. |
+| S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 | Preregister a candidate; use authorized dated data, verified execution/cost assumptions, chronological development/validation/holdout, and independent review. No performance claim is currently eligible. |
 | S4 / G4 — forward paper (WP8) | Not started | 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no open severe incident. |
-| S5 / G5 — optional live pilot (WP9) | Not authorized | Requires a separate human decision, independent review, current broker/exchange acceptance, and all G4 evidence. |
-| S6 / G6 — tier review (WP10) | Not started | Requires at least six months of live evidence if an optional G5 pilot occurs, plus the plan's capacity and cost-benefit evidence. |
+| S5 / G5 — optional live pilot (WP9) | Not authorized | Requires a separate human decision and independent review after all G4 evidence. No live route exists in the project. |
+| S6 / G6 — tier review (WP10) | Not started | Requires at least six months of live evidence if an optional G5 pilot occurs, plus capacity and cost-benefit evidence. |
 
 ## Reusable backtesting research
 
-- The current Wave A runner and S01–S03 specification concern NIFTY 50 index-candle signal markouts. They are not executable futures/options P&L.
-- Keep session-level chronological splits, provenance hashes, eligibility rules, and a sealed holdout. Do not tune on the holdout.
-- A completed-bar signal may fill no earlier than the next eligible bar. A candle touching a passive limit does not prove a fill.
-- Preserve dated futures/options contracts and master snapshots. Do not stitch expiries or use index candles as contract fills.
-- Existing research leaves expired-contract coverage, local retention terms, exact dated costs/margins, and some session/timestamp checks open. Until these close, plumbing may use labelled synthetic fixtures but cannot produce market-performance conclusions.
+- The current Wave A runner and S01–S03 specification concern NIFTY 50 index-candle signal markouts. Those markouts are not futures/options fills or executable P&L.
+- Keep session-level chronological splits, provenance hashes, eligibility rules, and a sealed holdout for future strategy research. This MVP does not implement that evaluation workflow.
+- A completed-bar signal may fill no earlier than the next eligible bar. A candle touching a passive limit does not establish a fill.
+- Preserve dated futures/options contracts and master snapshots. Do not stitch expiries or map an index candle to a contract fill.
+- Historical F&O coverage, local retention terms, exact dated costs/margins, and complete session-calendar evidence remain open. Synthetic runs are plumbing-only; other runs are diagnostic-only in this implementation.
 
 ## Next work
 
-1. Close G0 questions without putting personal budgets, credentials, IP addresses, or private data in this public research repository.
-2. Reconcile the previously reported Python engine with the Java 21 core decision before duplicating or migrating system logic.
-3. Continue WP2 with manifest serialization, raw-file provenance validation, and dated reference-data import; keep it offline.
-4. Add independent risk state and simulated OMS in the dependency order from the plan.
-5. Update this tracker only when the corresponding gate has reviewable evidence.
+1. Keep G0 unresolved items out of public Git where they contain private budgets or account-specific information.
+2. Add raw source capture/import, stronger stale/gap/completeness rules, and recovery/reconciliation artifacts.
+3. Define reviewed session-hours, overnight, and end-of-run liquidation behavior before intraday deployment.
+4. Extend the simulator only with verified data and cost assumptions; add options and portfolio accounting after the futures path is reviewed.
+5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.

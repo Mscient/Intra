@@ -1,0 +1,214 @@
+package com.mscient.intrapaper.simulation;
+
+import com.mscient.intrapaper.data.Bar;
+import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.provenance.RunConfig;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Deterministic long-only futures simulator. Signals at a completed close can fill only at the next bar open. */
+public final class BacktestEngine {
+    private record Pending(int orderIndex, int targetLots, LocalDate decisionSession) { }
+    private static final class OpenTrade {
+        private final Instant entryTimestamp;
+        private final BigDecimal entryPrice;
+        private final int quantity;
+        private final BigDecimal entryFee;
+
+        private OpenTrade(Instant entryTimestamp, BigDecimal entryPrice, int quantity, BigDecimal entryFee) {
+            this.entryTimestamp = entryTimestamp;
+            this.entryPrice = entryPrice;
+            this.quantity = quantity;
+            this.entryFee = entryFee;
+        }
+    }
+
+    public BacktestResult run(ValidatedDataset dataset, RunConfig config) {
+        List<Bar> bars = dataset.bars();
+        List<SimOrder> orders = new ArrayList<>();
+        List<SimOrderEvent> events = new ArrayList<>();
+        List<SimFill> fills = new ArrayList<>();
+        List<SimTrade> trades = new ArrayList<>();
+        List<EquityPoint> curve = new ArrayList<>();
+        BigDecimal realized = BigDecimal.ZERO;
+        BigDecimal fees = BigDecimal.ZERO;
+        BigDecimal slippage = BigDecimal.ZERO;
+        BigDecimal averageEntry = BigDecimal.ZERO;
+        int positionLots = 0;
+        Pending pending = null;
+        OpenTrade openTrade = null;
+        LocalDate activeSession = null;
+        BigDecimal netAtPriorClose = BigDecimal.ZERO;
+        int riskHalts = 0;
+        RiskGate riskGate = new RiskGate(config);
+        BigDecimal highWater = BigDecimal.ZERO;
+        BigDecimal maxDrawdown = BigDecimal.ZERO;
+        var interval = IntervalSupport.duration(config.interval());
+
+        for (int i = 0; i < bars.size(); i++) {
+            Bar bar = bars.get(i);
+            Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? bar.timestamp() : bar.timestamp().minus(interval);
+            Instant barEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
+                    ? bar.timestamp() : bar.timestamp().plus(interval);
+            boolean sameSessionNextBar = i + 1 < bars.size() && bars.get(i + 1).sessionDate().equals(bar.sessionDate());
+
+            if (activeSession == null || !activeSession.equals(bar.sessionDate())) {
+                if (pending != null) {
+                    expire(orders, events, pending, barStart, "SESSION_BOUNDARY");
+                    pending = null;
+                }
+                activeSession = bar.sessionDate();
+                riskGate.startSession(activeSession, netAtPriorClose);
+                events.add(new SimOrderEvent(barStart, "", "RISK_SESSION_RESET", "session=" + activeSession));
+            }
+
+            if (pending != null) {
+                int targetLots = pending.targetLots();
+                int deltaLots = targetLots - positionLots;
+                SimOrder order = orders.get(pending.orderIndex());
+                events.add(new SimOrderEvent(barStart, order.orderId(), "ACKNOWLEDGED_BY_SIMULATOR", "local simulated market order"));
+                if (deltaLots == 0) {
+                    updateOrder(orders, pending.orderIndex(), barStart, null, "NO_OP", "position already at target");
+                    events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_NO_OP", "position already at target"));
+                } else {
+                    String side = deltaLots > 0 ? "BUY" : "SELL";
+                    int quantity = Math.abs(deltaLots) * bar.lotSize();
+                    BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(config.slippageTicks()));
+                    BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
+                    boolean riskRejected = side.equals("BUY") && !riskGate.allowsEntry(targetLots, bar, fillPrice);
+                    if (fillPrice.signum() <= 0 || riskRejected) {
+                        String reason = fillPrice.signum() <= 0 ? "non-positive modeled fill price" : "position or notional limit";
+                        updateOrder(orders, pending.orderIndex(), barStart, null, "REJECTED_RISK", reason);
+                        events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
+                    } else {
+                        BigDecimal fee = config.feePerOrderInr().add(
+                                config.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)));
+                        BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
+                        int oldUnits = positionLots * bar.lotSize();
+                        int newUnits = targetLots * bar.lotSize();
+                        if (side.equals("BUY")) {
+                            if (positionLots != 0) throw new IllegalStateException("Simulator supports one entry and one exit per trade");
+                            averageEntry = fillPrice;
+                            openTrade = new OpenTrade(barStart, fillPrice, quantity, fee);
+                        } else {
+                            if (positionLots <= 0 || openTrade == null) throw new IllegalStateException("Invalid long-only exit state");
+                            realized = realized.add(fillPrice.subtract(averageEntry).multiply(BigDecimal.valueOf(quantity)));
+                            BigDecimal tradeGross = fillPrice.subtract(openTrade.entryPrice).multiply(BigDecimal.valueOf(quantity));
+                            BigDecimal tradeFees = openTrade.entryFee.add(fee);
+                            String tradeId = String.format("T%07d", trades.size() + 1);
+                            trades.add(new SimTrade(tradeId, bar.instrumentId(), openTrade.entryTimestamp, barStart,
+                                    quantity, openTrade.entryPrice, fillPrice, tradeGross, tradeFees, tradeGross.subtract(tradeFees)));
+                            openTrade = null;
+                            averageEntry = BigDecimal.ZERO;
+                        }
+                        positionLots = targetLots;
+                        fees = fees.add(fee);
+                        slippage = slippage.add(slippageCost);
+                        String fillId = String.format("F%07d", fills.size() + 1);
+                        fills.add(new SimFill(fillId, order.orderId(), barStart, side, quantity,
+                                bar.open(), fillPrice, slippageCost, fee, newUnits));
+                        updateOrder(orders, pending.orderIndex(), barStart, barStart, "FILLED", "full simulated market fill");
+                        events.add(new SimOrderEvent(barStart, order.orderId(), "FILLED", "fill_id=" + fillId));
+                    }
+                }
+                pending = null;
+            }
+
+            BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
+                    : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * bar.lotSize()));
+            BigDecimal net = realized.add(unrealized).subtract(fees);
+            if (net.compareTo(highWater) > 0) highWater = net;
+            BigDecimal drawdown = highWater.subtract(net);
+            if (drawdown.compareTo(maxDrawdown) > 0) maxDrawdown = drawdown;
+
+            RiskGate.Evaluation riskEvaluation = riskGate.markToMarket(net);
+            int targetLots;
+            String reason;
+            if (riskEvaluation.newlyHalted()) {
+                riskHalts++;
+                targetLots = 0;
+                reason = "DAILY_LOSS_LIMIT";
+                events.add(new SimOrderEvent(barEnd, "", "RISK_HALT", reason + "; session_loss_inr=" + riskEvaluation.sessionLossInr().toPlainString()));
+            } else if (riskGate.halted()) {
+                targetLots = 0;
+                reason = "RISK_FLATTEN";
+            } else {
+                targetLots = desiredLots(bars, i, config);
+                reason = "SMA_CROSSOVER_TARGET";
+            }
+
+            curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionLots * bar.lotSize(),
+                    realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
+
+            if (targetLots != positionLots) {
+                Pending created = createOrder(orders, events, bar, barEnd, targetLots, positionLots, bar.lotSize(), reason);
+                if (sameSessionNextBar) {
+                    pending = created;
+                } else {
+                    String expiryReason = i + 1 < bars.size() ? "SESSION_BOUNDARY" : "NO_NEXT_BAR";
+                    expire(orders, events, created, barEnd, expiryReason);
+                }
+            }
+            netAtPriorClose = net;
+        }
+
+        Bar last = bars.getLast();
+        BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
+                : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * last.lotSize()));
+        BigDecimal net = realized.add(unrealized).subtract(fees);
+        String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
+        return new BacktestResult(orders, events, fills, trades, curve, realized, unrealized, fees, slippage,
+                net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification);
+    }
+
+    private static int desiredLots(List<Bar> bars, int index, RunConfig config) {
+        if (index + 1 < config.slowBars()) return 0;
+        BigDecimal fastSum = sumCloses(bars, index - config.fastBars() + 1, index);
+        BigDecimal slowSum = sumCloses(bars, index - config.slowBars() + 1, index);
+        BigDecimal fastWeighted = fastSum.multiply(BigDecimal.valueOf(config.slowBars()));
+        BigDecimal slowWeighted = slowSum.multiply(BigDecimal.valueOf(config.fastBars()));
+        return fastWeighted.compareTo(slowWeighted) > 0 ? config.requestedLots() : 0;
+    }
+
+    private static BigDecimal sumCloses(List<Bar> bars, int from, int through) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (int i = from; i <= through; i++) sum = sum.add(bars.get(i).close());
+        return sum;
+    }
+
+    private static Pending createOrder(List<SimOrder> orders, List<SimOrderEvent> events, Bar bar,
+            Instant decisionTimestamp, int targetLots, int currentLots, int lotSize, String reason) {
+        int deltaLots = targetLots - currentLots;
+        String side = deltaLots > 0 ? "BUY" : "SELL";
+        int units = Math.abs(deltaLots) * lotSize;
+        String orderId = String.format("O%07d", orders.size() + 1);
+        int index = orders.size();
+        orders.add(new SimOrder(orderId, decisionTimestamp, null, null, side, targetLots,
+                units, "MARKET", "CREATED", reason));
+        events.add(new SimOrderEvent(decisionTimestamp, orderId, "CREATED",
+                "target_lots=" + targetLots + "; next_eligible_bar_open"));
+        return new Pending(index, targetLots, bar.sessionDate());
+    }
+
+    private static void expire(List<SimOrder> orders, List<SimOrderEvent> events, Pending pending,
+            Instant timestamp, String reason) {
+        SimOrder prior = orders.get(pending.orderIndex());
+        String status = reason.equals("NO_NEXT_BAR") ? "EXPIRED_NO_NEXT_BAR" : "EXPIRED_SESSION_BOUNDARY";
+        updateOrder(orders, pending.orderIndex(), null, null, status, reason);
+        events.add(new SimOrderEvent(timestamp, prior.orderId(), status, reason));
+    }
+
+    private static void updateOrder(List<SimOrder> orders, int index, Instant submit, Instant fill,
+            String status, String reason) {
+        SimOrder prior = orders.get(index);
+        orders.set(index, new SimOrder(prior.orderId(), prior.decisionTimestamp(),
+                submit == null ? prior.submitTimestamp() : submit,
+                fill == null ? prior.fillTimestamp() : fill,
+                prior.side(), prior.targetLots(), prior.requestedUnits(), prior.orderType(), status, reason));
+    }
+}

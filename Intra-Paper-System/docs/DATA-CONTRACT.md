@@ -1,6 +1,8 @@
 # Offline data contract — first cut
 
-This first cut defines metadata models only. It does not import market files, connect to a broker, determine entitlements, or validate a dataset for strategy scoring.
+This contract now has an offline futures-bar validator and replay path. It still does not capture market files, connect to a broker, determine entitlements, or authorize strategy-performance claims.
+
+The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation deliberately accepts only one dated futures contract per run.
 
 ## Instrument master
 
@@ -16,4 +18,4 @@ Unknown timestamp semantics stay `UNKNOWN`. Data rights stay `UNVERIFIED` until 
 
 ## Current gate
 
-No market-data input is staged. The expired-contract history, local retention permission, timestamp convention, current fees, and session calendar remain unresolved. Do not generate market-performance claims from this schema or from synthetic fixtures.
+The bundled example is synthetic and exists only to exercise file plumbing. No authorized market-data input is staged. Expired-contract history, local retention permission, timestamp convention, current fees, margin, exchange-calendar completeness, and G0/G1/G2 evidence remain unresolved. The simulator marks every result as diagnostic-only and never sets `performance_claim_eligible` to true.
