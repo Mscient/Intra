@@ -44,6 +44,7 @@ public record RunConfig(
         BigDecimal maxMarginInr,
         BigDecimal maxDailyLossInr,
         boolean allowNextSessionOrders,
+        CrossSessionPositionPolicy crossSessionPositionPolicy,
         boolean allowIntraSessionGaps,
         String costStatus,
         Optional<String> costEvidenceReference,
@@ -61,7 +62,7 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "orders.allow_next_session", "quality.allow_intrasession_gaps", "run.commit_id");
+            "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps", "run.commit_id");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -101,6 +102,15 @@ public record RunConfig(
         if (!Set.of("true", "false").contains(allowCrossSessionText)) {
             throw new IllegalArgumentException("orders.allow_next_session must be true or false");
         }
+        String crossSessionPolicyText = required(p, "position.cross_session_policy");
+        if (!Set.of("ALLOW_OVERNIGHT", "REQUIRE_FLAT").contains(crossSessionPolicyText)) {
+            throw new IllegalArgumentException("position.cross_session_policy must be ALLOW_OVERNIGHT or REQUIRE_FLAT");
+        }
+        CrossSessionPositionPolicy crossSessionPositionPolicy = CrossSessionPositionPolicy.valueOf(crossSessionPolicyText);
+        if (crossSessionPositionPolicy == CrossSessionPositionPolicy.REQUIRE_FLAT && Boolean.parseBoolean(allowCrossSessionText)) {
+            throw new IllegalArgumentException("position.cross_session_policy=REQUIRE_FLAT cannot be combined with orders.allow_next_session=true");
+        }
+
         String allowGapsText = required(p, "quality.allow_intrasession_gaps").toLowerCase(java.util.Locale.ROOT);
         if (!Set.of("true", "false").contains(allowGapsText)) {
             throw new IllegalArgumentException("quality.allow_intrasession_gaps must be true or false");
@@ -153,6 +163,7 @@ public record RunConfig(
                 maxMargin,
                 dailyLoss,
                 Boolean.parseBoolean(allowCrossSessionText),
+                crossSessionPositionPolicy,
                 Boolean.parseBoolean(allowGapsText),
                 costStatus,
                 costEvidence.map(value -> logicalId(value, "cost.evidence_reference")),

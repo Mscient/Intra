@@ -160,7 +160,8 @@ public final class RunArtifactWriter {
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))
                 + ", \"max_margin_inr\": " + q(num(config.maxMarginInr()))
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
-                + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders() + "},\n"
+                + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders()
+                + ", \"cross_session_position_policy\": " + q(config.crossSessionPositionPolicy().name()) + "},\n"
                 + "  \"margin_model\": \"FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN\",\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"

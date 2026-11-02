@@ -9,7 +9,7 @@
 ## Current position
 
 - The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract or one option premium series at a time, including supplied session-boundary completeness checks and strict same-session interval spacing unless an explicit diagnostic override is set.
-- The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity/session-reconciliation artifacts.
+- The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity/session-reconciliation artifacts. Cross-session position handling now supports explicit `ALLOW_OVERNIGHT` and `REQUIRE_FLAT` policies; automatic liquidation remains unmodeled.
 - Effective-dated contract resolution, explicit session calendars, and hashed run manifests are required. Expiry stitching, index-to-futures substitution, passive-touch fills, and live order egress are not supported.
 - A clearly synthetic fixture was validated and replayed through the CLI: 30 bars, one complete supplied session, `SYNTHETIC_PLUMBING_ONLY`, diagnostic net P&L `-1.36 INR`. No behavior tests or real-data strategy evaluation were performed; no real market data, credentials, account, or broker API were accessed.
 - A separate Python offline backtest engine is described in earlier session records but its implementation was not present in the checked-out HFT 2 workspace; the Java simulator is not represented as a port of it.
@@ -38,6 +38,6 @@
 
 1. Keep G0 unresolved items out of public Git where they contain private budgets or account-specific information.
 2. Add raw source capture/import, stronger stale/gap/completeness rules, and recovery/reconciliation artifacts.
-3. Define reviewed session-hours, overnight, and end-of-run liquidation behavior before intraday deployment.
+3. Review the new cross-session policy and define a realistic end-of-session liquidation model before intraday deployment.
 4. Extend the simulator only with verified data and cost assumptions; add option valuation/settlement and portfolio accounting after the futures and premium-bar paths are reviewed.
 5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.

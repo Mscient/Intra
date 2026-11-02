@@ -4,7 +4,7 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Current gate:** S0 / G0 remains open. Offline implementation is active; downstream evidence gates are not closed.
-**Build:** Java 21 core and CLI compile successfully. The synthetic CLI validation and 30-bar replay completed with one complete supplied session; run `0816f1dfabe579ca7b79d42e` is `SYNTHETIC_PLUMBING_ONLY` with diagnostic net P&L `-1.36 INR`. No tests or real-data strategy evaluation were performed.
+**Build:** Java 21 core and CLI compile successfully. The synthetic CLI validation and 30-bar replay completed with one complete supplied session; run `ba1ec36694051b0fc41f2108` is `SYNTHETIC_PLUMBING_ONLY`, records `ALLOW_OVERNIGHT`, and has diagnostic net P&L `-1.36 INR`. No tests or real-data strategy evaluation were performed.
 
 ## Gate and work-package tracker
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | In progress; gate open | Keep this project offline. Operator/stop authority, current route and rule review, data permissions, retention, private risk budgets, and A1–A15 assumptions remain unconfirmed. |
 | S1 / G1 — foundations (WP1) | Implementation started; gate open | Added a long-only SMA crossover harness over dated futures or option premium bars. Freeze a research card and toy market model only after the charter, data scope, and assumptions are reviewed. No strategy edge is claimed. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline single-contract derivative slice built; incomplete | Normalized futures/option-premium bar reader, supplied-window first/last coverage and same-session interval checks, explicit session calendar, dated instrument-master resolution, run manifest, next-bar-open simulated market fills, independent risk gate, signal audit, and local order/fill/trade/equity/session ledgers compile. Raw capture, source-reviewed calendar coverage, richer quality gates, restart recovery, broker reconciliation, exchange margin, option valuation/Greeks/settlement, and validated cost inputs remain open. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline single-contract derivative slice built; incomplete | Normalized futures/option-premium bar reader, supplied-window first/last coverage and same-session interval checks, explicit session calendar, dated instrument-master resolution, run manifest, next-bar-open simulated market fills, independent risk gate, signal audit, and local order/fill/trade/equity/session ledgers compile. Explicit `ALLOW_OVERNIGHT` and `REQUIRE_FLAT` position policies are available; automatic end-of-session liquidation remains open. Raw capture, source-reviewed calendar coverage, richer quality gates, restart recovery, broker reconciliation, exchange margin, option valuation/Greeks/settlement, and validated cost inputs remain open. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 evidence | SMA crossover is a deterministic harness only. A strategy card, actual authorized dated data, realistic verified costs, chronological development/validation/holdout protocol, and independent review are absent. |
 | S4 / G4 — forward paper (WP8) | Not started | Requires the plan's 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no unresolved severe incidents. No live feed is connected. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized / not started | Requires a separate human decision and independent review after G4. This project has no live order route. |
@@ -32,11 +32,12 @@
 - [x] Independent position/notional and per-session loss `RiskGate`.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
+- [x] Explicit cross-session position policy: `REQUIRE_FLAT` fails closed on an overnight or end-of-data position; it does not synthesize a forced close.
 - [x] Synthetic fixture and operating guide. Synthetic reports are plumbing-only; every report marks `performance_claim_eligible=false`.
 - [x] Java 21 build and synthetic CLI validation/replay completed; no tests were added or run. The 30-bar sample is plumbing-only and is not real-data strategy evidence.
 - [ ] Confirm the G0 charter, data rights/retention, route, operator, current rule sources, and actual risk budgets.
 - [ ] Add raw source capture/import, stronger completeness and stale/gap rules, and reproducible recovery.
-- [ ] Add session-aware flat/overnight policy, full risk reconciliation, margin and detailed current cost schedule evidence.
+- [ ] Add reviewed end-of-session liquidation behavior, full risk reconciliation, exchange margin, and detailed current cost schedule evidence.
 - [ ] Add separately reviewed strategy card and chronological evaluation/holdout workflow.
 
 ## Source-derived backtesting decisions

@@ -63,6 +63,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: long-only SMA crossover harness settings.
 - `risk.max_position_lots`, `risk.max_notional_inr`, `risk.margin_per_lot_inr`, `risk.max_margin_inr`, and `risk.max_daily_loss_inr`: mandatory configured limits. Margin is a fixed user-supplied proxy used only to cap simulated entries; it is not an exchange SPAN/ELM calculation. Sample values are arbitrary and must never be carried into a real deployment.
 - `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
+- `position.cross_session_policy`: `ALLOW_OVERNIGHT` retains the current mark-to-market behavior. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end of the data; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.
 - `cost.status`: `UNVERIFIED` or `VERIFIED`. `VERIFIED` requires `cost.evidence_reference`. Fee-per-order, fee-per-unit, and adverse slippage ticks are always explicit.
 - `run.commit_id`: the source commit associated with the run. It defaults to `BUILD_COMMIT`, read from the JAR manifest. A non-synthetic replay requires a full 40-character commit ID or a JAR built from a Git checkout; the sample uses a synthetic fixture label.
 
@@ -74,7 +75,7 @@ The simulator is long-only and uses full fills. For options it treats the suppli
 
 ## Run artifacts
 
-- `run-manifest.json`: dataset and reference identifiers, input hashes, model/configuration, limits, output hashes, and the always-false performance-claim flag.
+- `run-manifest.json`: dataset and reference identifiers, input hashes, model/configuration, risk and cross-session position policy, output hashes, and the always-false performance-claim flag.
 - `summary.json`: diagnostic counts and P&L accounting only.
 - `signals.csv`: one row per completed-bar strategy decision, including the indicator values or warm-up state.
 - `sessions.csv`: per-session bar coverage, starting/ending position, realized/unrealized P&L change, fees, modeled slippage, order/fill counts, and risk halts. Net P&L change reconciles to realized plus unrealized change less fees; slippage is reflected in simulated fill prices and also reported as a diagnostic.

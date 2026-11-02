@@ -4,6 +4,7 @@ import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -65,6 +66,9 @@ public final class BacktestEngine {
             boolean nextBarEligible = i + 1 < bars.size() && (sameSessionNextBar || config.allowNextSessionOrders());
 
             if (activeSession == null || !activeSession.equals(bar.sessionDate())) {
+                if (activeSession != null && config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.REQUIRE_FLAT && positionLots != 0) {
+                    throw new IllegalStateException("Open position crossed session boundary under REQUIRE_FLAT: " + activeSession);
+                }
                 if (pending != null && !config.allowNextSessionOrders()) {
                     expire(orders, events, pending, barStart, "SESSION_BOUNDARY");
                     pending = null;
@@ -168,6 +172,9 @@ public final class BacktestEngine {
             netAtPriorClose = net;
         }
 
+        if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.REQUIRE_FLAT && positionLots != 0) {
+            throw new IllegalStateException("Open position remains at end of replay under REQUIRE_FLAT");
+        }
         Bar last = bars.getLast();
         BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
                 : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * last.lotSize()));
