@@ -28,6 +28,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - System research tracker: [research/systems/SYSTEM_TRACKER.md](research/systems/SYSTEM_TRACKER.md)
 - Final integrated system design: [research/systems/NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md](research/systems/NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md). It covers the platform architecture and design/data/evaluation gates for S01–S10.
 - Jane Street-class trading system study, Phase 4 continued (Sections 13–15): [research/design-study/PHASE-4-CONTINUED-13-15.md](research/design-study/PHASE-4-CONTINUED-13-15.md). It completes the failure register, roadmap, decision log, and learning path. Educational design study; no claim is made about Jane Street’s private systems.
+- Final implementation plan for the four-phase Jane Street-class study: [editable Markdown](research/systems/FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.md) and [rendered PDF](research/systems/FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.pdf). It consolidates the architecture, work packages, gates, risk controls, assumptions, decisions, sources, learning path, and §1–§15 traceability.
 - Instrument/data capability matrix: [research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
 - Same-day Wave A MVP build plan: [research/systems/SAME-DAY-MVP-BUILD-PLAN.md](research/systems/SAME-DAY-MVP-BUILD-PLAN.md)
