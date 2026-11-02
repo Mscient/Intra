@@ -10,7 +10,7 @@
 ## Current position
 
 - Created a separate local `Intra-Paper-System` implementation folder in the active workspace.
-- Started an offline Java 21 data/replay slice: versioned quote record, explicit quote-quality flags, deterministic canonical encoding, SHA-256 chaining, append-only journal writer, and integrity-checked reader.
+- Started an offline Java 21 data/replay slice: versioned quote record, explicit quote-quality flags, deterministic canonical encoding, SHA-256 chaining, append-only journal writer, integrity-checked reader, effective-dated instrument references, and a dataset-provenance model.
 - Reviewed and linked the existing roadmap, system design, lab schema, isolation plan, instrument/data matrix, and Wave A signal specification. Reusable backtesting research and its limitations are summarized in the implementation folder.
 - Existing session records describe a separate Python offline backtest engine with 18 passing tests. That code was not present in this HFT 2 workspace, so it was not inspected, changed, or treated as a verified baseline in this session. The new Java scaffold is not a port of that engine.
 - No Java 21 build was run: the active host exposes Java 8. No market data, credentials, broker API, or live order route was accessed.
@@ -21,7 +21,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | **Open; work started** | Confirm operator and stop authority, route and current API rules, data rights/retention, source fallback, current rule set, private cost/loss budgets, and unresolved A1–A15 assumptions. Keep order egress disabled. |
 | S1 / G1 — foundations (WP1) | Not started | Complete the market model and toy simulator; freeze one research card with mechanism, horizon, benchmark, costs, data, variant count, universe candidates, and rejection rules. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline journal/replay started; incomplete | Raw capture/provenance, effective-dated reference data, independent risk state, simulated OMS/broker, and cost/accounting evidence remain open. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline data/replay contracts started; incomplete | Manifest serialization, raw capture/import, data-quality/completeness gates, session/reference-data loaders, independent risk state, simulated OMS/broker, and cost/accounting evidence remain open. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 | Preregister candidates and evaluation; use realistic data, costs, fills, and holdout evidence. A queue-aware market maker remains simulator/paper-only. |
 | S4 / G4 — forward paper (WP8) | Not started | 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no open severe incident. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized | Requires a separate human decision, independent review, current broker/exchange acceptance, and all G4 evidence. |
@@ -39,6 +39,6 @@
 
 1. Close G0 questions without putting personal budgets, credentials, IP addresses, or private data in this public research repository.
 2. Reconcile the previously reported Python engine with the Java 21 core decision before duplicating or migrating system logic.
-3. Continue WP2 with a versioned raw/normalized event contract and provenance manifest; keep it offline.
-4. Implement append-only persistence and deterministic replay, then risk and simulated OMS in the dependency order from the plan.
+3. Continue WP2 with manifest serialization, raw-file provenance validation, and dated reference-data import; keep it offline.
+4. Add independent risk state and simulated OMS in the dependency order from the plan.
 5. Update this tracker only when the corresponding gate has reviewable evidence.

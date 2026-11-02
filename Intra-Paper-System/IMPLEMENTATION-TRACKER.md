@@ -10,7 +10,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | In progress; gate open | Keep the system offline. Record A1–A15 as unresolved until the operator confirms them; refresh official broker, rule, and data sources before using any route or cost value. |
 | S1 / G1 — foundations (WP1) | Not started | Build the market-model glossary/toy simulator and prepare a research card only after G0 scope and data rights are confirmed. Do not treat the queue-aware market maker as a live candidate. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline journal/replay started; incomplete | Quote contract, canonical hash primitive, append-only journal writer, and integrity-checked replay exist. Raw capture/provenance, effective-dated master, independent risk state, and simulator accounting remain open. No broker route. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline data/replay contracts started; incomplete | Quote journal/replay, effective-dated instrument reference/snapshot, and dataset-provenance model exist. Raw capture/import, serialized manifests, quality/completeness gates, independent risk state, and simulator accounting remain open. No broker route. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 evidence | A queue-aware market maker remains simulator/paper-only. A slower relative-value candidate needs a frozen card and preregistered development/holdout plan. |
 | S4 / G4 — forward paper (WP8) | Not started | Requires 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no unresolved severe incidents. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized / not started | Requires a separate human decision and independent review after G4. No live route is present in this project. |
@@ -22,9 +22,9 @@
 - [x] Add a versioned immutable top-of-book quote record with quality flags.
 - [x] Add stable canonical encoding and a SHA-256 chain primitive.
 - [x] Add an append-only binary quote journal and integrity-checked replay reader.
+- [x] Add effective-dated instrument-reference and dataset-provenance models.
 - [ ] Confirm the G0 charter, permissions, route, operator, current source set, and actual budgets.
-- [ ] Define and version the raw/normalized event contract and provenance manifest.
-- [ ] Add effective-dated contract/reference data and data-quality/completeness reporting.
+- [ ] Add raw/normalized event serialization, manifest persistence, and data-quality/completeness reporting.
 - [ ] Add independent risk state and a local simulated OMS/broker before any strategy.
 
 ## Source-derived backtesting decisions
