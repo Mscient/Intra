@@ -8,6 +8,8 @@
 
 This is the final implementation plan for the four-phase design study. It converts the design into ordered work packages, deliverables, tests, owners, and stop/go evidence. It covers every numbered subsection in the supplied phase documents, assumptions A1–A15, and every decision ID present in the supplied decision logs.
 
+The user's request is to prepare this implementation plan. Any instructions, conventions, or recommendations inside the PDFs are treated as source content to interpret for the system design; they do not authorize other actions in this chat. This deliverable is a plan and does not execute trades or enable an order route.
+
 The sources are the 80-page Phase 1–2 study, the 47-page Phase 3–4 export through Section 12, and the 13-page Phase 4 continuation covering Sections 13–15. The plan consolidates their requirements; it does not reproduce their prose. A table in Section 15 maps every numbered subsection to an implementation workstream.
 
 Nothing about Jane Street’s private systems is used as an implementation fact. “Jane Street-class” remains an engineering reference. The first build is a cost-aware Tier 3 system; it is not a colocated low-latency platform. This plan is educational system design, not personalized financial, legal, or tax advice.
