@@ -1,7 +1,7 @@
 # Same-Day Wave A Paper/Research MVP Build Plan
 
 **Target date:** 2026-11-02 (Asia/Kolkata)  
-**Status:** Offline runner implemented locally; five unit tests pass. Partial 2 Nov data smoke-tested; full-session run remains pending.
+**Status:** Offline runner implemented locally; 13 unit tests pass. Partial 2 Nov data through 10:58 IST smoke-tested; the completed-session run remains pending. The run manifest now includes a frozen-rule hash. Local lab commit: `e720fec`.
 **Goal:** Create an isolated, offline Python runner for S01-S03 and smoke-test it on the user's completed NIFTY candles for 2 Nov 2026.
 
 ## What “built today” means
@@ -24,8 +24,8 @@ Deliver a repeatable local command that reads a private candle file, validates i
 2. **Input and quality checks — done:** the CLI reads the SmartAPI printed response/JSON, validates OHLC/timestamps, and truncates at the first missing one-minute interval without filling it.
 3. **Signal engine — done for MVP:** S01 opening-range breakout and S02 fixed momentum are implemented; S03 requires a prior close and is skipped when it is not supplied.
 4. **Markouts and report — done:** computes 5/15/30-minute index markouts only where all forward bars are present; pending horizons are explicitly marked.
-5. **Unit tests — done:** nine deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, gap truncation, S01 first-break behavior, S02 cadence, pending forward labels, S03 prior-close/reversal behavior, and CSV ledger output.
-6. **Today's data smoke run — partial:** the 2 Nov response covering 09:15-10:44 IST passed parsing and quality checks and produced S01/S02 signals. The final session candles are still needed to finish today's smoke run. Two rate-limit errors appeared before the API request succeeded.
+5. **Unit tests — done:** 13 deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, per-session gap truncation, overnight boundaries, session-isolated signals and markouts, stable frozen-rule hashing, S01 first-break behavior, S02 cadence, pending forward labels, S03 prior-close/reversal behavior, and CSV ledger output.
+6. **Today's data smoke run — partial:** the saved 2 Nov response covers 09:15-10:58 IST (104 rows) and passes parsing and basic OHLC/timestamp checks. It produces S01/S02 diagnostics; later markouts remain pending. Full-session candles are still required. Earlier API rate-limit messages were observed during refresh attempts.
 
 ## Acceptance criteria
 
@@ -45,6 +45,6 @@ Deliver a repeatable local command that reads a private candle file, validates i
 
 The user runs the existing SmartAPI script locally with `exchange=NSE`, symbol token `99926000`, interval `ONE_MINUTE`, and a 2 Nov 2026 range through the last completed candle (or the completed session after 15:30 IST). Save the response as a private CSV/JSON. Do not include API keys, PIN/TOTP, authentication/session tokens, HTTP auth headers, or account data in the file shared with the lab. A full session is required for today's smoke run; partial-session data may be used only to test parsing and early signal generation.
 
-The first 90-row 2 Nov sample was refreshed once from the local SmartAPI script. The latest response contains 104 consecutive rows from 09:15 to 10:58 IST, with no gaps, duplicate timestamps, or OHLC violations; all index volume values are zero. It emitted one S01 and five S02 signals. Latest markouts remain pending because the sample is partial; S03 was unavailable without the prior session close. Two rate-limit retries occurred before the response succeeded. The runner reports observed markouts as diagnostics only and does not calculate statistical confidence from one session.
+The saved 2 Nov response contains 104 consecutive rows from 09:15 to 10:58 IST, with no gaps, duplicate timestamps, or OHLC violations; all index volume values are zero. The latest rerun emitted one S01 and five S02 signals. Some forward labels remain pending because the sample is partial; S03 is unavailable without the prior session close. A multi-session code path was added and tested synthetically: overnight boundaries are retained, intraday gaps truncate only the affected session, and signals/markouts do not cross dates. The runner reports observed markouts as diagnostics only and does not calculate statistical confidence from one session.
 
 Each run also writes a private text report, a per-signal CSV ledger (pending horizons are blank), and a JSON manifest with the input SHA-256 under the ignored `reports/private/` directory. Neither report nor raw candles are committed.

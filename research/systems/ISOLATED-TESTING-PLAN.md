@@ -2,7 +2,7 @@
 
 **Purpose:** Evaluate ten strategy and execution archetypes as independent research experiments while keeping all test code and runs outside the complete HFT 2 application and broker path.
 **Project:** Nifty intraday paper-trading research; India; Python; own account; retail broker API; no paid tick feed at the outset.
-**Status:** Plan only. No test harness, broker connection, or strategy backtest was created by this plan.
+**Status:** Wave A has a separate offline smoke-test runner in `Intra-Systems-Lab` (local commit `e720fec`, 13 unit tests). It has no broker connection or order routing and is not a strategy backtest. Wave B and C remain plans; no system has passed strategy validation.
 
 ## 1. Isolation boundary
 
