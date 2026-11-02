@@ -4,7 +4,7 @@ An isolated, offline-first Java 21 foundation for deterministic market-data repl
 
 ## Current state
 
-Work has started at S0/G0. The first code slice defines a versioned top-of-book quote record, explicit quality flags, canonical byte encoding, and a SHA-256 hash-chain primitive. It has no data collector, broker adapter, order path, or strategy. No authorized market-data sample is staged here.
+Work has started at S0/G0. The first code slice defines a versioned top-of-book quote record, explicit quality flags, canonical byte encoding, a SHA-256 hash-chain primitive, and an append-only binary quote journal with integrity-checked replay. It has no data collector, broker adapter, order path, or strategy. No authorized market-data sample is staged here.
 
 The implementation remains offline and credential-free while the G0 charter, data permissions, current route review, actual budgets, and stop authority remain open. No credentials or private market data belong in Git.
 

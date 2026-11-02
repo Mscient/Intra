@@ -16,13 +16,20 @@ public final class QuoteHashChain {
     }
 
     public static byte[] nextHash(byte[] previousHash, MarketQuote quote) {
+        return nextHash(previousHash, CanonicalQuoteEncoder.encode(quote));
+    }
+
+    static byte[] nextHash(byte[] previousHash, byte[] canonicalQuoteBytes) {
         if (previousHash == null || previousHash.length != SHA256_BYTES) {
             throw new IllegalArgumentException("previousHash must contain 32 bytes");
+        }
+        if (canonicalQuoteBytes == null) {
+            throw new IllegalArgumentException("canonicalQuoteBytes must not be null");
         }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             digest.update(previousHash.clone());
-            digest.update(CanonicalQuoteEncoder.encode(quote));
+            digest.update(canonicalQuoteBytes);
             return digest.digest();
         } catch (NoSuchAlgorithmException unavailableInRuntime) {
             throw new IllegalStateException("SHA-256 is not available", unavailableInRuntime);
