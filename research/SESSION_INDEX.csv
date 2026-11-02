@@ -14,3 +14,4 @@ session_id,date,commit_with_session_work,summary
 516b45f5-9712-471f-bb12-ed46f15d1e29,2026-11-02,4dc6c337f4e77224036031dec52a68d4c9191db4,"Built and unit-tested the offline S01-S03 runner; smoke-tested 90 partial 2 Nov candles."
 a0553d37-9fd5-47c7-b877-487c0edce5ec,2026-11-02,3baddfe8cb7b0d557bb53fb437617ec4e9aa4276,"Added private run reports/manifests and expanded Wave A runner tests to eight."
 4a1b7a41-90c4-46c3-a403-5c55619e22b1,2026-11-02,0987ae0701df8bada489ef4807c9ab072dcab9bc,"Refreshed partial 2 Nov candles through 10:58 and reran the offline smoke report."
+8110b36e-a9a3-48a7-9821-e9d1237285f5,2026-11-02,c294fa0daf082894890421a16c068d1f7e0bd295,"Added private per-signal CSV ledger output; nine unit tests pass."
