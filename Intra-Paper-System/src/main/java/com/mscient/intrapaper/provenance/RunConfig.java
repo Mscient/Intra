@@ -94,6 +94,9 @@ public record RunConfig(
         if (synthetic && (dataStatus != DataRightsStatus.UNVERIFIED || !costStatus.equals("UNVERIFIED"))) {
             throw new IllegalArgumentException("Synthetic fixtures must remain UNVERIFIED for data rights and costs");
         }
+        if (!synthetic && dataStatus != DataRightsStatus.AUTHORIZED_LOCAL_REPLAY) {
+            throw new IllegalArgumentException("Non-synthetic replay requires AUTHORIZED_LOCAL_REPLAY and a data-rights reference");
+        }
         String allowCrossSessionText = required(p, "orders.allow_next_session").toLowerCase(java.util.Locale.ROOT);
         if (!Set.of("true", "false").contains(allowCrossSessionText)) {
             throw new IllegalArgumentException("orders.allow_next_session must be true or false");

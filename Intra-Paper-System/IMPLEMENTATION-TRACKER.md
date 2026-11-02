@@ -27,6 +27,7 @@
 - [x] User-supplied session calendar and as-of dated instrument-master CSV resolution; one dated futures or option contract per run; no expiry stitching.
 - [x] Session completeness checks against supplied first/last bar labels and expected interval grid; missing open sessions fail closed.
 - [x] Persisted run manifest with dataset/master/calendar/config hashes and hashes for output ledgers.
+- [x] Require an explicit local-replay rights reference before accepting non-synthetic datasets; the software does not verify licensing itself.
 - [x] Long-only SMA crossover baseline with next eligible bar open market fills, fixed adverse tick slippage, explicit fee inputs, and no candle-touch/passive fills.
 - [x] Independent position/notional and per-session loss `RiskGate`.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.

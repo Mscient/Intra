@@ -56,7 +56,7 @@ The calendar must include every local calendar date from the first through last 
 
 The complete working example is `examples/synthetic-run.properties`. Important required values:
 
-- `dataset.rights_status`: `UNVERIFIED` or `AUTHORIZED_LOCAL_REPLAY`. The latter requires a logical `dataset.rights_reference` identifier.
+- `dataset.rights_status`: `UNVERIFIED` or `AUTHORIZED_LOCAL_REPLAY`. The latter requires a logical `dataset.rights_reference` identifier. Non-synthetic replay is rejected unless `AUTHORIZED_LOCAL_REPLAY` is selected; this is an operator assertion, not an automated entitlement check.
 - `dataset.synthetic_fixture`: must remain `true` for synthetic bars; synthetic runs must keep data rights and costs unverified.
 - `reference.file`, `calendar.file`: paths relative to the properties file unless absolute.
 - `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: long-only SMA crossover harness settings.
