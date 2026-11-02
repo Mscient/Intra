@@ -1,6 +1,6 @@
 # Nifty Futures and Options Paper System — Build Roadmap
 
-- **Status:** Initial paper-system implementation is committed in the separate local `Intra-Paper-System` repository. Static compilation succeeded; tests, broker access, and market-data runs have not been performed.
+- **Status:** Initial paper-system implementation and focused verification suite are committed in the separate local `Intra-Paper-System` repository. Fourteen unit tests pass; broker access and market-data runs have not been performed.
 - **Reviewed:** 2026-11-02 (Asia/Kolkata).
 - **User-selected broker:** Angel One SmartAPI.
 - **User-selected instruments:** Nifty index futures and Nifty index options.
@@ -14,7 +14,7 @@ The Wave A offline lab already has fixed S01-S03 signal definitions and a runner
 
 **System boundary:** the separate local `Intra-Paper-System` project holds the paper/backtest product. It shares one simulation core between historical replay and paper mode. Keep the existing `Intra-Systems-Lab` offline and strategy-isolated; exchange only reviewed specifications, data manifests, and result summaries. HFT 2 remains documentation and review only.
 
-**Implementation status (2026-11-02):** local commits `c568543` and `3cde788` add a Python CLI, CSV templates/loaders, dated-contract model, bar-quality gate, deterministic bar replay, signal-file and unvalidated SMA/no-op strategies, shared futures/options paper accounting, risk and session checks, fee configuration, simulated order lifecycle including local cancellation, quote-to-minute-bar builder, SmartAPI read-only login/history/FULL-quote polling, and hashed run reports. Pending-order exposure is reserved by risk checks. Secret prompts avoid shell assignments; session tokens remain in memory and logout is attempted. This is implementation plumbing only: no SmartAPI credentials or market data were used, no tests were added or run, and no strategy result has been generated. Instrument metadata and datasets still need to be supplied by the user from an authorized source.
+**Implementation status (2026-11-02):** local commits `c568543`, `3cde788`, and `e86a465` add a Python CLI, CSV templates/loaders, dated-contract model, bar-quality gate, deterministic bar replay, signal-file and unvalidated SMA/no-op strategies, shared futures/options paper accounting, risk and session checks, fee configuration, simulated order lifecycle including local cancellation, quote-to-minute-bar builder, SmartAPI read-only login/history/FULL-quote polling, hashed run reports, and 14 standard-library unit tests. Pending-order exposure is reserved by risk checks. The 14 tests pass for fill timing, futures/options accounting, risk/session gates, cancellation, data quality, fee calculations, and report hashes. Secret prompts avoid shell assignments; session tokens remain in memory and logout is attempted. This is implementation plumbing only: no SmartAPI credentials or market data were used and no strategy result has been generated. Instrument metadata and datasets still need to be supplied by the user from an authorized source.
 
 Current release limits: CSV only; no automatic contract-master importer, exchange holiday calendar, expiry settlement, margin model, queue model, or forced liquidation. The fee and risk values in the example config are placeholders. Expired-contract coverage and lawful historical data remain unresolved gates.
 
@@ -82,8 +82,8 @@ Use a dated, configurable cost model for brokerage and applicable exchange, stat
 | Period | Work | Gate to continue |
 |---|---|---|
 | Weeks 1–2 | Close the Wave A data review: check the scheduled 2 Nov completed-session result, establish timestamp start/end meaning, and cross-check the 30 Oct close gap with an alternate interval or authorized source. Define the paper-system data contract and new project boundary. | A reproducible sample passes session, timestamp, and provenance checks, or remains explicitly blocked with a named data gap. |
-| Weeks 3–4 | Initial separate scaffold, CSV bar/quote schemas, dated-contract model, deterministic bar replay, run manifest, and local historical mode are implemented. Focused verification and same-input reproducibility remain pending. | Replay produces the same ledger for frozen inputs/configuration; test suite and contract-master/data source still pending. |
-| Weeks 5–6 | Shared futures/options paper accounting, contract sizing, configurable fees, local order lifecycle, daily-loss/exposure/order-rate limits, and NSE session gates are implemented. | Verify fills/risk/accounting with reviewed fixtures; dated futures data and fee schedule still gate P&L interpretation. |
+| Weeks 3–4 | Initial separate scaffold, CSV bar/quote schemas, dated-contract model, deterministic bar replay, run manifest, and local historical mode are implemented. Fourteen focused unit tests pass, including deterministic ledger-file output. | CLI-level replay on frozen dated inputs and contract-master/data-source setup remain pending. |
+| Weeks 5–6 | Shared futures/options paper accounting, contract sizing, configurable fees, local order lifecycle, daily-loss/exposure/order-rate limits, and NSE session gates are implemented. Core accounting/risk fixtures pass. | Dated futures data and a verified fee schedule still gate P&L interpretation. |
 | Weeks 7–8 | Contract-level option premium accounting and long/short switches are implemented. Expiry settlement, margin, forced liquidation, and a contract-master importer are not. | Add and verify expiry-aware close/settlement behavior before claiming options lifecycle completeness; dated options data remains required. |
 | Weeks 9–10 | Read-only FULL-quote polling, local quote capture, one-minute bar building, stale/out-of-order/session blocking, and quote replay use the shared simulator. | Exercise disconnect/stale-data behavior and document data terms before a user-authorized market-data session. No live order route exists. |
 | Weeks 11–13 | Run at least 20 paper sessions across futures and options where data are available; reconcile simulated positions and daily P&L; publish reviewed run summaries back to HFT 2. | Paper records are complete and reproducible. Strategy performance remains unvalidated unless adequate historical/forward samples, costs, and fills support a separate conclusion. |
@@ -115,7 +115,7 @@ Market-data terms are a separate gate. The NSE policy covers use, storage, shari
 1. Review the completed-session Wave A refresh and resolve or formally retain the 30 Oct closing-gap data gate.
 2. Confirm Angel One's current expired-contract history and data-only API requirements for this account.
 3. Choose an authorized derivative-history source or a prospective capture plan within the data budget.
-4. Review and test the local implementation in `Intra-Paper-System`; resolve accounting/session issues before any market-data connection.
+4. Run a CLI-level replay on frozen, authorized dated inputs and compare complete run manifests and ledgers; resolve any integration issues before market-data connection.
 5. Select an authorized dated futures/options data source and verify local storage terms; until then backtest performance remains blocked.
 6. Complete fee/expiry/margin handling and options-specific data gates before interpreting options results.
 
