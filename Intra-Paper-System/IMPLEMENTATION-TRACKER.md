@@ -4,7 +4,7 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Current gate:** S0 / G0 remains open. Offline implementation is active; downstream evidence gates are not closed.
-**Build:** Java 21 core and CLI compile successfully. No behavioral tests or backtest run were performed in this increment.
+**Build:** Java 21 core and CLI compile successfully. The synthetic CLI validation and 30-bar replay completed with one complete supplied session; run `0816f1dfabe579ca7b79d42e` is `SYNTHETIC_PLUMBING_ONLY` with diagnostic net P&L `-1.36 INR`. No tests or real-data strategy evaluation were performed.
 
 ## Gate and work-package tracker
 
@@ -33,7 +33,7 @@
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
 - [x] Synthetic fixture and operating guide. Synthetic reports are plumbing-only; every report marks `performance_claim_eligible=false`.
-- [x] Java 21 build completed; no tests were added or run, and no backtest was executed.
+- [x] Java 21 build and synthetic CLI validation/replay completed; no tests were added or run. The 30-bar sample is plumbing-only and is not real-data strategy evidence.
 - [ ] Confirm the G0 charter, data rights/retention, route, operator, current rule sources, and actual risk budgets.
 - [ ] Add raw source capture/import, stronger completeness and stale/gap rules, and reproducible recovery.
 - [ ] Add session-aware flat/overnight policy, full risk reconciliation, margin and detailed current cost schedule evidence.

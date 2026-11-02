@@ -8,18 +8,19 @@ Build with JDK 21 from the repository root:
 $env:JAVA_HOME = 'C:\path\to\jdk-21'
 .\Intra-Paper-System\build.ps1
 $jar = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\build\intra-paper-system.jar'
+$java = Join-Path $env:JAVA_HOME 'bin\java.exe'
 ```
 
 Validate inputs before a run:
 
 ```powershell
-java -jar $jar validate .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties
+& $java -jar $jar validate .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties
 ```
 
 Run the local simulator:
 
 ```powershell
-java -jar $jar run .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties
+& $java -jar $jar run .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties
 ```
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
