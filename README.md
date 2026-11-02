@@ -26,6 +26,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 
 - Ten-system research overview: [research/systems/TOP-10-TRADING-SYSTEMS.md](research/systems/TOP-10-TRADING-SYSTEMS.md)
 - System research tracker: [research/systems/SYSTEM_TRACKER.md](research/systems/SYSTEM_TRACKER.md)
+- Final integrated system design: [research/systems/NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md](research/systems/NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md). It covers the platform architecture and design/data/evaluation gates for S01–S10.
 - Instrument/data capability matrix: [research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)
 - Same-day Wave A MVP build plan: [research/systems/SAME-DAY-MVP-BUILD-PLAN.md](research/systems/SAME-DAY-MVP-BUILD-PLAN.md)

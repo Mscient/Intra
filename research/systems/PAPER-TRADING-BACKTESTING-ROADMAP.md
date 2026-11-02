@@ -2,6 +2,7 @@
 
 - **Status:** Offline backtesting core includes configurable approximate margin, maintenance liquidation, expiry settlement support, and a dated Angel One master importer. The 18 engine tests pass; the importer was exercised on the current master and read-only authentication/quotes succeeded. No orders were submitted.
 - **Reviewed:** 2026-11-02 (Asia/Kolkata).
+- **Final system design:** [NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md](NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md) defines the platform architecture and all ten strategy/execution-system designs.
 - **User-selected broker:** Angel One SmartAPI.
 - **User-selected instruments:** Nifty index futures and Nifty index options.
 - **Target:** A local, cost-aware backtest and paper simulator within the project's 90-day target. Strategy validation depends on data gates and is a separate outcome.
