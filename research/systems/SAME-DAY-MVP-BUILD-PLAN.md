@@ -1,7 +1,7 @@
 # Same-Day Wave A Paper/Research MVP Build Plan
 
 **Target date:** 2026-11-02 (Asia/Kolkata)  
-**Status:** Offline runner implemented locally; 22 unit tests pass. Partial 2 Nov data through 10:58 IST smoke-tested and correctly marked ineligible. A one-time local read-only refresh and offline run is scheduled for 15:35 IST; final-session review remains pending. Outputs include per-session scores and a descriptive equal-weight aggregate; manifests record hashes and lab revision. Local lab commit: `ec52b58`.
+**Status:** Offline runner implemented locally; 23 unit tests pass. The CLI accepts multiple private daily responses for chronological multi-session summaries. Partial 2 Nov data through 10:58 IST is correctly marked ineligible. A one-time local read-only refresh and offline run is scheduled for 15:35 IST; final-session review remains pending. Local lab commit: `9a6cc39`.
 **Goal:** Create an isolated, offline Python runner for S01-S03 and smoke-test it on the user's completed NIFTY candles for 2 Nov 2026.
 
 ## What “built today” means
@@ -24,7 +24,7 @@ Deliver a repeatable local command that reads a private candle file, validates i
 2. **Input and quality checks — done:** the CLI reads the SmartAPI printed response/JSON, validates OHLC/timestamps, and truncates at the first missing one-minute interval without filling it.
 3. **Signal engine — done for MVP:** S01 opening-range breakout and S02 fixed momentum are implemented; S03 requires a prior close and is skipped when it is not supplied.
 4. **Markouts and report — done:** computes 5/15/30-minute index markouts only where all forward bars are present; pending horizons are explicitly marked.
-5. **Unit tests — done:** 22 deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, per-session gap truncation, overnight boundaries, complete/partial session-coverage checks, session-isolated signals and markouts, session-score eligibility/no-signal scoring, equal session weighting and no-eligible behavior, stable frozen-rule hashing, dated S03 prior-close validation and multi-session behavior, S01 first-break behavior, S02 cadence, pending forward labels, and CSV ledgers.
+5. **Unit tests — done:** 23 deterministic tests pass for response parsing/rate-limit retries, multi-file timestamp ordering, invalid OHLC, per-session gap truncation, overnight boundaries, complete/partial coverage, session-isolated signals/markouts, score eligibility and equal weighting, frozen-rule hashing, dated S03 input, S01/S02 behavior, pending labels, and CSV ledgers.
 6. **Today's data smoke run — partial:** the saved 2 Nov response covers 09:15-10:58 IST (104 rows) and passes parsing and basic OHLC/timestamp checks. It produces S01/S02 diagnostics; later markouts remain pending. Full-session candles are still required. Earlier API rate-limit messages were observed during refresh attempts.
 
 ## Acceptance criteria
