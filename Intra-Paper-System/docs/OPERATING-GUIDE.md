@@ -23,6 +23,15 @@ Run the local simulator:
 & $java -jar $jar run .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties
 ```
 
+## Verify a run
+
+```powershell
+$runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
+& $java -jar $jar verify $runFolder
+```
+
+`verify` recomputes the SHA-256 hashes for the eight output ledgers in run-manifest.json and checks the folder ID. It does not re-open or re-authorize source inputs.
+
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
 ## Normalized bars CSV

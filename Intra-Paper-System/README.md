@@ -28,7 +28,7 @@ $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
 & $java -jar $jar run .\examples\synthetic-futures-bars.csv .\examples\synthetic-run.properties
 ```
 
-Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts.
+Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts. A run verifier recomputes the eight output-ledger SHA-256 hashes from run-manifest.json; it does not verify source rights or re-hash input files.
 
 See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and run files.
 

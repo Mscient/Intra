@@ -5,6 +5,7 @@ import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
+import com.mscient.intrapaper.simulation.RunArtifactVerifier;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -17,6 +18,12 @@ public final class IntraPaperCli {
         try {
             if (args.length == 1 && (args[0].equals("--help") || args[0].equals("help"))) {
                 usage();
+                return;
+            }
+            if (args.length == 2 && args[0].equals("verify")) {
+                RunArtifactVerifier.Verification verification = RunArtifactVerifier.verify(Path.of(args[1]));
+                System.out.printf("VERIFIED: %s; output files=%d; SHA-256 hashes match%n",
+                        verification.runId(), verification.verifiedFiles());
                 return;
             }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
@@ -54,8 +61,10 @@ public final class IntraPaperCli {
     private static void usage() {
         System.out.println("Intra Paper System (offline only)\n"
                 + "  java -jar intra-paper-system.jar validate <bars.csv> <run.properties>\n"
-                + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n\n"
+                + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
+                + "  java -jar intra-paper-system.jar verify <run-folder>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
+                + "verify recomputes output hashes from run-manifest.json.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 }
