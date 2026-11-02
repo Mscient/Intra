@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+data/raw/
+data/staged/
+data/private/
+runs/
+output/
+build/
+target/
