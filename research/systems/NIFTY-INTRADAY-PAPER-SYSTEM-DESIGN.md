@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-This is the consolidated design for the Nifty intraday system. It completes the system-level architecture and defines all ten strategy or execution candidates tracked in [SYSTEM_TRACKER.md](SYSTEM_TRACKER.md). The [ten-system research review](TOP-10-TRADING-SYSTEMS.md) remains the evidence review, and the [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md) remains the exact signal rulebook for S01–S03. The [paper-system roadmap](PAPER-TRADING-BACKTESTING-ROADMAP.md) remains the build and delivery schedule.
+This is the consolidated design for the Nifty intraday system. It completes the system-level architecture and defines all ten strategy or execution candidates tracked in [SYSTEM_TRACKER.md](https://github.com/Mscient/Intra/blob/main/research/systems/SYSTEM_TRACKER.md). The [ten-system research review](https://github.com/Mscient/Intra/blob/main/research/systems/TOP-10-TRADING-SYSTEMS.md) remains the evidence review, and the [Wave A signal specification](https://github.com/Mscient/Intra/blob/main/research/systems/WAVE-A-SIGNAL-SPEC.md) remains the exact signal rulebook for S01–S03. The [paper-system roadmap](PAPER-TRADING-BACKTESTING-ROADMAP.md) remains the build and delivery schedule.
 
 “HFT” is the project label. The current design is a Python research and paper system using retail data access. It is not an exchange-colocated, sub-millisecond trading platform. It does not route live orders. The system cannot claim strategy profitability or execution quality until the corresponding dated contract data, cost assumptions, fill model, and validation gates pass.
 
@@ -282,11 +282,11 @@ All systems remain research/paper candidates. The current system design is compl
 
 ## References
 
-- [Trading system research tracker](SYSTEM_TRACKER.md)
-- [Ten-system research review](TOP-10-TRADING-SYSTEMS.md)
-- [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md)
-- [Isolated testing plan](ISOLATED-TESTING-PLAN.md)
-- [Instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
+- [Trading system research tracker](https://github.com/Mscient/Intra/blob/main/research/systems/SYSTEM_TRACKER.md)
+- [Ten-system research review](https://github.com/Mscient/Intra/blob/main/research/systems/TOP-10-TRADING-SYSTEMS.md)
+- [Wave A signal specification](https://github.com/Mscient/Intra/blob/main/research/systems/WAVE-A-SIGNAL-SPEC.md)
+- [Isolated testing plan](https://github.com/Mscient/Intra/blob/main/research/systems/ISOLATED-TESTING-PLAN.md)
+- [Instrument/data capability matrix](https://github.com/Mscient/Intra/blob/main/research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - [Paper-system implementation roadmap](PAPER-TRADING-BACKTESTING-ROADMAP.md)
 - [Angel One SmartAPI market-data documentation](https://smartapi.angelone.in/docs/MarketData)
 - [NSE Data Sharing and Usage Policy](https://www.nseindia.com/static/market-data/nse-data-policy)
