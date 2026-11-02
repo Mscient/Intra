@@ -1,14 +1,18 @@
 package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.Bar;
+import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Deterministic long-only futures simulator. Signals at a completed close can fill only at the next bar open. */
 public final class BacktestEngine {
@@ -74,18 +78,20 @@ public final class BacktestEngine {
                 int targetLots = pending.targetLots();
                 int deltaLots = targetLots - positionLots;
                 SimOrder order = orders.get(pending.orderIndex());
+                updateOrder(orders, pending.orderIndex(), barStart, null, "ACKNOWLEDGED_BY_SIMULATOR", "local simulated market order");
                 events.add(new SimOrderEvent(barStart, order.orderId(), "ACKNOWLEDGED_BY_SIMULATOR", "local simulated market order"));
                 if (deltaLots == 0) {
-                    updateOrder(orders, pending.orderIndex(), barStart, null, "NO_OP", "position already at target");
+                    updateOrder(orders, pending.orderIndex(), null, null, "REJECTED_NO_OP", "position already at target");
                     events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_NO_OP", "position already at target"));
                 } else {
                     String side = deltaLots > 0 ? "BUY" : "SELL";
                     int quantity = Math.abs(deltaLots) * bar.lotSize();
                     BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(config.slippageTicks()));
                     BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
-                    boolean riskRejected = side.equals("BUY") && !riskGate.allowsEntry(targetLots, bar, fillPrice);
-                    if (fillPrice.signum() <= 0 || riskRejected) {
-                        String reason = fillPrice.signum() <= 0 ? "non-positive modeled fill price" : "position or notional limit";
+                    String riskRejection = fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
+                            : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice) : null;
+                    if (riskRejection != null) {
+                        String reason = riskRejection;
                         updateOrder(orders, pending.orderIndex(), barStart, null, "REJECTED_RISK", reason);
                         events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
                     } else {
@@ -167,8 +173,68 @@ public final class BacktestEngine {
                 : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * last.lotSize()));
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
-        return new BacktestResult(signals, orders, events, fills, trades, curve, realized, unrealized, fees, slippage,
+        List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
+        return new BacktestResult(signals, orders, events, fills, trades, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification);
+    }
+
+    private static List<SessionAudit> reconcileSessions(ValidatedDataset dataset, RunConfig config,
+            List<EquityPoint> curve, List<SimOrderEvent> events, List<SimFill> fills, List<SimTrade> trades) {
+        Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
+        Map<LocalDate, List<EquityPoint>> pointsByDate = new HashMap<>();
+        for (Bar bar : dataset.bars()) barsByDate.computeIfAbsent(bar.sessionDate(), ignored -> new ArrayList<>()).add(bar);
+        for (EquityPoint point : curve) pointsByDate.computeIfAbsent(point.sessionDate(), ignored -> new ArrayList<>()).add(point);
+        ZoneId timezone = ZoneId.of(config.timezone());
+        var spacing = IntervalSupport.duration(config.interval());
+        List<SessionAudit> audits = new ArrayList<>();
+        BigDecimal priorNet = BigDecimal.ZERO;
+        BigDecimal priorRealized = BigDecimal.ZERO;
+        BigDecimal priorUnrealized = BigDecimal.ZERO;
+        BigDecimal priorFees = BigDecimal.ZERO;
+        int priorPosition = 0;
+
+        LocalDate first = dataset.bars().getFirst().sessionDate();
+        LocalDate last = dataset.bars().getLast().sessionDate();
+        for (LocalDate date = first; !date.isAfter(last); date = date.plusDays(1)) {
+            LocalDate sessionDate = date;
+            var calendarEntry = dataset.sessionCalendar().get(date);
+            if (!calendarEntry.open()) continue;
+            List<Bar> sessionBars = barsByDate.get(date);
+            List<EquityPoint> points = pointsByDate.get(date);
+            EquityPoint end = points.getLast();
+            long expected = java.time.Duration.between(calendarEntry.firstBarTimestamp().orElseThrow(),
+                    calendarEntry.lastBarTimestamp().orElseThrow()).toNanos() / spacing.toNanos() + 1;
+            boolean aligned = true;
+            for (int i = 1; i < sessionBars.size(); i++) {
+                if (!java.time.Duration.between(sessionBars.get(i - 1).timestamp(), sessionBars.get(i).timestamp()).equals(spacing)) {
+                    aligned = false;
+                    break;
+                }
+            }
+            int created = (int) events.stream().filter(event -> event.event().equals("CREATED"))
+                    .filter(event -> !event.orderId().isBlank())
+                    .filter(event -> event.timestamp().atZone(timezone).toLocalDate().equals(sessionDate)).count();
+            int sessionFills = (int) fills.stream()
+                    .filter(fill -> fill.timestamp().atZone(timezone).toLocalDate().equals(sessionDate)).count();
+            int closedTrades = (int) trades.stream()
+                    .filter(trade -> trade.exitTimestamp().atZone(timezone).toLocalDate().equals(sessionDate)).count();
+            BigDecimal sessionSlippage = fills.stream()
+                    .filter(fill -> fill.timestamp().atZone(timezone).toLocalDate().equals(sessionDate))
+                    .map(SimFill::slippageCostInr).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int halts = (int) events.stream().filter(event -> event.event().equals("RISK_HALT"))
+                    .filter(event -> event.timestamp().atZone(timezone).toLocalDate().equals(sessionDate)).count();
+            audits.add(new SessionAudit(date, expected, sessionBars.size(),
+                    expected == sessionBars.size() && aligned, priorPosition, end.positionUnits(),
+                    end.realizedPnlInr().subtract(priorRealized), end.unrealizedPnlInr().subtract(priorUnrealized),
+                    end.feesPaidInr().subtract(priorFees), sessionSlippage,
+                    end.netPnlInr().subtract(priorNet), created, sessionFills, closedTrades, halts, end.riskState()));
+            priorNet = end.netPnlInr();
+            priorRealized = end.realizedPnlInr();
+            priorUnrealized = end.unrealizedPnlInr();
+            priorFees = end.feesPaidInr();
+            priorPosition = end.positionUnits();
+        }
+        return List.copyOf(audits);
     }
 
     private static Pending createOrder(List<SimOrder> orders, List<SimOrderEvent> events, Bar bar,
@@ -196,6 +262,7 @@ public final class BacktestEngine {
     private static void updateOrder(List<SimOrder> orders, int index, Instant submit, Instant fill,
             String status, String reason) {
         SimOrder prior = orders.get(index);
+        SimOrderLifecycle.requireTransition(prior.status(), status);
         orders.set(index, new SimOrder(prior.orderId(), prior.decisionTimestamp(),
                 submit == null ? prior.submitTimestamp() : submit,
                 fill == null ? prior.fillTimestamp() : fill,

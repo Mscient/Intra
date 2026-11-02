@@ -28,7 +28,18 @@ New-Item -ItemType Directory -Force -Path $classesRoot | Out-Null
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-& $jarTool --create --file $jarPath --main-class com.mscient.intrapaper.cli.IntraPaperCli -C $classesRoot .
+$buildCommit = 'unknown'
+$gitCommand = Get-Command git -ErrorAction SilentlyContinue
+if ($gitCommand) {
+    $candidateCommit = (& $gitCommand.Source -C $projectRoot rev-parse --verify HEAD 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0 -and $candidateCommit -match '^[0-9a-f]{40}$') {
+        $buildCommit = $candidateCommit
+    }
+}
+$manifestPath = Join-Path $buildRoot 'MANIFEST.MF'
+$manifestText = "Manifest-Version: 1.0`r`nMain-Class: com.mscient.intrapaper.cli.IntraPaperCli`r`nBuild-Commit: $buildCommit`r`nImplementation-Version: 1.0.0`r`n`r`n"
+[System.IO.File]::WriteAllText($manifestPath, $manifestText, [System.Text.UTF8Encoding]::new($false))
+& $jarTool --create --file $jarPath --manifest $manifestPath -C $classesRoot .
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

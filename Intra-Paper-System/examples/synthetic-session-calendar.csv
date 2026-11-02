@@ -1,2 +1,2 @@
-session_date,session_status
-2030-05-06,OPEN
+session_date,session_status,first_bar_timestamp,last_bar_timestamp
+2030-05-06,OPEN,2030-05-06T09:15:00+05:30,2030-05-06T09:44:00+05:30

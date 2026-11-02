@@ -12,6 +12,8 @@ public final class RiskGate {
 
     private final int maxPositionLots;
     private final BigDecimal maxNotionalInr;
+    private final BigDecimal marginPerLotInr;
+    private final BigDecimal maxMarginInr;
     private final BigDecimal maxDailyLossInr;
     private LocalDate sessionDate;
     private BigDecimal sessionStartNetPnl = BigDecimal.ZERO;
@@ -20,6 +22,8 @@ public final class RiskGate {
     public RiskGate(RunConfig config) {
         this.maxPositionLots = config.maxPositionLots();
         this.maxNotionalInr = config.maxNotionalInr();
+        this.marginPerLotInr = config.marginPerLotInr();
+        this.maxMarginInr = config.maxMarginInr();
         this.maxDailyLossInr = config.maxDailyLossInr();
     }
 
@@ -29,12 +33,18 @@ public final class RiskGate {
         this.halted = false;
     }
 
-    public boolean allowsEntry(int targetLots, Bar bar, BigDecimal modeledFillPrice) {
-        if (halted || targetLots < 1 || targetLots > maxPositionLots || modeledFillPrice.signum() <= 0) return false;
+    public String entryRejectionReason(int targetLots, Bar bar, BigDecimal modeledFillPrice) {
+        if (halted) return "SESSION_LOSS_GATE_HALTED";
+        if (targetLots < 1 || targetLots > maxPositionLots) return "MAX_POSITION_LOTS";
+        if (modeledFillPrice.signum() <= 0) return "NON_POSITIVE_MODELED_FILL_PRICE";
         BigDecimal exposure = modeledFillPrice
                 .multiply(BigDecimal.valueOf(targetLots))
                 .multiply(BigDecimal.valueOf(bar.lotSize()));
-        return exposure.compareTo(maxNotionalInr) <= 0;
+        if (exposure.compareTo(maxNotionalInr) > 0) return "MAX_NOTIONAL_INR";
+        if (marginPerLotInr.multiply(BigDecimal.valueOf(targetLots)).compareTo(maxMarginInr) > 0) {
+            return "MAX_MARGIN_PROXY_INR";
+        }
+        return null;
     }
 
     public Evaluation markToMarket(BigDecimal netPnlInr) {

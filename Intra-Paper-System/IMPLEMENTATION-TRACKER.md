@@ -12,7 +12,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | In progress; gate open | Keep this project offline. Operator/stop authority, current route and rule review, data permissions, retention, private risk budgets, and A1–A15 assumptions remain unconfirmed. |
 | S1 / G1 — foundations (WP1) | Implementation started; gate open | Added a long-only SMA crossover harness for futures replay. Freeze a research card and toy market model only after the charter, data scope, and assumptions are reviewed. No strategy edge is claimed. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline futures slice built; incomplete | Normalized bar reader, explicit session calendar, dated instrument-master resolution, run manifest, next-bar-open simulated market fills, independent risk gate, signal audit, and local order/fill/trade/equity ledgers compile. Raw capture, richer completeness/quality gates, recovery, reconciliation, margin, options accounting, and validated cost inputs remain open. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline futures slice built; incomplete | Normalized bar reader, supplied-window first/last coverage and same-session interval checks, explicit session calendar, dated instrument-master resolution, run manifest, next-bar-open simulated market fills, independent risk gate, signal audit, and local order/fill/trade/equity/session ledgers compile. Raw capture, source-reviewed calendar coverage, richer quality gates, restart recovery, broker reconciliation, margin, options accounting, and validated cost inputs remain open. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 evidence | SMA crossover is a deterministic harness only. A strategy card, actual authorized dated data, realistic verified costs, chronological development/validation/holdout protocol, and independent review are absent. |
 | S4 / G4 — forward paper (WP8) | Not started | Requires the plan's 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no unresolved severe incidents. No live feed is connected. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized / not started | Requires a separate human decision and independent review after G4. This project has no live order route. |
@@ -25,10 +25,12 @@
 - [x] Effective-dated instrument references and immutable master-snapshot model.
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
 - [x] User-supplied session calendar and as-of dated instrument-master CSV resolution; one dated futures contract per run; no expiry stitching.
+- [x] Session completeness checks against supplied first/last bar labels and expected interval grid; missing open sessions fail closed.
 - [x] Persisted run manifest with dataset/master/calendar/config hashes and hashes for output ledgers.
 - [x] Long-only SMA crossover baseline with next eligible bar open market fills, fixed adverse tick slippage, explicit fee inputs, and no candle-touch/passive fills.
 - [x] Independent position/notional and per-session loss `RiskGate`.
-- [x] Local simulated order events, fills, completed trades, equity marks, summary, and content-addressed run folders.
+- [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
+- [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
 - [x] Synthetic fixture and operating guide. Synthetic reports are plumbing-only; every report marks `performance_claim_eligible=false`.
 - [x] Java 21 build completed; no tests were added or run, and no backtest was executed.
 - [ ] Confirm the G0 charter, data rights/retention, route, operator, current rule sources, and actual risk budgets.

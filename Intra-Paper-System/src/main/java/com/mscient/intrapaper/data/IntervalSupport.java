@@ -1,8 +1,9 @@
-package com.mscient.intrapaper.simulation;
+package com.mscient.intrapaper.data;
 
 import java.time.Duration;
 import java.util.Map;
 
+/** Intervals with a defined duration for timestamp and next-bar semantics. */
 public final class IntervalSupport {
     private static final Map<String, Duration> KNOWN = Map.of(
             "ONE_MINUTE", Duration.ofMinutes(1),

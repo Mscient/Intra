@@ -2,39 +2,50 @@ package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.provenance.DatasetManifest;
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
-/** Inputs after schema, calendar, provenance, and as-of instrument checks pass. */
+/** Inputs after schema, full-session boundary, provenance, and as-of instrument checks pass. */
 public record ValidatedDataset(
         List<Bar> bars,
         InstrumentMasterSnapshot instrumentMaster,
-        Set<LocalDate> openSessions,
+        Map<LocalDate, SessionCalendarEntry> sessionCalendar,
         DatasetManifest manifest,
         String barsSha256,
         String configSha256,
-        String calendarSha256) {
+        String calendarSha256,
+        long timestampSpacingAnomalies,
+        long estimatedMissingIntervals,
+        long expectedBarCount,
+        long openSessionCount,
+        long completeSessionCount) {
 
     public static ValidatedDataset load(java.nio.file.Path barsPath, RunConfig config) throws IOException {
         List<Bar> bars = BarsCsvReader.read(barsPath, config);
+        Duration expectedSpacing = IntervalSupport.duration(config.interval());
         InstrumentMasterSnapshot master = InstrumentMasterCsvReader.read(config);
-        Set<LocalDate> sessions = SessionCalendarCsvReader.read(config.sessionCalendarPath());
+        Map<LocalDate, SessionCalendarEntry> calendar = SessionCalendarCsvReader.read(config.sessionCalendarPath());
+        Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
         Bar first = bars.getFirst();
+        Bar last = bars.getLast();
         String onlyInstrument = first.instrumentId();
         String onlyToken = first.sourceToken();
         String onlySymbol = first.tradingSymbol();
         LocalDate onlyExpiry = first.expiry();
+        ZoneId timezone = ZoneId.of(config.timezone());
+
         for (Bar bar : bars) {
-            if (!sessions.contains(bar.sessionDate())) {
-                throw new IllegalArgumentException("Bars contain a date not marked OPEN in the supplied calendar: " + bar.sessionDate());
-            }
             if (!bar.interval().equals(config.interval())) {
                 throw new IllegalArgumentException("Bar interval " + bar.interval() + " differs from configured " + config.interval());
             }
@@ -45,7 +56,7 @@ public record ValidatedDataset(
             if (!bar.source().equals(config.datasetSourceName())) {
                 throw new IllegalArgumentException("Bar source does not match dataset.source_name: " + bar.source());
             }
-            if (bar.contractKind() != com.mscient.intrapaper.reference.ContractKind.FUTURE) {
+            if (bar.contractKind() != ContractKind.FUTURE) {
                 throw new IllegalArgumentException("This build supports dated futures only; found " + bar.contractKind());
             }
             if (!bar.expiry().isAfter(bar.sessionDate())) {
@@ -61,7 +72,76 @@ public record ValidatedDataset(
                     || bar.tickSize().compareTo(reference.tickSize()) != 0) {
                 throw new IllegalArgumentException("Bar contract metadata does not match dated instrument master at " + bar.timestamp());
             }
+            SessionCalendarEntry entry = calendar.get(bar.sessionDate());
+            if (entry == null || !entry.open()) {
+                throw new IllegalArgumentException("Bar date is not marked OPEN in the supplied calendar: " + bar.sessionDate());
+            }
+            if (bar.timestamp().isBefore(entry.firstBarTimestamp().orElseThrow())
+                    || bar.timestamp().isAfter(entry.lastBarTimestamp().orElseThrow())) {
+                throw new IllegalArgumentException("Bar timestamp lies outside the supplied session window: " + bar.timestamp());
+            }
+            if (!bar.timestamp().atZone(timezone).toLocalDate().equals(entry.sessionDate())) {
+                throw new IllegalArgumentException("Session calendar timestamp does not resolve to its declared local date: " + bar.sessionDate());
+            }
+            barsByDate.computeIfAbsent(bar.sessionDate(), ignored -> new ArrayList<>()).add(bar);
         }
+
+        long anomalies = 0;
+        long estimatedMissingIntervals = 0;
+        long expectedBarCount = 0;
+        long openSessionCount = 0;
+        long completeSessions = 0;
+        for (LocalDate date = first.sessionDate(); !date.isAfter(last.sessionDate()); date = date.plusDays(1)) {
+            SessionCalendarEntry entry = calendar.get(date);
+            if (entry == null) {
+                throw new IllegalArgumentException("Session calendar must include every local calendar date in the data range: " + date);
+            }
+            List<Bar> sessionBars = barsByDate.get(date);
+            if (!entry.open()) {
+                if (sessionBars != null) throw new IllegalArgumentException("Bars exist on a CLOSED calendar date: " + date);
+                continue;
+            }
+            openSessionCount++;
+            if (sessionBars == null || sessionBars.isEmpty()) {
+                throw new IllegalArgumentException("Entire OPEN session is missing from bars: " + date);
+            }
+
+            var windowStart = entry.firstBarTimestamp().orElseThrow();
+            var windowEnd = entry.lastBarTimestamp().orElseThrow();
+            if (!sessionBars.getFirst().timestamp().equals(windowStart)
+                    || !sessionBars.getLast().timestamp().equals(windowEnd)) {
+                throw new IllegalArgumentException("First/last bars do not match the declared session boundaries on " + date);
+            }
+            Duration window = Duration.between(windowStart, windowEnd);
+            long intervalNanos = expectedSpacing.toNanos();
+            long windowNanos = window.toNanos();
+            if (windowNanos % intervalNanos != 0) {
+                throw new IllegalArgumentException("Session boundary span is not aligned to configured interval on " + date);
+            }
+            long expectedForSession = windowNanos / intervalNanos + 1;
+            expectedBarCount += expectedForSession;
+            if (sessionBars.size() < expectedForSession) {
+                estimatedMissingIntervals += expectedForSession - sessionBars.size();
+            }
+            boolean sessionHasSpacingAnomaly = false;
+            for (int i = 1; i < sessionBars.size(); i++) {
+                Duration actual = Duration.between(sessionBars.get(i - 1).timestamp(), sessionBars.get(i).timestamp());
+                if (!actual.equals(expectedSpacing)) {
+                    anomalies++;
+                    sessionHasSpacingAnomaly = true;
+                    if (!config.allowIntraSessionGaps()) {
+                        throw new IllegalArgumentException("Unexpected same-session timestamp spacing between "
+                                + sessionBars.get(i - 1).timestamp() + " and " + sessionBars.get(i).timestamp()
+                                + "; set quality.allow_intrasession_gaps=true only after reviewing the source/session schedule");
+                    }
+                }
+            }
+            if (sessionBars.size() == expectedForSession && !sessionHasSpacingAnomaly) completeSessions++;
+            if (sessionBars.size() > expectedForSession) {
+                throw new IllegalArgumentException("More bars than the declared session window permits on " + date);
+            }
+        }
+
         String barsHash = RunConfig.sha256(Files.readAllBytes(barsPath));
         String calendarHash = RunConfig.sha256(Files.readAllBytes(config.sessionCalendarPath()));
         Map<String, String> inputs = Map.of(
@@ -81,7 +161,8 @@ public record ValidatedDataset(
                 master.rawFileSha256(),
                 Optional.of(calendarHash),
                 inputs);
-        return new ValidatedDataset(List.copyOf(bars), master, sessions, manifest,
-                barsHash, config.configSha256(), calendarHash);
+        return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
+                barsHash, config.configSha256(), calendarHash, anomalies,
+                estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 }

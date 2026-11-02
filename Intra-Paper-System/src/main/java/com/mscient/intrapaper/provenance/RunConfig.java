@@ -40,8 +40,11 @@ public record RunConfig(
         int requestedLots,
         int maxPositionLots,
         BigDecimal maxNotionalInr,
+        BigDecimal marginPerLotInr,
+        BigDecimal maxMarginInr,
         BigDecimal maxDailyLossInr,
         boolean allowNextSessionOrders,
+        boolean allowIntraSessionGaps,
         String costStatus,
         Optional<String> costEvidenceReference,
         int slippageTicks,
@@ -55,9 +58,10 @@ public record RunConfig(
             "dataset.interval", "dataset.rights_status", "dataset.rights_reference", "dataset.synthetic_fixture",
             "reference.snapshot_id", "reference.source_name", "reference.retrieved_at_utc", "reference.effective_from",
             "reference.file", "calendar.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
-            "risk.max_position_lots", "risk.max_notional_inr", "risk.max_daily_loss_inr", "cost.status",
+            "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
+            "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "orders.allow_next_session", "run.commit_id");
+            "orders.allow_next_session", "quality.allow_intrasession_gaps", "run.commit_id");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -94,6 +98,10 @@ public record RunConfig(
         if (!Set.of("true", "false").contains(allowCrossSessionText)) {
             throw new IllegalArgumentException("orders.allow_next_session must be true or false");
         }
+        String allowGapsText = required(p, "quality.allow_intrasession_gaps").toLowerCase(java.util.Locale.ROOT);
+        if (!Set.of("true", "false").contains(allowGapsText)) {
+            throw new IllegalArgumentException("quality.allow_intrasession_gaps must be true or false");
+        }
 
         TimestampRole role = TimestampRole.valueOf(required(p, "dataset.timestamp_role"));
         if (role != TimestampRole.BAR_START && role != TimestampRole.BAR_END) {
@@ -102,6 +110,8 @@ public record RunConfig(
         String timezone = required(p, "dataset.timezone");
         ZoneId.of(timezone);
         BigDecimal notional = positive(p, "risk.max_notional_inr");
+        BigDecimal marginPerLot = positive(p, "risk.margin_per_lot_inr");
+        BigDecimal maxMargin = positive(p, "risk.max_margin_inr");
         BigDecimal dailyLoss = positive(p, "risk.max_daily_loss_inr");
         int fast = positiveInt(p, "strategy.fast_bars");
         int slow = positiveInt(p, "strategy.slow_bars");
@@ -136,15 +146,18 @@ public record RunConfig(
                 requestedLots,
                 maxPosition,
                 notional,
+                marginPerLot,
+                maxMargin,
                 dailyLoss,
                 Boolean.parseBoolean(allowCrossSessionText),
+                Boolean.parseBoolean(allowGapsText),
                 costStatus,
                 costEvidence.map(value -> logicalId(value, "cost.evidence_reference")),
                 slippage,
                 feeOrder,
                 feeUnit,
                 synthetic,
-                optional(p, "run.commit_id").orElse("unknown"));
+                resolveCommit(optional(p, "run.commit_id").orElse("BUILD_COMMIT"), synthetic));
     }
 
     private static Path resolve(Path base, String value) {
@@ -191,6 +204,15 @@ public record RunConfig(
             throw new IllegalArgumentException(key + " must be a logical ID, not a path or URL");
         }
         return value;
+    }
+
+    private static String resolveCommit(String requested, boolean synthetic) {
+        String resolved = requested.equals("BUILD_COMMIT") ? BuildInfo.commitId() : requested;
+        if (!synthetic && !resolved.matches("[0-9a-f]{40}")) {
+            throw new IllegalArgumentException("A non-synthetic run requires a full 40-character run.commit_id or a JAR built from a Git checkout");
+        }
+        if (synthetic && resolved.isBlank()) return "unknown";
+        return resolved;
     }
 
     public static String sha256(byte[] data) {

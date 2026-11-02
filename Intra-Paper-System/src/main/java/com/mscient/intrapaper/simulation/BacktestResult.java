@@ -9,6 +9,7 @@ public record BacktestResult(
         List<SimOrderEvent> orderEvents,
         List<SimFill> fills,
         List<SimTrade> trades,
+        List<SessionAudit> sessionAudits,
         List<EquityPoint> equityCurve,
         BigDecimal realizedPnlInr,
         BigDecimal unrealizedPnlInr,
@@ -25,6 +26,7 @@ public record BacktestResult(
         orderEvents = List.copyOf(orderEvents);
         fills = List.copyOf(fills);
         trades = List.copyOf(trades);
+        sessionAudits = List.copyOf(sessionAudits);
         equityCurve = List.copyOf(equityCurve);
     }
 

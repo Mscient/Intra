@@ -34,7 +34,7 @@ public final class IntraPaperCli {
             }
             BacktestResult result = new BacktestEngine().run(dataset, config);
             String runId = RunConfig.sha256((dataset.barsSha256() + dataset.configSha256()
-                    + dataset.instrumentMaster().rawFileSha256() + dataset.calendarSha256()).getBytes(StandardCharsets.UTF_8))
+                    + dataset.instrumentMaster().rawFileSha256() + dataset.calendarSha256() + config.commitId()).getBytes(StandardCharsets.UTF_8))
                     .substring(0, 24);
             String configuredRunsRoot = System.getenv("INTRA_PAPER_RUNS_DIR");
             String localAppData = System.getenv("LOCALAPPDATA");

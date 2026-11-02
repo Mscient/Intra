@@ -5,8 +5,8 @@ An isolated, offline-first Java 21 futures backtesting and paper-execution simul
 ## Built in this increment
 
 - JDK 21 command-line application with `validate` and `run` commands.
-- Strict normalized-candle CSV parsing, monotonic timestamp checks, OHLC/tick validation, and explicit timestamp-role handling.
-- Required open-session calendar and effective-dated instrument-master resolution for every candle. A run is restricted to one dated futures contract; expiry stitching and index-to-futures substitution are rejected.
+- Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
+- Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures contract; expiry stitching and index-to-futures substitution are rejected.
 - Long-only SMA crossover harness. A signal computed from a completed candle can execute only as a simulated market order at the next eligible candle's open.
 - One signal-audit row per candle, with the moving averages and warm-up status recorded.
 - Fixed adverse tick slippage, explicit fee inputs, position/notional caps, and a per-session loss halt. These settings are recorded in each run.
@@ -17,7 +17,7 @@ The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PL
 
 ## Build and run
 
-Requires a JDK 21 installation. The build uses `JAVA_HOME` explicitly and writes compiler output outside the OneDrive project by default.
+Requires a JDK 21 installation. The build uses `JAVA_HOME` explicitly, embeds the source Git commit in the JAR manifest when built in a checkout, and writes compiler output outside the OneDrive project by default.
 
 ```powershell
 $env:JAVA_HOME = 'C:\path\to\jdk-21'
@@ -35,7 +35,7 @@ See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and ru
 
 - Futures only, one dated contract per run, long-only SMA harness. Options valuation/expiry settlement, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
 - No live quotes, API credentials, broker connectivity, or live order route. Simulated acknowledgements are local ledger events.
-- The fixed-fee/tick-slippage cost model is a configurable diagnostic, not a current exchange/broker cost schedule. No margin calculator or contract-sizing advice is included.
+- The fixed-fee/tick-slippage cost model is a configurable diagnostic, not a current exchange/broker cost schedule. The entry gate also accepts a fixed user-supplied margin-per-lot proxy; it is not an exchange margin calculation or contract-sizing advice.
 - The simulator does not implement a complete exchange-hours rule engine, forced end-of-day liquidation, or overnight gap policy. The input calendar must be supplied and reviewed; positions can remain open at the end of data.
 - Cross-session pending orders are disabled by default and must be enabled explicitly in configuration. This does not define a safe overnight position policy.
 - The sample strategy and all synthetic inputs are plumbing examples, not trading recommendations or evidence of an edge. Current data rights, costs, operating limits, and G0/G1/G2 evidence remain open.

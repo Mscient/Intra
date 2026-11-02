@@ -54,10 +54,18 @@ public final class RunArtifactWriter {
                 result.equityCurve().stream().map(point -> row(point.timestamp(), point.sessionDate(), point.close(),
                         point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
                         point.netPnlInr(), point.riskState())).toList()));
+        writeNew(runFolder.resolve("sessions.csv"), csv(
+                "session_date,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
+                result.sessionAudits().stream().map(session -> row(session.sessionDate(), session.expectedBars(),
+                        session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
+                        session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
+                        session.modeledSlippageInr(), session.netPnlChangeInr(),
+                        session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
+                        session.endingRiskState())).toList()));
 
         writeNew(runFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
         Map<String, String> outputHashes = new TreeMap<>();
-        for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "summary.json")) {
+        for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "summary.json")) {
             outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(runFolder.resolve(name))));
         }
         writeNew(runFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -71,6 +79,12 @@ public final class RunArtifactWriter {
                 + "  \"performance_claim_eligible\": false,\n"
                 + "  \"bars\": " + data.bars().size() + ",\n"
                 + "  \"signals\": " + result.signals().size() + ",\n"
+                + "  \"timestamp_spacing_anomalies\": " + data.timestampSpacingAnomalies() + ",\n"
+                + "  \"estimated_missing_intervals\": " + data.estimatedMissingIntervals() + ",\n"
+                + "  \"expected_bars_from_calendar\": " + data.expectedBarCount() + ",\n"
+                + "  \"open_sessions\": " + data.openSessionCount() + ",\n"
+                + "  \"complete_open_sessions\": " + data.completeSessionCount() + ",\n"
+                + "  \"incomplete_open_sessions\": " + (data.openSessionCount() - data.completeSessionCount()) + ",\n"
                 + "  \"orders\": " + result.orders().size() + ",\n"
                 + "  \"fills\": " + result.fills().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
@@ -117,6 +131,15 @@ public final class RunArtifactWriter {
                 + "  \"timezone\": " + q(config.timezone()) + ",\n"
                 + "  \"timestamp_role\": " + q(config.timestampRole().name()) + ",\n"
                 + "  \"interval\": " + q(config.interval()) + ",\n"
+                + "  \"intra_session_data_quality\": {\"timestamp_spacing_anomalies\": "
+                + data.timestampSpacingAnomalies() + ", \"estimated_missing_intervals\": "
+                + data.estimatedMissingIntervals() + ", \"expected_bars_from_calendar\": "
+                + data.expectedBarCount() + ", \"open_sessions\": " + data.openSessionCount()
+                + ", \"complete_open_sessions\": " + data.completeSessionCount()
+                + ", \"gaps_allowed_by_config\": " + config.allowIntraSessionGaps()
+                + ", \"session_completeness_status\": "
+                + q(data.completeSessionCount() == data.openSessionCount() ? "COMPLETE_FOR_SUPPLIED_WINDOWS" : "INCOMPLETE_ALLOWED_DIAGNOSTIC")
+                + "},\n"
                 + "  \"date_range\": {\"start\": " + q(bars.getFirst().sessionDate().toString())
                 + ", \"end\": " + q(bars.getLast().sessionDate().toString()) + "},\n"
                 + "  \"bar_timestamp_range\": {\"start\": " + q(bars.getFirst().timestamp().toString())
@@ -132,8 +155,11 @@ public final class RunArtifactWriter {
                 + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr())) + "},\n"
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
+                + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))
+                + ", \"max_margin_inr\": " + q(num(config.maxMarginInr()))
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
                 + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders() + "},\n"
+                + "  \"margin_model\": \"FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN\",\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"

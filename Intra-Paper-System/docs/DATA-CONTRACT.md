@@ -14,7 +14,7 @@ Resolve a source token only through one dated snapshot and an explicit session d
 
 `DatasetManifest` records source label, acquisition time, timezone, timestamp role, data-rights review state/reference, exact instrument-master snapshot/hash, optional session-calendar hash, and hashes for input files. Input identifiers are logical IDs rather than paths. The manifest stores no rows, credentials, account IDs, IP addresses, or private source URLs.
 
-Unknown timestamp semantics stay `UNKNOWN`. Data rights stay `UNVERIFIED` until a reviewable authorization reference is provided. These metadata models do not replace bar/quote-quality checks, session completeness checks, or holdout rules.
+Unknown timestamp semantics stay `UNKNOWN`. Data rights stay `UNVERIFIED` until a reviewable authorization reference is provided. The CLI now checks normalized bar fields, instrument resolution, supplied session-window boundaries, and within-session interval spacing. Those checks do not verify the source's calendar itself, validate quote/depth quality, or implement holdout rules.
 
 ## Current gate
 

@@ -8,8 +8,8 @@
 
 ## Current position
 
-- The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract at a time.
-- The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity artifacts.
+- The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract at a time, including supplied session-boundary completeness checks and strict same-session interval spacing unless an explicit diagnostic override is set.
+- The replay uses a long-only SMA harness, next-eligible-bar-open market fills, explicit adverse tick slippage and fee inputs, an independent position/notional/session-loss risk gate, and local OMS/fill/trade/equity/session-reconciliation artifacts.
 - Effective-dated contract resolution, explicit session calendars, and hashed run manifests are required. Expiry stitching, index-to-futures substitution, passive-touch fills, and live order egress are not supported.
 - A clearly synthetic fixture is included for plumbing. No behavior test or strategy run was performed in the latest implementation increment; no real market data, credentials, account, or broker API were accessed.
 - A separate Python offline backtest engine is described in earlier session records but its implementation was not present in the checked-out HFT 2 workspace; the Java simulator is not represented as a port of it.
