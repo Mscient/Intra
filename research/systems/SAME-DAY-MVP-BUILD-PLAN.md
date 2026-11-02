@@ -1,7 +1,7 @@
 # Same-Day Wave A Paper/Research MVP Build Plan
 
 **Target date:** 2026-11-02 (Asia/Kolkata)  
-**Status:** Build plan started; no runner code or today's data has been added yet.  
+**Status:** Offline runner implemented locally; five unit tests pass. Partial 2 Nov data smoke-tested; full-session run remains pending.
 **Goal:** Create an isolated, offline Python runner for S01-S03 and smoke-test it on the user's completed NIFTY candles for 2 Nov 2026.
 
 ## What “built today” means
@@ -20,12 +20,12 @@ Deliver a repeatable local command that reads a private candle file, validates i
 
 ## Build sequence for today
 
-1. **Scaffold:** separate lab README, CLI entry point, private-data ignore rules, and a run-manifest format. Pin the Python version; avoid adding dependencies unless necessary.
-2. **Input and quality checks:** parse the SmartAPI candle output/CSV; validate schema, numeric OHLC bounds, unique monotonic timestamps, one-minute cadence, session date, volume, and missing intervals. Print only counts/ranges in the report.
-3. **Signal engine:** implement S01 opening-range breakout, S02 fixed 30-minute momentum at 15-minute cadence, and S03 first-15-minute gap reversal using only completed bars.
-4. **Markouts and report:** calculate only horizons with complete future bars; include eligible rows, exclusions, cutoff, signal counts, no-signal state, and per-signal marks. State clearly that one day cannot pass the predeclared validation/holdout criteria.
-5. **Tests:** run unit tests for parsing, OHLC validation, duplicate/gap handling, cutoff behavior, each signal rule, and prevention of labels crossing missing data or session boundaries.
-6. **Today's data smoke run:** after today's session is complete, run the CLI once on the user's private 2 Nov file. Keep the input and outputs local; copy only a redacted summary and manifest hash to the research record.
+1. **Scaffold — done:** local lab created at `C:\Users\prash\OneDrive\Applications\Intra-Systems-Lab` with CLI, README, and private-data ignore rules. No remote was configured.
+2. **Input and quality checks — done:** the CLI reads the SmartAPI printed response/JSON, validates OHLC/timestamps, and truncates at the first missing one-minute interval without filling it.
+3. **Signal engine — done for MVP:** S01 opening-range breakout and S02 fixed momentum are implemented; S03 requires a prior close and is skipped when it is not supplied.
+4. **Markouts and report — done:** computes 5/15/30-minute index markouts only where all forward bars are present; pending horizons are explicitly marked.
+5. **Unit tests — done:** five deterministic tests pass for invalid OHLC, gap truncation, S02 cadence, pending forward labels, and the S03 prior-close prerequisite.
+6. **Today's data smoke run — partial:** the 2 Nov response covering 09:15-10:44 IST passed parsing and quality checks and produced S01/S02 signals. The final session candles are still needed to finish today's smoke run. Two rate-limit errors appeared before the API request succeeded.
 
 ## Acceptance criteria
 
@@ -44,3 +44,5 @@ Deliver a repeatable local command that reads a private candle file, validates i
 ## Required local data handoff
 
 The user runs the existing SmartAPI script locally with `exchange=NSE`, symbol token `99926000`, interval `ONE_MINUTE`, and a 2 Nov 2026 range through the last completed candle (or the completed session after 15:30 IST). Save the response as a private CSV/JSON. Do not include API keys, PIN/TOTP, authentication/session tokens, HTTP auth headers, or account data in the file shared with the lab. A full session is required for today's smoke run; partial-session data may be used only to test parsing and early signal generation.
+
+The first 90-row 2 Nov sample has already been smoke-tested from the pasted response. It contained no gaps or duplicate timestamps and no OHLC violations; all index volume values were zero. The latest S02 15/30-minute outcomes remain pending because the sample ends at 10:44. S03 was unavailable without the prior session close. The runner prints observed markouts as diagnostics only and does not calculate statistical confidence from one session.
