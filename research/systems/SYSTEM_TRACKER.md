@@ -1,6 +1,6 @@
 # Trading System Research Tracker
 
-Status reflects source review, an isolated MVP runner, and limited data readiness. No system below has been validated as a strategy. The runner passed eight unit tests and smoke-tested a partial 2 Nov session; the full-session run remains pending. Each run writes a private report and input-hash manifest. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [lab data schema](LAB-DATA-SCHEMA.md).
+Status reflects source review, an isolated MVP runner, and limited data readiness. No system below has been validated as a strategy. The runner passed nine unit tests and smoke-tested a partial 2 Nov session; the full-session run remains pending. Each run writes a private report, signal ledger, and input-hash manifest. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [lab data schema](LAB-DATA-SCHEMA.md).
 
 | ID | System | Research state | Main data / execution gap | Next action |
 |---|---|---|---|---|

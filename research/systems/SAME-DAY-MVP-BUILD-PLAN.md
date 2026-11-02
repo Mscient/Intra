@@ -24,7 +24,7 @@ Deliver a repeatable local command that reads a private candle file, validates i
 2. **Input and quality checks — done:** the CLI reads the SmartAPI printed response/JSON, validates OHLC/timestamps, and truncates at the first missing one-minute interval without filling it.
 3. **Signal engine — done for MVP:** S01 opening-range breakout and S02 fixed momentum are implemented; S03 requires a prior close and is skipped when it is not supplied.
 4. **Markouts and report — done:** computes 5/15/30-minute index markouts only where all forward bars are present; pending horizons are explicitly marked.
-5. **Unit tests — done:** eight deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, gap truncation, S01 first-break behavior, S02 cadence, pending forward labels, and S03 prior-close/reversal behavior.
+5. **Unit tests — done:** nine deterministic tests pass for response parsing/rate-limit retries, invalid OHLC, gap truncation, S01 first-break behavior, S02 cadence, pending forward labels, S03 prior-close/reversal behavior, and CSV ledger output.
 6. **Today's data smoke run — partial:** the 2 Nov response covering 09:15-10:44 IST passed parsing and quality checks and produced S01/S02 signals. The final session candles are still needed to finish today's smoke run. Two rate-limit errors appeared before the API request succeeded.
 
 ## Acceptance criteria
@@ -47,4 +47,4 @@ The user runs the existing SmartAPI script locally with `exchange=NSE`, symbol t
 
 The first 90-row 2 Nov sample was refreshed once from the local SmartAPI script. The latest response contains 104 consecutive rows from 09:15 to 10:58 IST, with no gaps, duplicate timestamps, or OHLC violations; all index volume values are zero. It emitted one S01 and five S02 signals. Latest markouts remain pending because the sample is partial; S03 was unavailable without the prior session close. Two rate-limit retries occurred before the response succeeded. The runner reports observed markouts as diagnostics only and does not calculate statistical confidence from one session.
 
-Each run also writes a private text report and a JSON manifest with the input SHA-256 under the ignored `reports/private/` directory. Neither report nor raw candles are committed.
+Each run also writes a private text report, a per-signal CSV ledger (pending horizons are blank), and a JSON manifest with the input SHA-256 under the ignored `reports/private/` directory. Neither report nor raw candles are committed.
