@@ -1,6 +1,6 @@
 # Trading System Research Tracker
 
-Status reflects source review, an isolated MVP runner, a chronological evaluation harness, and limited data readiness. No system below has been validated as a strategy. The runner passes 30 unit tests; evaluation reports exclusion reasons and signal counts, while the current partial 2 Nov sample returns `NOT_TESTABLE` and keeps the holdout closed. Full-session refresh/review is pending at 15:35 IST. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [LAB-DATA-SCHEMA.md](LAB-DATA-SCHEMA.md).
+Status reflects source review, an isolated MVP runner, a chronological evaluation harness, and limited data readiness. No system below has been validated as a strategy. The runner passes 32 unit tests; evaluation rejects mixed or incomplete inputs and reports exclusion reasons/counts. The current partial 2 Nov sample returns `NOT_TESTABLE` and keeps the holdout closed. Full-session refresh/review is pending at 15:35 IST. See the [same-day MVP build plan](SAME-DAY-MVP-BUILD-PLAN.md), [instrument/data capability matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md), [Wave A signal specification](WAVE-A-SIGNAL-SPEC.md), and [LAB-DATA-SCHEMA.md](LAB-DATA-SCHEMA.md).
 
 | ID | System | Research state | Main data / execution gap | Next action |
 |---|---|---|---|---|
