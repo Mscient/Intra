@@ -7,6 +7,7 @@ import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
+import com.mscient.intrapaper.simulation.RunReplayVerifier;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -31,6 +32,13 @@ public final class IntraPaperCli {
                 var summary = QuoteJournalReader.replay(Path.of(args[1]), quote -> { });
                 System.out.printf("VERIFIED JOURNAL: events=%d; last_sequence=%d; bytes=%d; final_hash=%s%n",
                         summary.eventCount(), summary.lastSequenceNumber(), summary.bytesRead(), summary.finalHashHex());
+                return;
+            }
+            if (args.length == 4 && args[0].equals("replay-verify")) {
+                var verification = RunReplayVerifier.verify(
+                        Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+                System.out.printf("VERIFIED REPLAY: %s; artifacts=%d; byte-for-byte output match%n",
+                        verification.runId(), verification.comparedFiles());
                 return;
             }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
@@ -70,10 +78,12 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar validate <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
-                + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n\n"
+                + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
+                + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
+                + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 }
