@@ -31,7 +31,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Same-day Wave A MVP build plan: [research/systems/SAME-DAY-MVP-BUILD-PLAN.md](research/systems/SAME-DAY-MVP-BUILD-PLAN.md)
 - Wave A signal specification: [research/systems/WAVE-A-SIGNAL-SPEC.md](research/systems/WAVE-A-SIGNAL-SPEC.md)
 - Lab data schema: [research/systems/LAB-DATA-SCHEMA.md](research/systems/LAB-DATA-SCHEMA.md)
-- Nifty futures/options paper-system roadmap: [research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md](research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md). Angel One SmartAPI is selected; the local paper simulator scaffold and 14 unit tests are complete; dated data, CLI replay, fee verification, and option expiry handling remain open.
+- Nifty futures/options paper-system roadmap: [research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md](research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md). Angel One SmartAPI is selected; the local paper simulator scaffold and 15 tests are complete, including a synthetic CLI smoke; authorized dated replay data, fee verification, and option expiry handling remain open.
 - Wave A status: the isolated Python runner is built and nine unit tests pass. It smoke-tested 104 consecutive 2 Nov candles through 10:58 IST, generated S01/S02 signals, and skipped S03 because the prior close was absent. This is a partial-session pipeline check, not a strategy backtest; full-session candles are still pending. Runs save a private report, signal ledger, and input-hash manifest locally.
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
