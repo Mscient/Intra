@@ -4,6 +4,7 @@ import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
+import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
@@ -78,6 +79,19 @@ public final class IntraPaperCli {
                         journal.bytesRead(), journal.finalHashHex());
                 return;
             }
+            if (args.length == 6 && args[0].equals("quote-feature-export")) {
+                var policy = new QuoteQualityPolicy(Duration.ofMillis(Long.parseLong(args[3])),
+                        Duration.ofMillis(Long.parseLong(args[4])));
+                var exported = QuoteFeatureCsvExporter.export(
+                        Path.of(args[1]), args[2], policy, Path.of(args[5]));
+                System.out.printf("EXPORTED VERIFIED QUOTE FEATURES: instrument=%s; max_age=%s; max_future_skew=%s; "
+                                + "rows=%d; sequence_gaps=%d; missing_sequence_numbers=%d; final_hash=%s; output=%s%n",
+                        args[2], policy.maximumAge(), policy.maximumFutureSkew(),
+                        exported.featureRows(), exported.journal().sequenceGapCount(),
+                        exported.journal().missingSequenceNumbers(), exported.journal().finalHashHex(),
+                        exported.outputPath());
+                return;
+            }
             if (args.length == 2 && args[0].equals("raw-capture-verify")) {
                 var summary = RawCaptureJournalReader.replay(Path.of(args[1]), message -> { });
                 System.out.printf("VERIFIED RAW CAPTURE: events=%d; sequenced_events=%d; sequence_streams=%d; "
@@ -147,6 +161,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar oms-recover <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
+                + "  java -jar intra-paper-system.jar quote-feature-export <quote-journal> <instrument-id> <maximum-age-ms> <maximum-future-skew-ms> <output.csv>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
@@ -155,6 +170,7 @@ public final class IntraPaperCli {
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
+                + "quote-feature-export verifies a quote journal and atomically writes sequence-aware L1 features without overwriting output.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"

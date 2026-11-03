@@ -78,6 +78,14 @@ Java callers may apply `QuoteQualityPolicy(maximumAge, maximumFutureSkew)` to ge
 
 `TopOfBookFeatureStream` processes snapshots in increasing local quote-journal sequence. It emits an L1 snapshot order-flow estimate only when adjacent local sequence numbers, the source identifier, and both snapshots' eligibility agree. A sequence gap or source change suppresses that estimate. These are normalized-journal continuity checks; they do not replace upstream sequence diagnostics from raw capture or establish source completeness. The estimate is based on best-price and displayed-size changes, not order-level executions.
 
+Export the features from a complete quote journal to a new CSV file:
+
+```powershell
+& $java -jar $jar quote-feature-export .\path\to\quotes.qjr $instrumentId $maximumAgeMs $maximumFutureSkewMs .\output\quote-features.csv
+```
+
+Set the instrument ID and freshness limits explicitly. Replay uses each record's receive timestamp as its virtual decision clock. The exporter verifies the journal, streams a second replay to a temporary file, and compares both integrity summaries before publishing by same-directory hard link; it never overwrites an existing output. Rows preserve the source journal's final hash, expected instrument, freshness limits, snapshot flags and metrics, local sequence-gap details, and the L1 order-flow estimate where available. Choose an output folder outside the repository for private/licensed data. Filesystems without hard-link support fail closed.
+
 `QuoteExecutionGate.assess(...)` evaluates a normalized quote at the caller's decision time. It rejects a contract mismatch, a receive timestamp later than the decision, any structural/freshness flag, insufficient displayed size, integer price overflow, or a non-positive adverse-slippage price. BUY uses the ask and SELL the bid, then applies caller-supplied adverse ticks. It accepts only full displayed-size top-of-book snapshots; it does not model queue priority, partial fills, latency, or a broker/exchange execution guarantee, and the current CLI/backtest engine does not call this helper.
 
 Journal creation uses create-new semantics. If initialization fails, the writer closes the handle and removes the file it just created so an incomplete header cannot masquerade as a valid empty journal.
