@@ -53,5 +53,6 @@ Private data and run artifacts are excluded from Git. Never put broker credentia
 - [Instrument and data capability matrix](../research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - [Wave A signal specification](../research/systems/WAVE-A-SIGNAL-SPEC.md)
 - [Local research synthesis](docs/research/LOCAL-RESEARCH-SYNTHESIS.md)
+- [Strategy research-card template](docs/STRATEGY-CARD-TEMPLATE.md)
 - [First-cut data contract](docs/DATA-CONTRACT.md)
 - [Implementation tracker](IMPLEMENTATION-TRACKER.md)

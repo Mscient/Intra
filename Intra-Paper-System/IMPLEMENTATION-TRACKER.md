@@ -47,6 +47,7 @@
 - [ ] Add raw source capture/import, stronger completeness and stale/gap rules, and reproducible recovery.
 - [ ] Add reviewed end-of-session liquidation behavior, full risk reconciliation, exchange margin, and detailed current cost schedule evidence.
 - [ ] Add separately reviewed strategy card and chronological evaluation/holdout workflow.
+- [x] Added a blank strategy research-card template; no candidate or assumptions are approved by the template.
 
 ## Source-derived backtesting decisions
 
