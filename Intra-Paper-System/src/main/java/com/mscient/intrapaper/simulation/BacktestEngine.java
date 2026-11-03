@@ -109,7 +109,7 @@ public final class BacktestEngine {
                     events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_NO_OP", "position already at target"));
                 } else {
                     String side = deltaLots > 0 ? "BUY" : "SELL";
-                    int quantity = Math.abs(deltaLots) * bar.lotSize();
+                    int quantity = positionUnits(Math.abs(deltaLots), bar.lotSize());
                     CostSchedule.Terms costTerms = dataset.costSchedule()
                             .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(side)))
                             .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
@@ -130,8 +130,7 @@ public final class BacktestEngine {
                                 .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
                                 .add(notionalFee);
                         BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
-                        int oldUnits = positionLots * bar.lotSize();
-                        int newUnits = targetLots * bar.lotSize();
+                        int newUnits = positionUnits(targetLots, bar.lotSize());
                         if (side.equals("BUY")) {
                             if (positionLots != 0) throw new IllegalStateException("Simulator supports one entry and one exit per trade");
                             averageEntry = fillPrice;
@@ -167,7 +166,7 @@ public final class BacktestEngine {
             }
 
             BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
-                    : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * bar.lotSize()));
+                    : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionUnits(positionLots, bar.lotSize())));
             BigDecimal net = realized.add(unrealized).subtract(fees);
             List<Bar> availableBars = Collections.unmodifiableList(bars.subList(0, i + 1));
             StrategySignal signal = Objects.requireNonNull(strategy.evaluate(availableBars, barEnd),
@@ -211,7 +210,7 @@ public final class BacktestEngine {
                 }
             }
 
-            curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionLots * bar.lotSize(),
+            curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionUnits(positionLots, bar.lotSize()),
                     realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
 
             if (targetLots != positionLots) {
@@ -230,7 +229,7 @@ public final class BacktestEngine {
             ExpirySettlement settlement = dataset.expirySettlement().orElseThrow();
             Bar lastBar = bars.getLast();
             BigDecimal exitValuePerUnit = settlementExitValue(settlement, lastBar);
-            int settledUnits = positionLots * lastBar.lotSize();
+            int settledUnits = positionUnits(positionLots, lastBar.lotSize());
             BigDecimal settlementGross = BigDecimal.ZERO;
             if (positionLots > 0) {
                 if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
@@ -273,12 +272,12 @@ public final class BacktestEngine {
         }
         Bar last = bars.getLast();
         BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
-                : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * last.lotSize()));
+                : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionUnits(positionLots, last.lotSize())));
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
         BacktestResult result = new BacktestResult(signals, orders, events, fills, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
-                net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification, strategyId, strategyParameters);
+                net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
         RunLedgerReconciler.requireFillCostsConsistent(result, config, dataset);
@@ -296,6 +295,10 @@ public final class BacktestEngine {
                 yield intrinsic.max(BigDecimal.ZERO);
             }
         };
+    }
+
+    private static int positionUnits(int lots, int lotSize) {
+        return Math.multiplyExact(lots, lotSize);
     }
 
     private static List<SessionAudit> reconcileSessions(ValidatedDataset dataset, RunConfig config,
@@ -361,7 +364,7 @@ public final class BacktestEngine {
             Instant decisionTimestamp, int targetLots, int currentLots, int lotSize, String reason) {
         int deltaLots = targetLots - currentLots;
         String side = deltaLots > 0 ? "BUY" : "SELL";
-        int units = Math.abs(deltaLots) * lotSize;
+        int units = positionUnits(Math.abs(deltaLots), lotSize);
         String orderId = String.format("O%07d", orders.size() + 1);
         int index = orders.size();
         orders.add(new SimOrder(orderId, decisionTimestamp, null, null, side, targetLots,

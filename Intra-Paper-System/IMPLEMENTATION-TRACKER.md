@@ -41,6 +41,7 @@
 - [x] Evaluation split validation requires complete, non-overlapping, contiguous chronological development/validation/holdout session assignments; it does not score strategies.
 - [x] Independent position/notional and per-session loss `RiskGate`.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
+- [x] Lot-to-unit conversions use checked integer multiplication; an unrepresentable quantity fails closed instead of wrapping ledger units.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
 - [x] An independent reconciliation pass checks trade gross vs realized P&L, fill fees/slippage, order terminal events, session totals, and final equity before a run is returned.
 - [x] An additional independent risk reconciliation rechecks every BUY fill against configured max lots, notional, and margin-proxy caps; verifies loss-limit breaches have recorded risk halts and no subsequent same-session entry fills.
