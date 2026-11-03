@@ -52,6 +52,7 @@ public record RunConfig(
         int slippageTicks,
         BigDecimal feePerOrderInr,
         BigDecimal feePerUnitInr,
+        BigDecimal notionalFeeBps,
         boolean syntheticFixture,
         String commitId) {
 
@@ -63,6 +64,7 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
+            "cost.notional_fee_bps",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
             "quality.max_missing_intervals_per_session", "run.commit_id");
 
@@ -142,6 +144,7 @@ public record RunConfig(
         if (slippage < 0) throw new IllegalArgumentException("cost.slippage_ticks must be non-negative");
         BigDecimal feeOrder = nonNegative(p, "cost.fee_per_order_inr");
         BigDecimal feeUnit = nonNegative(p, "cost.fee_per_unit_inr");
+        BigDecimal notionalFeeBps = nonNegative(p, "cost.notional_fee_bps");
         Path base = absolute.getParent();
         return new RunConfig(
                 absolute,
@@ -177,6 +180,7 @@ public record RunConfig(
                 slippage,
                 feeOrder,
                 feeUnit,
+                notionalFeeBps,
                 synthetic,
                 resolveCommit(optional(p, "run.commit_id").orElse("BUILD_COMMIT"), synthetic));
     }

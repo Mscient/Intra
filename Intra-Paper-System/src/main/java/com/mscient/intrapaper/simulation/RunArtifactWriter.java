@@ -190,7 +190,9 @@ public final class RunArtifactWriter {
                 + "  \"cost_model\": {\"status\": " + q(config.costStatus()) + ", \"evidence_reference\": "
                 + optionalJson(config.costEvidenceReference()) + ", \"slippage_ticks\": " + config.slippageTicks()
                 + ", \"fee_per_order_inr\": " + q(num(config.feePerOrderInr()))
-                + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr())) + "},\n"
+                + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr()))
+                + ", \"notional_fee_bps\": " + q(num(config.notionalFeeBps()))
+                + ", \"notional_fee_rounding\": \"HALF_UP_TO_PAISE_PER_FILL\"},\n"
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))

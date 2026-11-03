@@ -7,6 +7,7 @@ import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -112,8 +113,12 @@ public final class BacktestEngine {
                         updateOrder(orders, pending.orderIndex(), barStart, null, "REJECTED_RISK", reason);
                         events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
                     } else {
-                        BigDecimal fee = config.feePerOrderInr().add(
-                                config.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)));
+                        BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(quantity));
+                        BigDecimal notionalFee = fillNotional.multiply(config.notionalFeeBps())
+                                .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
+                        BigDecimal fee = config.feePerOrderInr()
+                                .add(config.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
+                                .add(notionalFee);
                         BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
                         int oldUnits = positionLots * bar.lotSize();
                         int newUnits = targetLots * bar.lotSize();

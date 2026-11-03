@@ -36,7 +36,7 @@ See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and ru
 
 - One dated futures or one listed option premium series per run, long-only SMA harness. Option valuation/Greeks, multi-leg strategies, expiry exercise/settlement, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
 - No live quotes, API credentials, broker connectivity, or live order route. Simulated acknowledgements are local ledger events.
-- The fixed-fee/tick-slippage cost model is a configurable diagnostic, not a current exchange/broker cost schedule. The entry gate also accepts a fixed user-supplied margin-per-lot proxy; it is not an exchange margin calculation or contract-sizing advice.
+- The configurable per-order, per-unit, notional-basis-point, and tick-slippage cost model is diagnostic, not a current exchange/broker cost schedule. The entry gate also accepts a fixed user-supplied margin-per-lot proxy; it is not an exchange margin calculation or contract-sizing advice.
 - The simulator does not implement a complete exchange-hours rule engine or forced end-of-day liquidation. `ALLOW_OVERNIGHT` permits cross-session/end-of-data positions; `REQUIRE_FLAT` fails when one remains. The input calendar must be supplied and reviewed.
 - Cross-session pending orders are disabled by default; `REQUIRE_FLAT` cannot be combined with them. No forced liquidation fill is invented.
 - The sample strategy and all synthetic inputs are plumbing examples, not trading recommendations or evidence of an edge. Current data rights, costs, operating limits, and G0/G1/G2 evidence remain open.
