@@ -40,8 +40,12 @@ public final class IntraPaperCli {
             }
             if (args.length == 2 && args[0].equals("raw-capture-verify")) {
                 var summary = RawCaptureJournalReader.replay(Path.of(args[1]), message -> { });
-                System.out.printf("VERIFIED RAW CAPTURE: events=%d; bytes=%d; final_hash=%s%n",
-                        summary.eventCount(), summary.bytesRead(), summary.finalHashHex());
+                System.out.printf("VERIFIED RAW CAPTURE: events=%d; sequenced_events=%d; sequence_streams=%d; "
+                                + "sequence_gaps=%d; missing_sequence_numbers=%d; non_increasing_transitions=%d; "
+                                + "bytes=%d; final_hash=%s%n",
+                        summary.eventCount(), summary.upstreamSequencedEventCount(), summary.upstreamSequenceStreamCount(),
+                        summary.upstreamSequenceGapCount(), summary.missingUpstreamSequenceNumbers(),
+                        summary.nonIncreasingUpstreamSequenceTransitions(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
             if (args.length == 4 && args[0].equals("replay-verify")) {

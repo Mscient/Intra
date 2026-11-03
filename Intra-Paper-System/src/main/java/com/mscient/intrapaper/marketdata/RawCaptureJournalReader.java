@@ -13,11 +13,15 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.OptionalLong;
 import java.util.function.Consumer;
 
 /** Verifies capture framing and hash chain before delivering records to the caller. */
 public final class RawCaptureJournalReader {
+    private record SequenceStream(String source, String connectionId, String subscriptionId) { }
+
     private RawCaptureJournalReader() { }
 
     public static RawCaptureSummary replay(Path path, Consumer<RawMarketMessage> consumer) throws IOException {
@@ -27,6 +31,11 @@ public final class RawCaptureJournalReader {
             byte[] previous = QuoteHashChain.genesisHash();
             long count = 0;
             long bytesRead = header.length;
+            Map<SequenceStream, Long> lastSequences = new HashMap<>();
+            long sequencedEvents = 0;
+            long sequenceGaps = 0;
+            long missingSequenceNumbers = 0;
+            long nonIncreasingTransitions = 0;
             while (true) {
                 int first = input.read();
                 if (first < 0) break;
@@ -42,12 +51,27 @@ public final class RawCaptureJournalReader {
                 if (!MessageDigest.isEqual(expectedHash, storedHash)) throw new IOException("Raw capture hash-chain mismatch at record " + (count + 1));
                 RawMarketMessage message = decode(encoded);
                 if (!Arrays.equals(encoded, RawCaptureEncoder.encode(message))) throw new IOException("Raw capture record is not canonically encoded");
+                if (message.sourceSequence().isPresent()) {
+                    sequencedEvents++;
+                    SequenceStream stream = new SequenceStream(message.source(), message.connectionId(), message.subscriptionId());
+                    long current = message.sourceSequence().getAsLong();
+                    Long prior = lastSequences.put(stream, current);
+                    if (prior != null) {
+                        if (current > prior && current - prior > 1) {
+                            sequenceGaps++;
+                            missingSequenceNumbers = Math.addExact(missingSequenceNumbers, current - prior - 1);
+                        } else if (current <= prior) {
+                            nonIncreasingTransitions++;
+                        }
+                    }
+                }
                 consumer.accept(message);
                 previous = expectedHash;
                 count++;
                 bytesRead += Integer.BYTES + length + RawCaptureFormat.HASH_BYTES;
             }
-            return new RawCaptureSummary(count, bytesRead, QuoteHashChain.hex(previous));
+            return new RawCaptureSummary(count, bytesRead, QuoteHashChain.hex(previous), sequencedEvents,
+                    lastSequences.size(), sequenceGaps, missingSequenceNumbers, nonIncreasingTransitions);
         }
     }
 
