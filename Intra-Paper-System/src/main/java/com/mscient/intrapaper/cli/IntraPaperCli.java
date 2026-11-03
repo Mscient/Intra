@@ -3,7 +3,10 @@ package com.mscient.intrapaper.cli;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
+import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
+import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
+import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
@@ -14,6 +17,7 @@ import com.mscient.intrapaper.simulation.RunReplayVerifier;
 import com.mscient.intrapaper.simulation.SmaCrossoverStrategy;
 
 import java.nio.file.Path;
+import java.time.Duration;
 
 /** Offline-only command line entry point. There is deliberately no broker or network adapter. */
 public final class IntraPaperCli {
@@ -36,6 +40,27 @@ public final class IntraPaperCli {
                 System.out.printf("VERIFIED JOURNAL: events=%d; last_sequence=%d; sequence_gaps=%d; missing_sequence_numbers=%d; bytes=%d; final_hash=%s%n",
                         summary.eventCount(), summary.lastSequenceNumber(), summary.sequenceGapCount(),
                         summary.missingSequenceNumbers(), summary.bytesRead(), summary.finalHashHex());
+                return;
+            }
+            if (args.length == 4 && args[0].equals("quote-quality-report")) {
+                var policy = new QuoteQualityPolicy(Duration.ofMillis(Long.parseLong(args[2])),
+                        Duration.ofMillis(Long.parseLong(args[3])));
+                var report = QuoteJournalQualityAnalyzer.analyze(Path.of(args[1]), policy);
+                var journal = report.journal();
+                System.out.printf("VERIFIED QUOTE QUALITY: events=%d; clean=%d; flagged=%d; exchange_timestamps=%d; "
+                                + "max_observed_age=%s; max_observed_future_skew=%s; max_age_allowed=%s; "
+                                + "max_future_skew_allowed=%s%n",
+                        journal.eventCount(), report.cleanQuoteCount(), report.flaggedQuoteCount(),
+                        report.exchangeTimestampCount(), report.maximumObservedAge(),
+                        report.maximumObservedFutureSkew(), report.maximumAgeAllowed(),
+                        report.maximumFutureSkewAllowed());
+                for (QuoteQualityFlag flag : QuoteQualityFlag.values()) {
+                    System.out.printf("FLAG %s: %d%n", flag, report.flagCounts().get(flag));
+                }
+                System.out.printf("JOURNAL: last_sequence=%d; sequence_gaps=%d; missing_sequence_numbers=%d; "
+                                + "bytes=%d; final_hash=%s%n",
+                        journal.lastSequenceNumber(), journal.sequenceGapCount(), journal.missingSequenceNumbers(),
+                        journal.bytesRead(), journal.finalHashHex());
                 return;
             }
             if (args.length == 2 && args[0].equals("raw-capture-verify")) {
@@ -105,12 +130,14 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
+                + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
+                + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
