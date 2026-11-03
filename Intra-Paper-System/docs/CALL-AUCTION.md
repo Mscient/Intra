@@ -1,0 +1,11 @@
+# Call-auction model
+
+`CallAuctionEngine` is a deterministic single-price auction primitive over caller-supplied integer ticks and units. It is not wired to a session calendar and does not decide which dates or instruments use an auction. Historical activation remains blocked on a sourced effective-date timeline.
+
+For the supplied order set, it evaluates the previous close and each limit price as candidate clearing prices. At each price it counts all market orders and price-eligible limit orders, selects maximum executable quantity, then minimum absolute imbalance, then the price closest to the supplied previous close. A previous-close price wins an equidistant tie when its score is equal. If no candidate has positive executable quantity, it returns no equilibrium price and emits no trades.
+
+At a discovered price, the model matches market orders by caller-supplied time priority, then remaining market quantity against eligible limit orders in price/time order, then remaining eligible limit orders in price/time order. All auction trades occur at the single clearing price. Unmatched limit orders retain their original price and priority. Unmatched market orders are assigned the clearing price only when one was discovered; otherwise the result marks their continuous-market treatment unresolved instead of assuming a fallback price.
+
+The model uses unique positive priority sequences, executes no orders without a counterparty, checks that its matched quantity equals the clearing-price calculation, and fails on arithmetic overflow. It does not model session timing, random closure, order changes during collection, margins, price protections, self-trade prevention, broker behavior, or continuous-market transfer mechanics.
+
+The current [NSE Equity Derivatives Pre-Open page](https://www.nseindia.com/static/products-services/equity-derivatives-pre-open-session) describes the auction price determination and matching sequence. The page's current schedule differs from dated 2025 circular schedules and does not state the later schedule's effective-from date. Do not treat this primitive as evidence that any historical data date used that timetable or these mechanics; resolve that timeline before routing replay orders through it.

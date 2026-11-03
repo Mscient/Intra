@@ -4,6 +4,7 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Current gate:** S0 / G0 remains open. Offline implementation is active; downstream evidence gates are not closed.
+**Latest build:** JDK 21 compilation succeeded after the standalone call-auction engine was added. No tests or runtime auction fixtures were run.
 **Build:** Java 21 core and CLI compile successfully after option-exercise fees, dated margin inputs, deterministic replay checkpointing, caller-sourced additional settlement costs, the offline L1 IOC quote-replay artifact/verifier, the feed-lifecycle journal/report and raw-to-lifecycle reconciliation, standalone European BSM and Black-76 pricers, and the deterministic toy limit book. Synthetic replay `e9c5e0585cbf2dba6c24d632` previously validated 30 bars and one complete supplied session; it is `SYNTHETIC_PLUMBING_ONLY`, records `REQUIRE_FLAT`, ends flat, and has diagnostic net P&L `-1.36 INR`. It has not been rerun after the new output and input schemas. The Java 21 build compiled after adding the effective-dated market-rule registry, session/scope/source checks, lot/tick/session-window validation, and rule details in run outputs. The synthetic example was not rerun after that schema change. No tests or real-data strategy evaluation were performed.
 
 ## Gate and work-package tracker
@@ -89,6 +90,7 @@
 - [ ] Add separately reviewed strategy card and chronological evaluation/holdout workflow.
 - [x] Added a standalone caller-input Black-76 European futures-option pricer for value and first/second-order Greeks, including explicit per-unit, per-vol-point, per-rate-point, and per-calendar-day output conventions. It is not independently validated or integrated into replay/accounting.
 - [x] Added a standalone deterministic toy limit book with integer tick/unit prices, price/time priority, partial fills, maker-price execution, cancel of residual quantity, and market-IOC sweeps. It is exchange-neutral, uncalibrated, and not wired into strategy replay.
+- [x] Added a separate single-price call-auction primitive with maximum-volume/minimum-imbalance/nearest-reference clearing, price/time allocation, explicit unresolved no-price market remainders, and matched-volume reconciliation. It is not assigned to historical sessions or integrated into replay pending effective-dated rule evidence.
 - [x] Added a blank strategy research-card template; no candidate or assumptions are approved by the template.
 
 ## Source-derived backtesting decisions
