@@ -90,6 +90,14 @@ Set the instrument ID and freshness limits explicitly. Replay uses each record's
 
 `QuoteOrderReplay.execute(...)` is an offline IOC replay over caller-supplied quote history. The caller must first verify the source journal with `journal-verify`; each intent supplies its source, instrument, decision time, decision-to-arrival latency, side, IOC type, quantity, adverse ticks, tick size, and optional limit ticks. The simulator selects the latest matching snapshot observable at arrival, applies the quote-quality policy, and fills no more than displayed top-level quantity. It returns OMS state transitions, an execution event for the filled portion, and a canceled residual for partial IOC orders. Non-marketable limits are missed; passive queue fills are not inferred without trade/order-level data. This per-intent API does not reserve or deplete displayed size across separate intents, so it is not a capacity estimate or conservative fill lower bound. Latency is an explicit per-intent input; this API does not estimate a route distribution, apply fees, write run artifacts, or submit broker orders. The current bar-run CLI does not call it.
 
+Run batches from a verified journal with a UTF-8 CSV that has exactly these columns in this order: `order_id,source,instrument_id,decision_time_utc,latency_ms,side,type,requested_units,limit_price_ticks,adverse_slippage_ticks,tick_size`. Timestamps use ISO-8601 UTC instants. `side` is `BUY` or `SELL`; `type` is `MARKET_IOC` or `LIMIT_IOC`; leave `limit_price_ticks` empty for market IOC and provide a positive integer tick price for limit IOC. Order IDs must be unique. Example:
+
+```powershell
+& $java -jar $jar quote-order-replay .\quotes.qj .\intents.csv 2000 250 .\quote-replay.csv
+```
+
+The command verifies the full quote journal before writing. Each output row records the journal final hash, exact intent CSV hash, model ID, selected quote, outcome, OMS events, and execution identity. Output is atomically created without overwriting an existing file. The command holds the complete quote history in memory because event timestamps are not required to be monotonic in journal order; select journals that fit available memory. Displayed size is evaluated independently per intent and reused across intents, so these outputs do not measure aggregate capacity or a conservative lower bound. The replay is not integrated into the bar strategy runner and does not model fees, route distributions, passive queue fills, or broker state.
+
 Journal creation uses create-new semantics. If initialization fails, the writer closes the handle and removes the file it just created so an incomplete header cannot masquerade as a valid empty journal.
 
 ## Validate a chronological evaluation split
