@@ -33,7 +33,12 @@ $gitCommand = Get-Command git -ErrorAction SilentlyContinue
 if ($gitCommand) {
     $candidateCommit = (& $gitCommand.Source -C $projectRoot rev-parse --verify HEAD 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -eq 0 -and $candidateCommit -match '^[0-9a-f]{40}$') {
-        $buildCommit = $candidateCommit
+        $worktreeStatus = @(& $gitCommand.Source -C $projectRoot status --porcelain --untracked-files=normal 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $worktreeStatus.Count -eq 0) {
+            $buildCommit = $candidateCommit
+        } else {
+            $buildCommit = 'unknown-dirty'
+        }
     }
 }
 $manifestPath = Join-Path $buildRoot 'MANIFEST.MF'

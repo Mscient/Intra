@@ -17,7 +17,7 @@ The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PL
 
 ## Build and run
 
-Requires a JDK 21 installation. The build uses `JAVA_HOME` explicitly, embeds the source Git commit in the JAR manifest when built in a checkout, and writes compiler output outside the OneDrive project by default.
+Requires a JDK 21 installation. The build uses `JAVA_HOME` explicitly, embeds the Git commit only when the checkout is clean, marks dirty builds `unknown-dirty`, and writes compiler output outside the OneDrive project by default. Non-synthetic runs require a full commit ID, so a dirty-build JAR cannot run non-synthetic data.
 
 ```powershell
 $env:JAVA_HOME = 'C:\path\to\jdk-21'

@@ -91,7 +91,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
 - `position.cross_session_policy`: `ALLOW_OVERNIGHT` permits positions to cross session boundaries and be marked at end of data. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.
 - `cost.status`: `UNVERIFIED` or `VERIFIED`. `VERIFIED` requires `cost.evidence_reference`. Fee-per-order, fee-per-unit, and adverse slippage ticks are always explicit.
-- `run.commit_id`: the source commit associated with the run. It defaults to `BUILD_COMMIT`, read from the JAR manifest. A non-synthetic replay requires a full 40-character commit ID or a JAR built from a Git checkout; the sample uses a synthetic fixture label.
+- `run.commit_id`: the source commit associated with the run. It defaults to `BUILD_COMMIT`, read from the JAR manifest. The build records a commit only from a clean Git checkout; dirty builds are marked `unknown-dirty`. A non-synthetic replay requires a full 40-character commit ID, so it fails closed with an unidentified/dirty build. The sample uses a synthetic fixture label.
 
 ## Fill, risk, and accounting behavior
 
