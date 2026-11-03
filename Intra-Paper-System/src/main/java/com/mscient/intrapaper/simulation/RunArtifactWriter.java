@@ -97,6 +97,7 @@ public final class RunArtifactWriter {
     }
 
     private static String summaryJson(String runId, ValidatedDataset data, RunConfig config, BacktestResult result) {
+        DiagnosticMetrics metrics = DiagnosticMetrics.from(result);
         return "{\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
@@ -112,6 +113,15 @@ public final class RunArtifactWriter {
                 + "  \"orders\": " + result.orders().size() + ",\n"
                 + "  \"fills\": " + result.fills().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
+                + "  \"filled_units\": " + metrics.filledUnits() + ",\n"
+                + "  \"filled_turnover_inr\": " + q(num(metrics.filledTurnoverInr())) + ",\n"
+                + "  \"completed_trade_diagnostics\": {\"wins\": " + metrics.winningTrades()
+                + ", \"losses\": " + metrics.losingTrades() + ", \"breakeven\": " + metrics.breakevenTrades()
+                + ", \"net_pnl_inr\": " + q(num(metrics.completedTradeNetPnlInr()))
+                + ", \"win_rate\": " + optionalNum(metrics.winRate())
+                + ", \"average_net_pnl_inr\": " + optionalNum(metrics.averageNetPnlPerTradeInr())
+                + ", \"net_profit_factor\": " + optionalNum(metrics.netProfitFactor())
+                + ", \"average_holding_seconds\": " + optionalNum(metrics.averageHoldingSeconds()) + "},\n"
                 + "  \"risk_halts\": " + result.riskHalts() + ",\n"
                 + "  \"final_position_units\": " + result.finalPositionUnits() + ",\n"
                 + "  \"realized_pnl_inr\": " + q(num(result.realizedPnlInr())) + ",\n"
@@ -222,6 +232,10 @@ public final class RunArtifactWriter {
 
     private static String optionalJson(java.util.Optional<String> value) {
         return value.map(RunArtifactWriter::q).orElse("null");
+    }
+
+    private static String optionalNum(java.util.Optional<BigDecimal> value) {
+        return value.map(RunArtifactWriter::num).map(RunArtifactWriter::q).orElse("null");
     }
 
     private static String num(BigDecimal value) {

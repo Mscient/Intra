@@ -103,7 +103,7 @@ The simulator is long-only and uses full fills. For options it treats the suppli
 ## Run artifacts
 
 - `run-manifest.json`: dataset and reference identifiers, input hashes, model/configuration, risk and cross-session position policy, output hashes, and the always-false performance-claim flag.
-- `summary.json`: diagnostic counts and P&L accounting only.
+- `summary.json`: diagnostic counts and P&L accounting. It also reports completed-trade win/loss counts, completed-trade net P&L, win rate, average net P&L, net profit factor, average holding time, filled units, and filled turnover. Undefined trade statistics are `null`; open-position mark-to-market remains in the overall P&L fields. All remain diagnostic-only.
 - `signals.csv`: one row per completed-bar strategy decision, including the indicator values or warm-up state.
 - `sessions.csv`: per-session bar coverage, starting/ending position, realized/unrealized P&L change, fees, modeled slippage, order/fill counts, and risk halts. Net P&L change reconciles to realized plus unrealized change less fees; slippage is reflected in simulated fill prices and also reported as a diagnostic.
 - `orders.csv`, `order-events.csv`: local simulated lifecycle; not broker observations.
