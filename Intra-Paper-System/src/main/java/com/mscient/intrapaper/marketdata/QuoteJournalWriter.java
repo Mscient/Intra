@@ -29,8 +29,17 @@ public final class QuoteJournalWriter implements AutoCloseable {
             writeFully(channel, ByteBuffer.wrap(QuoteJournalFormat.header()));
             channel.force(true);
             return new QuoteJournalWriter(channel, lock);
-        } catch (IOException failure) {
-            channel.close();
+        } catch (IOException | RuntimeException failure) {
+            try {
+                channel.close();
+            } catch (IOException closeFailure) {
+                failure.addSuppressed(closeFailure);
+            }
+            try {
+                java.nio.file.Files.deleteIfExists(path);
+            } catch (IOException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
             throw failure;
         }
     }

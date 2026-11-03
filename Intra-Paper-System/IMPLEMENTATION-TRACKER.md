@@ -43,6 +43,7 @@
 - [x] Optional dated BUY/SELL cost schedules are validated for range overlap and complete session coverage; their hash participates in run identity and the manifest.
 - [x] CLI quote-journal verification replays the full local journal and checks framing, canonical records, sequence order, and the SHA-256 chain; it performs no network access.
 - [x] Quote-journal writer can resume only after an exclusive lock and full integrity scan; it restores the last sequence/hash and appends from the verified end. This supports journal restart, not backtest/OMS checkpoint recovery.
+- [x] Quote-journal creation failures close the channel and remove the newly created incomplete file, avoiding an unrecoverable header fragment after interrupted initialization.
 - [x] Replay verification reruns the simulator from supplied bars/configuration in an isolated temporary folder and compares all ledgers plus the manifest byte-for-byte with the content-addressed saved run.
 - [x] Explicit cross-session position policy: `REQUIRE_FLAT` fails closed on an overnight or end-of-data position; it does not synthesize a forced close.
 - [x] Optional `AUTO_FLATTEN_SESSION_END` policy schedules an exit for the final session bar's open from the prior bar close, suppresses entries that cannot be closed inside the session, and fails closed if still exposed at the final bar. This remains a bar-model assumption requiring review, not exchange market-on-close behavior.
