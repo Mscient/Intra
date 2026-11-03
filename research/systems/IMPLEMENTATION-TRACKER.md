@@ -6,6 +6,8 @@
 **Implementation:** [`Intra-Paper-System/`](../../Intra-Paper-System/README.md), Java 21, offline only.
 **Current gate:** S0 / G0 remains open. The compiled system is an offline single-contract derivatives replay MVP; replay inputs remain futures or option premium bars only. Standalone BSM/Black-76 valuation, a deterministic toy limit book, and a generic call-auction engine are research primitives, not replay/portfolio integration, independent pricing validation, or a historically effective-dated exchange emulator. This is not completion of the full staged plan.
 
+**Research handoff:** [`CLAUDE-RESEARCH-BRIEF.md`](CLAUDE-RESEARCH-BRIEF.md) groups the 13 open evidence requests by priority, required source detail, and the implementation work each result informs. Send R1–R4 first; they cover the unresolved NSE rule timeline and the 2026-10-30 candle gap.
+
 ## Current position
 
 - The Java 21 CLI compiles and supports normalized-bar validation and backtest replay for one dated futures contract or one option premium series at a time, including supplied session-boundary completeness checks and strict same-session interval spacing unless an explicit diagnostic override is set.
