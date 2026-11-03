@@ -52,3 +52,4 @@ a7ef463f-0534-4ce6-9679-e0623244f7e2,2026-11-03,542b42d519eba5f569d7361cc6e8c4ad
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,a1de914,"Added offline L1 IOC quote replay API with explicit latency, snapshot-limited per-intent fills, OMS outcomes, documented capacity/queue limits; Java 21 build succeeded; runtime fixtures not run."
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,2c7160b,"Added verified quote-order-replay CSV CLI with atomic no-overwrite output and source hashes; Java 21 build succeeded; runtime fixtures not run."
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,c42b687,"Ordered batch quote replay by arrival and consumed displayed side quantity once per selected snapshot; Java 21 build succeeded; runtime fixtures not run."
+5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,dd04804,"Indexed quotes by source/instrument/receive time for batch lookups; Java 21 compilation succeeded; runtime fixtures not run."
