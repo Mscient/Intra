@@ -12,4 +12,4 @@ public record SimOrder(
         int requestedUnits,
         String orderType,
         String status,
-        String reason) { }
+        String reason) implements java.io.Serializable { }

@@ -14,7 +14,7 @@ public record StrategySignal(
         String instrumentId,
         Integer targetLots,
         String status,
-        Map<String, String> metrics) {
+        Map<String, String> metrics) implements java.io.Serializable {
     public StrategySignal {
         metrics = Collections.unmodifiableMap(new TreeMap<>(metrics));
     }

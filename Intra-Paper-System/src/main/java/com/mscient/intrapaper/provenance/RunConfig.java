@@ -43,6 +43,7 @@ public record RunConfig(
         int slowBars,
         int requestedLots,
         int maxPositionLots,
+        int checkpointIntervalBars,
         BigDecimal maxNotionalInr,
         BigDecimal marginPerLotInr,
         BigDecimal maxMarginInr,
@@ -69,6 +70,7 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.margin_schedule_file",
             "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
+            "recovery.checkpoint_interval_bars",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
             "cost.notional_fee_bps", "cost.schedule_file", "cost.components_file",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
@@ -156,6 +158,7 @@ public record RunConfig(
         if (fast < 2 || slow <= fast) throw new IllegalArgumentException("Require 2 <= strategy.fast_bars < strategy.slow_bars");
         int requestedLots = positiveInt(p, "strategy.lots");
         int maxPosition = positiveInt(p, "risk.max_position_lots");
+        int checkpointIntervalBars = optionalNonNegativeInt(p, "recovery.checkpoint_interval_bars", 250);
         if (requestedLots > maxPosition) throw new IllegalArgumentException("strategy.lots exceeds risk.max_position_lots");
         Path base = absolute.getParent();
         Optional<Path> legacyCostSchedule = optional(p, "cost.schedule_file").map(value -> resolve(base, value));
@@ -202,6 +205,7 @@ public record RunConfig(
                 slow,
                 requestedLots,
                 maxPosition,
+                checkpointIntervalBars,
                 notional,
                 marginPerLot,
                 maxMargin,

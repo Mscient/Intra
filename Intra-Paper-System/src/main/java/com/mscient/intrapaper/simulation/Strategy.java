@@ -16,5 +16,8 @@ public interface Strategy {
     /** Stable parameters included in the run identity and manifest. */
     Map<String, String> parameters();
 
+    /** True only when repeated evaluation from the full input history is deterministic across process restarts. */
+    default boolean supportsDurableCheckpoints() { return false; }
+
     StrategySignal evaluate(List<Bar> availableBars, Instant decisionTimestamp);
 }

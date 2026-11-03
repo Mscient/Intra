@@ -19,7 +19,7 @@ public record SimFeeBreakdown(
         BigDecimal sttInr,
         BigDecimal stampDutyInr,
         BigDecimal gstTaxableBaseInr,
-        BigDecimal gstInr) {
+        BigDecimal gstInr) implements java.io.Serializable {
 
     public SimFeeBreakdown {
         if (fillId == null || fillId.isBlank()) throw new IllegalArgumentException("fillId is required");

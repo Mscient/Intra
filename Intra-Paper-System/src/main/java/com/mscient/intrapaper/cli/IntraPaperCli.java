@@ -11,6 +11,7 @@ import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
+import com.mscient.intrapaper.simulation.BacktestCheckpointStore;
 import com.mscient.intrapaper.simulation.OmsRunRecovery;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
@@ -19,6 +20,8 @@ import com.mscient.intrapaper.simulation.RunReplayVerifier;
 import com.mscient.intrapaper.simulation.SmaCrossoverStrategy;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.nio.file.FileAlreadyExistsException;
 import java.time.Duration;
 
 /** Offline-only command line entry point. There is deliberately no broker or network adapter. */
@@ -136,7 +139,6 @@ public final class IntraPaperCli {
                 return;
             }
             SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
-            BacktestResult result = new BacktestEngine().run(dataset, config, strategy);
             String runId = RunIdentity.contentId(dataset, config, strategy);
             String configuredRunsRoot = System.getenv("INTRA_PAPER_RUNS_DIR");
             String localAppData = System.getenv("LOCALAPPDATA");
@@ -144,7 +146,28 @@ public final class IntraPaperCli {
                     ? Path.of(configuredRunsRoot)
                     : Path.of(localAppData == null || localAppData.isBlank() ? System.getProperty("user.home") : localAppData,
                             "Intra-Paper-System", "runs");
-            RunArtifactWriter.WrittenRun written = new RunArtifactWriter().write(runsRoot, runId, dataset, config, result);
+            Path publishedRun = runsRoot.toAbsolutePath().normalize().resolve(runId);
+            if (Files.exists(publishedRun)) throw new FileAlreadyExistsException(publishedRun.toString());
+            BacktestEngine engine = new BacktestEngine();
+            RunArtifactWriter writer = new RunArtifactWriter();
+            BacktestResult result;
+            RunArtifactWriter.WrittenRun written;
+            if (config.checkpointIntervalBars() > 0) {
+                try (BacktestCheckpointStore checkpoints = new BacktestCheckpointStore(
+                        runsRoot.resolve(".checkpoints"), runId)) {
+                    if (Files.exists(publishedRun)) throw new FileAlreadyExistsException(publishedRun.toString());
+                    result = engine.run(dataset, config, strategy, checkpoints);
+                    written = writer.write(runsRoot, runId, dataset, config, result);
+                    try {
+                        checkpoints.clearAfterPublish();
+                    } catch (java.io.IOException cleanupFailure) {
+                        System.err.println("Run was published; checkpoint cleanup needs review: " + cleanupFailure.getMessage());
+                    }
+                }
+            } else {
+                result = engine.run(dataset, config, strategy);
+                written = writer.write(runsRoot, runId, dataset, config, result);
+            }
             System.out.printf("RUN: %s%nCLASSIFICATION: %s%nNET P&L (diagnostic only): %s INR%nOUTPUT: %s%n",
                     runId, result.resultClassification(), result.netPnlInr().stripTrailingZeros().toPlainString(), written.path());
         } catch (Exception error) {
@@ -168,6 +191,7 @@ public final class IntraPaperCli {
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
+                + "run resumes a deterministic built-in SMA replay from the last verified checkpoint; set recovery.checkpoint_interval_bars=0 to disable.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
                 + "quote-feature-export verifies a quote journal and atomically writes sequence-aware L1 features without overwriting output.\n"

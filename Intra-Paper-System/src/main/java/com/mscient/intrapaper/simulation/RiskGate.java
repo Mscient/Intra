@@ -11,6 +11,8 @@ import java.time.LocalDate;
 /** Independent entry-limit and per-session loss gate for the offline simulator. */
 public final class RiskGate {
     public record Evaluation(boolean newlyHalted, boolean halted, BigDecimal sessionLossInr) { }
+    public record Snapshot(LocalDate sessionDate, BigDecimal sessionStartNetPnl, boolean halted,
+            Instant lastEntryOrderTimestamp) implements java.io.Serializable { }
 
     private final int maxPositionLots;
     private final BigDecimal maxNotionalInr;
@@ -82,5 +84,17 @@ public final class RiskGate {
 
     public boolean halted() {
         return halted;
+    }
+
+    public Snapshot snapshot() {
+        return new Snapshot(sessionDate, sessionStartNetPnl, halted, lastEntryOrderTimestamp);
+    }
+
+    public void restore(Snapshot snapshot) {
+        if (snapshot.sessionDate() == null) throw new IllegalArgumentException("checkpoint risk session is missing");
+        this.sessionDate = snapshot.sessionDate();
+        this.sessionStartNetPnl = snapshot.sessionStartNetPnl();
+        this.halted = snapshot.halted();
+        this.lastEntryOrderTimestamp = snapshot.lastEntryOrderTimestamp();
     }
 }

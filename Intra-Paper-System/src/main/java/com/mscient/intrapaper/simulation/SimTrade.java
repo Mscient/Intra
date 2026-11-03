@@ -13,4 +13,4 @@ public record SimTrade(
         BigDecimal exitPrice,
         BigDecimal grossPnlInr,
         BigDecimal feesInr,
-        BigDecimal netPnlInr) { }
+        BigDecimal netPnlInr) implements java.io.Serializable { }

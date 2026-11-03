@@ -11,6 +11,8 @@ import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -43,6 +45,19 @@ public final class BacktestEngine {
     }
 
     public BacktestResult run(ValidatedDataset dataset, RunConfig config, Strategy strategy) {
+        return runInternal(dataset, config, strategy, null);
+    }
+
+    public BacktestResult run(ValidatedDataset dataset, RunConfig config, Strategy strategy,
+            BacktestCheckpointStore checkpointStore) {
+        if (!Objects.requireNonNull(strategy, "strategy").supportsDurableCheckpoints()) {
+            throw new IllegalArgumentException("This strategy does not declare deterministic checkpoint recovery support");
+        }
+        return runInternal(dataset, config, strategy, Objects.requireNonNull(checkpointStore, "checkpointStore"));
+    }
+
+    private BacktestResult runInternal(ValidatedDataset dataset, RunConfig config, Strategy strategy,
+            BacktestCheckpointStore checkpointStore) {
         Objects.requireNonNull(dataset, "dataset");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(strategy, "strategy");
@@ -74,9 +89,45 @@ public final class BacktestEngine {
         RiskGate riskGate = new RiskGate(config);
         BigDecimal highWater = BigDecimal.ZERO;
         BigDecimal maxDrawdown = BigDecimal.ZERO;
+        int startBarIndex = 0;
+        if (checkpointStore != null) {
+            try {
+                var restored = checkpointStore.restore(dataset, config, strategy);
+                if (restored.isPresent()) {
+                    BacktestCheckpoint checkpoint = restored.orElseThrow().latest();
+                    signals.addAll(restored.orElseThrow().signals());
+                    orders.addAll(restored.orElseThrow().orders());
+                    events.addAll(restored.orElseThrow().orderEvents());
+                    fills.addAll(restored.orElseThrow().fills());
+                    feeBreakdowns.addAll(restored.orElseThrow().feeBreakdowns());
+                    trades.addAll(restored.orElseThrow().trades());
+                    curve.addAll(restored.orElseThrow().equityCurve());
+                    realized = checkpoint.realizedPnlInr();
+                    fees = checkpoint.feesPaidInr();
+                    slippage = checkpoint.slippageInr();
+                    averageEntry = checkpoint.averageEntryPrice();
+                    positionLots = checkpoint.positionLots();
+                    pending = checkpoint.pending() == null ? null : new Pending(
+                            checkpoint.pending().orderIndex(), checkpoint.pending().targetLots(),
+                            checkpoint.pending().decisionSession());
+                    openTrade = checkpoint.openTrade() == null ? null : new OpenTrade(
+                            checkpoint.openTrade().entryTimestamp(), checkpoint.openTrade().entryPrice(),
+                            checkpoint.openTrade().quantity(), checkpoint.openTrade().entryFee());
+                    activeSession = checkpoint.activeSession();
+                    netAtPriorClose = checkpoint.netAtPriorClose();
+                    riskHalts = checkpoint.riskHalts();
+                    riskGate.restore(checkpoint.riskGate());
+                    highWater = checkpoint.highWaterInr();
+                    maxDrawdown = checkpoint.maxDrawdownInr();
+                    startBarIndex = checkpoint.nextBarIndex();
+                }
+            } catch (IOException invalidCheckpoint) {
+                throw new UncheckedIOException("Unable to restore deterministic replay checkpoint", invalidCheckpoint);
+            }
+        }
         var interval = IntervalSupport.duration(config.interval());
 
-        for (int i = 0; i < bars.size(); i++) {
+        for (int i = startBarIndex; i < bars.size(); i++) {
             Bar bar = bars.get(i);
             Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
                     ? bar.timestamp() : bar.timestamp().minus(interval);
@@ -264,6 +315,14 @@ public final class BacktestEngine {
                 }
             }
             netAtPriorClose = net;
+            int completedBars = i + 1;
+            if (checkpointStore != null && config.checkpointIntervalBars() > 0
+                    && (completedBars % config.checkpointIntervalBars() == 0 || completedBars == bars.size())) {
+                saveCheckpoint(checkpointStore, dataset, config, strategy, completedBars,
+                        signals, orders, events, fills, feeBreakdowns, trades, curve,
+                        realized, fees, slippage, averageEntry, positionLots, pending, openTrade,
+                        activeSession, netAtPriorClose, riskHalts, riskGate, highWater, maxDrawdown);
+            }
         }
 
         if (dataset.expirySettlement().isPresent()) {
@@ -329,6 +388,30 @@ public final class BacktestEngine {
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
         RunLedgerReconciler.requireFillCostsConsistent(result, config, dataset);
         return result;
+    }
+
+    private static void saveCheckpoint(BacktestCheckpointStore checkpointStore, ValidatedDataset dataset,
+            RunConfig config, Strategy strategy, int completedBars, List<StrategySignal> signals,
+            List<SimOrder> orders, List<SimOrderEvent> events, List<SimFill> fills,
+            List<SimFeeBreakdown> feeBreakdowns, List<SimTrade> trades, List<EquityPoint> curve,
+            BigDecimal realized, BigDecimal fees, BigDecimal slippage, BigDecimal averageEntry,
+            int positionLots, Pending pending, OpenTrade openTrade, LocalDate activeSession,
+            BigDecimal netAtPriorClose, int riskHalts, RiskGate riskGate,
+            BigDecimal highWater, BigDecimal maxDrawdown) {
+        BacktestCheckpoint.PendingState pendingState = pending == null ? null
+                : new BacktestCheckpoint.PendingState(pending.orderIndex(), pending.targetLots(), pending.decisionSession());
+        BacktestCheckpoint.OpenTradeState openTradeState = openTrade == null ? null
+                : new BacktestCheckpoint.OpenTradeState(openTrade.entryTimestamp, openTrade.entryPrice,
+                        openTrade.quantity, openTrade.entryFee);
+        BacktestCheckpoint checkpoint = checkpointStore.newCheckpoint(completedBars, dataset, config, strategy,
+                signals, orders, events, fills, feeBreakdowns, trades, curve, realized, fees, slippage,
+                averageEntry, positionLots, pendingState, openTradeState, activeSession,
+                netAtPriorClose, riskHalts, riskGate.snapshot(), highWater, maxDrawdown);
+        try {
+            checkpointStore.save(checkpoint);
+        } catch (IOException failure) {
+            throw new UncheckedIOException("Unable to persist deterministic replay checkpoint", failure);
+        }
     }
 
     private static BigDecimal settlementExitValue(ExpirySettlement settlement, Bar bar) {

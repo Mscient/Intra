@@ -13,4 +13,4 @@ public record EquityPoint(
         BigDecimal unrealizedPnlInr,
         BigDecimal feesPaidInr,
         BigDecimal netPnlInr,
-        String riskState) { }
+        String riskState) implements java.io.Serializable { }

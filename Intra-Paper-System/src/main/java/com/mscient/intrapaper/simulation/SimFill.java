@@ -16,7 +16,7 @@ public record SimFill(
         BigDecimal feeInr,
         BigDecimal marginPerLotInr,
         String marginSourceReference,
-        int positionUnitsAfter) {
+        int positionUnitsAfter) implements java.io.Serializable {
     public SimFill {
         Objects.requireNonNull(marginPerLotInr, "marginPerLotInr");
         Objects.requireNonNull(marginSourceReference, "marginSourceReference");

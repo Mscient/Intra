@@ -29,6 +29,11 @@ public final class SmaCrossoverStrategy implements Strategy {
     }
 
     @Override
+    public boolean supportsDurableCheckpoints() {
+        return true;
+    }
+
+    @Override
     public Map<String, String> parameters() {
         return Map.of("fast_bars", Integer.toString(fastBars),
                 "slow_bars", Integer.toString(slowBars), "lots", Integer.toString(lots));

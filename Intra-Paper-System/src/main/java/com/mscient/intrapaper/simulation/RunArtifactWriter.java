@@ -251,7 +251,7 @@ public final class RunArtifactWriter {
         data.marginRequirementSchedule().ifPresent(schedule -> inputHashes.put("margin_requirement_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         return "{\n"
-                + "  \"schema_version\": 6,\n"
+                + "  \"schema_version\": 7,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -333,6 +333,7 @@ public final class RunArtifactWriter {
                 + "  \"margin_model\": " + q(data.marginRequirementSchedule().isPresent()
                         ? "CALLER_SUPPLIED_DATED_REQUIREMENT_NOT_SPAN_RECOMPUTATION"
                         : "FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN") + ",\n"
+                + "  \"recovery\": {\"checkpoint_interval_bars\": " + config.checkpointIntervalBars() + "},\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"
