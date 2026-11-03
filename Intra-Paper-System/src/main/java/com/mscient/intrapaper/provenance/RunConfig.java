@@ -46,6 +46,7 @@ public record RunConfig(
         boolean allowNextSessionOrders,
         CrossSessionPositionPolicy crossSessionPositionPolicy,
         boolean allowIntraSessionGaps,
+        int maxMissingIntervalsPerSession,
         String costStatus,
         Optional<String> costEvidenceReference,
         int slippageTicks,
@@ -62,7 +63,8 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps", "run.commit_id");
+            "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
+            "quality.max_missing_intervals_per_session", "run.commit_id");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -115,6 +117,10 @@ public record RunConfig(
         if (!Set.of("true", "false").contains(allowGapsText)) {
             throw new IllegalArgumentException("quality.allow_intrasession_gaps must be true or false");
         }
+        int maxMissingIntervals = Integer.parseInt(required(p, "quality.max_missing_intervals_per_session"));
+        if (maxMissingIntervals < 0) {
+            throw new IllegalArgumentException("quality.max_missing_intervals_per_session must be non-negative");
+        }
 
         TimestampRole role = TimestampRole.valueOf(required(p, "dataset.timestamp_role"));
         if (role != TimestampRole.BAR_START && role != TimestampRole.BAR_END) {
@@ -165,6 +171,7 @@ public record RunConfig(
                 Boolean.parseBoolean(allowCrossSessionText),
                 crossSessionPositionPolicy,
                 Boolean.parseBoolean(allowGapsText),
+                maxMissingIntervals,
                 costStatus,
                 costEvidence.map(value -> logicalId(value, "cost.evidence_reference")),
                 slippage,

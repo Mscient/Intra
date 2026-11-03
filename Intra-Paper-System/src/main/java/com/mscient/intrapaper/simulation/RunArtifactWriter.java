@@ -163,6 +163,7 @@ public final class RunArtifactWriter {
                 + data.estimatedMissingIntervals() + ", \"expected_bars_from_calendar\": "
                 + data.expectedBarCount() + ", \"open_sessions\": " + data.openSessionCount()
                 + ", \"complete_open_sessions\": " + data.completeSessionCount()
+                + ", \"max_missing_intervals_per_session\": " + config.maxMissingIntervalsPerSession()
                 + ", \"gaps_allowed_by_config\": " + config.allowIntraSessionGaps()
                 + ", \"session_completeness_status\": "
                 + q(data.completeSessionCount() == data.openSessionCount() ? "COMPLETE_FOR_SUPPLIED_WINDOWS" : "INCOMPLETE_ALLOWED_DIAGNOSTIC")

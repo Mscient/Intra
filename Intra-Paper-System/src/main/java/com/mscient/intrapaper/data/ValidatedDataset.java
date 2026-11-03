@@ -127,9 +127,16 @@ public record ValidatedDataset(
             }
             long expectedForSession = windowNanos / intervalNanos + 1;
             expectedBarCount += expectedForSession;
-            if (sessionBars.size() < expectedForSession) {
-                estimatedMissingIntervals += expectedForSession - sessionBars.size();
+            long missingIntervals = expectedForSession - sessionBars.size();
+            if (missingIntervals < 0) {
+                throw new IllegalArgumentException("More bars than the declared session window permits on " + date);
             }
+            if (missingIntervals > config.maxMissingIntervalsPerSession()) {
+                throw new IllegalArgumentException("Estimated missing intervals " + missingIntervals
+                        + " exceed quality.max_missing_intervals_per_session="
+                        + config.maxMissingIntervalsPerSession() + " on " + date);
+            }
+            estimatedMissingIntervals += missingIntervals;
             boolean sessionHasSpacingAnomaly = false;
             for (int i = 1; i < sessionBars.size(); i++) {
                 Duration actual = Duration.between(sessionBars.get(i - 1).timestamp(), sessionBars.get(i).timestamp());
@@ -144,9 +151,6 @@ public record ValidatedDataset(
                 }
             }
             if (sessionBars.size() == expectedForSession && !sessionHasSpacingAnomaly) completeSessions++;
-            if (sessionBars.size() > expectedForSession) {
-                throw new IllegalArgumentException("More bars than the declared session window permits on " + date);
-            }
         }
 
         String barsHash = RunConfig.sha256(Files.readAllBytes(barsPath));

@@ -26,6 +26,7 @@
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
 - [x] User-supplied session calendar and as-of dated instrument-master CSV resolution; one dated futures or option contract per run; no expiry stitching.
 - [x] Session completeness checks against supplied first/last bar labels and expected interval grid; missing open sessions fail closed.
+- [x] Diagnostic gap overrides have an explicit maximum estimated missing-bar deficit per session; the default remains zero.
 - [x] Persisted run manifest with dataset/master/calendar/config hashes and hashes for output ledgers.
 - [x] Require an explicit local-replay rights reference before accepting non-synthetic datasets; the software does not verify licensing itself.
 - [x] Long-only SMA crossover baseline with next eligible bar open market fills, fixed adverse tick slippage, explicit fee inputs, and no candle-touch/passive fills.

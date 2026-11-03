@@ -62,7 +62,7 @@ The header must include these fields in any order:
 - `raw_record_hash` must be lowercase SHA-256 hex. The run manifest separately hashes the complete normalized bars CSV, reference CSV, calendar CSV, and configuration file.
 - The loader checks the row-hash format but cannot independently verify its source relationship without the original raw packet/file; no raw capture or importer is included.
 - Bar dates are derived in the configured timezone and must exist in the supplied open-session calendar.
-- Adjacent bars within a session must be exactly one configured interval apart by default. `quality.allow_intrasession_gaps=true` permits spacing anomalies only as a reviewed diagnostic and records the anomaly and estimated missing-interval counts.
+- Adjacent bars within a session must be exactly one configured interval apart by default. `quality.allow_intrasession_gaps=true` permits spacing anomalies only as a reviewed diagnostic. `quality.max_missing_intervals_per_session` caps the estimated deficit against the calendar's expected bar count (zero in the example); exceeding the cap always fails input validation. The manifest records the configured cap and observed anomalies.
 
 ## Dated instrument master
 
@@ -87,6 +87,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `reference.file`, `calendar.file`: paths relative to the properties file unless absolute.
 - `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: built-in long-only SMA harness settings. It receives immutable history through the decision bar; strategy ID and parameters are written into the run manifest and content ID.
 - The CLI selects the built-in SMA harness. Java callers can inject another implementation of `Strategy`; the engine supplies only bars through the current decision point and records that implementation's ID and stable parameters.
+- `quality.max_missing_intervals_per_session`: maximum estimated bar deficit for any open session. Keep this at zero unless an incomplete diagnostic run is explicitly intended and the schedule/data gap has been reviewed.
 - `risk.max_position_lots`, `risk.max_notional_inr`, `risk.margin_per_lot_inr`, `risk.max_margin_inr`, and `risk.max_daily_loss_inr`: mandatory configured limits. Margin is a fixed user-supplied proxy used only to cap simulated entries; it is not an exchange SPAN/ELM calculation. Sample values are arbitrary and must never be carried into a real deployment.
 - `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
 - `position.cross_session_policy`: `ALLOW_OVERNIGHT` permits positions to cross session boundaries and be marked at end of data. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.
