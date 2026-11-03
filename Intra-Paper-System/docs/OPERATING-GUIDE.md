@@ -34,6 +34,20 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 `verify` recomputes the SHA-256 hashes for the twelve current output ledgers in `run-manifest.json` and checks the folder ID. It also accepts earlier nine-, ten-, and eleven-output manifests. It does not re-open or re-authorize source inputs.
 
+## Standalone European option valuation
+
+`com.mscient.intrapaper.pricing.EuropeanOptionPricer.value(...)` provides a Java API for a caller-input European Black–Scholes–Merton value and Greeks. Inputs are spot, strike, time to expiry in years, continuously compounded annual risk-free rate and dividend yield, annualized volatility as a decimal, and `OptionRight`. Values are per underlying unit. Delta is per underlying-price unit; gamma is per squared underlying-price unit; vega and rho are per one percentage point; theta is per calendar day using 365 days per year.
+
+This helper does not select or calibrate volatility, resolve rates/yield, determine day-count conventions, price American exercise, or model futures options with Black-76. It is not connected to the bar replay, expiry settlement, or portfolio accounting, and has not been independently validated against a second implementation. It is research plumbing only; do not treat its output as a replay fill, executable quote, or performance result.
+
+Example caller:
+
+```java
+var inputs = new EuropeanOptionPricer.Inputs(22000.0, 22000.0, 30.0 / 365.0,
+        0.06, 0.0, 0.20, OptionRight.CALL);
+var valueAndGreeks = EuropeanOptionPricer.value(inputs);
+```
+
 Reconstruct the completed run's saved OMS state after verifying all run-artifact hashes:
 
 ```powershell
