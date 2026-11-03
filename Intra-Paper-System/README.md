@@ -12,6 +12,7 @@ An isolated, offline-first Java 21 futures and single-option premium-bar backtes
 - A reusable strategy API receives immutable history ending at the decision candle, so strategy code cannot read future bars through the replay interface. The built-in long-only SMA crossover is a plumbing harness; signals can execute only as simulated market orders at the next eligible candle's open.
 - One strategy-audit row per candle, with strategy diagnostics and warm-up status recorded.
 - Fixed adverse tick slippage, explicit fee inputs, position/notional caps, and a per-session loss halt. These settings are recorded in each run.
+- A configurable minimum time between new BUY intents; exits remain allowed, scale-in targets are rejected, and the order/position ledgers are independently reconciled.
 - Optional effective-dated BUY/SELL cost schedule CSV; schedule coverage and input hash are checked and recorded per run.
 - Local simulated order lifecycle, fills, completed trades, marked equity curve, run summary, input hashes, and output hashes.
 - Input CSV hashes are computed from the exact byte streams consumed by their parsers; the run-properties hash is computed from the same byte snapshot used to parse its settings.

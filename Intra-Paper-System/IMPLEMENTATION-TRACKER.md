@@ -42,6 +42,8 @@
 - [x] Reusable strategy interface receives immutable bars through each decision point; strategy ID and sorted parameter values are recorded in the content ID and run manifest.
 - [x] Evaluation split validation requires complete, non-overlapping, contiguous chronological development/validation/holdout session assignments; it does not score strategies.
 - [x] Independent position/notional and per-session loss `RiskGate`.
+- [x] Configurable minimum interval between new entry intents; risk-reducing exits bypass the limiter, and independent reconciliation checks the saved BUY order timestamps.
+- [x] Scale-in targets are rejected with an audit event because this build supports only one full entry and one full exit per trade; independent fill-position reconciliation verifies full close and final units.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Lot-to-unit conversions use checked integer multiplication; an unrepresentable quantity fails closed instead of wrapping ledger units.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.

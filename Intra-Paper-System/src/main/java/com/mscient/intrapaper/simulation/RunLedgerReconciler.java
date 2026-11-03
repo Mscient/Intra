@@ -8,6 +8,7 @@ import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -24,6 +25,7 @@ public final class RunLedgerReconciler {
     private RunLedgerReconciler() { }
 
     public static void requireConsistent(BacktestResult result) {
+        requirePositionFlowConsistent(result);
         BigDecimal tradeGross = BigDecimal.ZERO;
         for (SimTrade trade : result.trades()) tradeGross = tradeGross.add(trade.grossPnlInr());
         requireEqual("trade gross P&L vs realized P&L", tradeGross, result.realizedPnlInr());
@@ -124,6 +126,18 @@ public final class RunLedgerReconciler {
         int lotSize = dataset.bars().getFirst().lotSize();
         Map<String, SimOrder> orders = new HashMap<>();
         result.orders().forEach(order -> orders.put(order.orderId(), order));
+        Instant priorEntryDecision = null;
+        for (SimOrder order : result.orders()) {
+            if (!order.side().equals("BUY")) continue;
+            Instant currentEntryDecision = order.decisionTimestamp();
+            if (priorEntryDecision != null) {
+                Duration elapsed = Duration.between(priorEntryDecision, currentEntryDecision);
+                if (elapsed.isNegative() || elapsed.compareTo(Duration.ofSeconds(config.minSecondsBetweenEntryOrders())) < 0) {
+                    fail("entry order rate is faster than configured risk.min_seconds_between_entry_orders");
+                }
+            }
+            priorEntryDecision = currentEntryDecision;
+        }
         for (SimFill fill : result.fills()) {
             if (!fill.side().equals("BUY")) continue;
             SimOrder order = orders.get(fill.orderId());
@@ -178,6 +192,39 @@ public final class RunLedgerReconciler {
                 }
             }
             if (!points.isEmpty()) priorSessionNet = points.getLast().netPnlInr();
+        }
+    }
+
+    /** Independently replays single-position full-fill flow, including explicit expiry settlement. */
+    private static void requirePositionFlowConsistent(BacktestResult result) {
+        int positionUnits = 0;
+        for (SimFill fill : result.fills()) {
+            if (fill.quantityUnits() < 1) fail("non-positive fill quantity: " + fill.fillId());
+            if (fill.side().equals("BUY")) {
+                if (positionUnits != 0) fail("scale-in fill is unsupported while a position is open: " + fill.fillId());
+                positionUnits = fill.quantityUnits();
+            } else if (fill.side().equals("SELL")) {
+                if (positionUnits <= 0 || fill.quantityUnits() != positionUnits) {
+                    fail("SELL fill must close the one complete open position: " + fill.fillId());
+                }
+                positionUnits = 0;
+            } else {
+                fail("invalid fill side in ledger: " + fill.fillId());
+            }
+            if (fill.positionUnitsAfter() != positionUnits) {
+                fail("fill position-units-after does not match the independent position flow: " + fill.fillId());
+            }
+        }
+        if (result.settlements().size() > 1) fail("single-contract run has more than one expiry settlement");
+        if (!result.settlements().isEmpty()) {
+            SimSettlement settlement = result.settlements().getFirst();
+            if (settlement.positionUnitsSettled() != positionUnits) {
+                fail("expiry settlement units differ from the independently reconstructed position");
+            }
+            positionUnits = 0;
+        }
+        if (positionUnits != result.finalPositionUnits()) {
+            fail("final position differs from independently reconstructed fill/settlement flow");
         }
     }
 

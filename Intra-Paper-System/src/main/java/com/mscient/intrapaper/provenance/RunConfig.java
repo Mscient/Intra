@@ -45,6 +45,7 @@ public record RunConfig(
         BigDecimal marginPerLotInr,
         BigDecimal maxMarginInr,
         BigDecimal maxDailyLossInr,
+        long minSecondsBetweenEntryOrders,
         boolean allowNextSessionOrders,
         CrossSessionPositionPolicy crossSessionPositionPolicy,
         boolean allowIntraSessionGaps,
@@ -64,7 +65,7 @@ public record RunConfig(
             "reference.snapshot_id", "reference.source_name", "reference.retrieved_at_utc", "reference.effective_from",
             "reference.file", "calendar.file", "settlement.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
-            "risk.max_daily_loss_inr", "cost.status",
+            "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
             "cost.notional_fee_bps", "cost.schedule_file",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
@@ -137,6 +138,7 @@ public record RunConfig(
         BigDecimal marginPerLot = positive(p, "risk.margin_per_lot_inr");
         BigDecimal maxMargin = positive(p, "risk.max_margin_inr");
         BigDecimal dailyLoss = positive(p, "risk.max_daily_loss_inr");
+        long minSecondsBetweenEntryOrders = nonNegativeLong(p, "risk.min_seconds_between_entry_orders");
         int fast = positiveInt(p, "strategy.fast_bars");
         int slow = positiveInt(p, "strategy.slow_bars");
         if (fast < 2 || slow <= fast) throw new IllegalArgumentException("Require 2 <= strategy.fast_bars < strategy.slow_bars");
@@ -176,6 +178,7 @@ public record RunConfig(
                 marginPerLot,
                 maxMargin,
                 dailyLoss,
+                minSecondsBetweenEntryOrders,
                 Boolean.parseBoolean(allowCrossSessionText),
                 crossSessionPositionPolicy,
                 Boolean.parseBoolean(allowGapsText),
@@ -226,6 +229,12 @@ public record RunConfig(
         BigDecimal value = new BigDecimal(required(p, key));
         if (value.signum() < 0) throw new IllegalArgumentException(key + " must be non-negative");
         return value.stripTrailingZeros();
+    }
+
+    private static long nonNegativeLong(Properties p, String key) {
+        long value = Long.parseLong(required(p, key));
+        if (value < 0) throw new IllegalArgumentException(key + " must be non-negative");
+        return value;
     }
 
     private static String logicalId(String value, String key) {

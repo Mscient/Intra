@@ -209,6 +209,7 @@ public final class RunArtifactWriter {
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))
                 + ", \"max_margin_inr\": " + q(num(config.maxMarginInr()))
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
+                + ", \"min_seconds_between_entry_orders\": " + config.minSecondsBetweenEntryOrders()
                 + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders()
                 + ", \"cross_session_position_policy\": " + q(config.crossSessionPositionPolicy().name()) + "},\n"
                 + "  \"expiry_settlement\": " + data.expirySettlement().map(settlement ->

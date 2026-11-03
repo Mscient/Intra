@@ -200,6 +200,13 @@ public final class BacktestEngine {
                 reason = signal.status().equals("ACTIVE") ? "SMA_CROSSOVER_TARGET" : "STRATEGY_WARMING_UP";
             }
 
+            if (positionLots > 0 && targetLots > positionLots) {
+                events.add(new SimOrderEvent(barEnd, "", "STRATEGY_TARGET_REJECTED",
+                        "SCALE_IN_UNSUPPORTED; target_lots=" + targetLots));
+                targetLots = positionLots;
+                reason = "SCALE_IN_UNSUPPORTED";
+            }
+
             if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
                     && nextBarIsLastSessionBar) {
                 if (positionLots > 0 || targetLots > 0) {
@@ -214,12 +221,17 @@ public final class BacktestEngine {
                     realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
 
             if (targetLots != positionLots) {
-                Pending created = createOrder(orders, events, bar, barEnd, targetLots, positionLots, bar.lotSize(), reason);
-                if (nextBarEligible) {
-                    pending = created;
+                String throttleReason = targetLots > positionLots ? riskGate.registerEntryOrder(barEnd) : null;
+                if (throttleReason != null) {
+                    events.add(new SimOrderEvent(barEnd, "", "RISK_ENTRY_ORDER_REJECTED", throttleReason));
                 } else {
-                    String expiryReason = i + 1 < bars.size() ? "SESSION_BOUNDARY" : "NO_NEXT_BAR";
-                    expire(orders, events, created, barEnd, expiryReason);
+                    Pending created = createOrder(orders, events, bar, barEnd, targetLots, positionLots, bar.lotSize(), reason);
+                    if (nextBarEligible) {
+                        pending = created;
+                    } else {
+                        String expiryReason = i + 1 < bars.size() ? "SESSION_BOUNDARY" : "NO_NEXT_BAR";
+                        expire(orders, events, created, barEnd, expiryReason);
+                    }
                 }
             }
             netAtPriorClose = net;

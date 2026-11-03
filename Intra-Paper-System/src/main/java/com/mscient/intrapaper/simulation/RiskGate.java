@@ -4,6 +4,8 @@ import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 
 /** Independent entry-limit and per-session loss gate for the offline simulator. */
@@ -15,9 +17,11 @@ public final class RiskGate {
     private final BigDecimal marginPerLotInr;
     private final BigDecimal maxMarginInr;
     private final BigDecimal maxDailyLossInr;
+    private final long minSecondsBetweenEntryOrders;
     private LocalDate sessionDate;
     private BigDecimal sessionStartNetPnl = BigDecimal.ZERO;
     private boolean halted;
+    private Instant lastEntryOrderTimestamp;
 
     public RiskGate(RunConfig config) {
         this.maxPositionLots = config.maxPositionLots();
@@ -25,6 +29,7 @@ public final class RiskGate {
         this.marginPerLotInr = config.marginPerLotInr();
         this.maxMarginInr = config.maxMarginInr();
         this.maxDailyLossInr = config.maxDailyLossInr();
+        this.minSecondsBetweenEntryOrders = config.minSecondsBetweenEntryOrders();
     }
 
     public void startSession(LocalDate date, BigDecimal priorNetPnl) {
@@ -53,6 +58,20 @@ public final class RiskGate {
         boolean newlyHalted = !halted && sessionLoss.compareTo(maxDailyLossInr) >= 0;
         if (newlyHalted) halted = true;
         return new Evaluation(newlyHalted, halted, sessionLoss);
+    }
+
+    /** Returns an entry-order throttle reason or records the accepted entry intent. Exits are exempt. */
+    public String registerEntryOrder(Instant decisionTimestamp) {
+        if (minSecondsBetweenEntryOrders == 0) return null;
+        if (lastEntryOrderTimestamp != null) {
+            Duration elapsed = Duration.between(lastEntryOrderTimestamp, decisionTimestamp);
+            if (elapsed.isNegative()) return "ENTRY_ORDER_DECISION_TIME_REVERSED";
+            if (elapsed.compareTo(Duration.ofSeconds(minSecondsBetweenEntryOrders)) < 0) {
+                return "MIN_SECONDS_BETWEEN_ENTRY_ORDERS";
+            }
+        }
+        lastEntryOrderTimestamp = decisionTimestamp;
+        return null;
     }
 
     public boolean halted() {
