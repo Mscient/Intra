@@ -23,7 +23,8 @@ public final class SessionCalendarCsvReader {
 
     public static ReadResult readWithHash(java.nio.file.Path path) throws IOException {
         CsvTable table = CsvTable.read(path);
-        table.requireHeaders("session_date", "session_status", "first_bar_timestamp", "last_bar_timestamp");
+        table.requireHeaders("session_date", "session_status", "first_bar_timestamp", "last_bar_timestamp",
+                "market_rule_regime_id", "regime_source_reference");
         Map<LocalDate, SessionCalendarEntry> sessions = new HashMap<>();
         for (int i = 0; i < table.rows().size(); i++) {
             var row = table.rows().get(i);
@@ -35,7 +36,10 @@ public final class SessionCalendarCsvReader {
             else throw new IllegalArgumentException("session_status must be OPEN or CLOSED at row " + (i + 2));
             Optional<Instant> first = optionalTimestamp(row.get("first_bar_timestamp"));
             Optional<Instant> last = optionalTimestamp(row.get("last_bar_timestamp"));
-            SessionCalendarEntry entry = new SessionCalendarEntry(date, open, first, last);
+            String regimeId = optionalText(row.get("market_rule_regime_id"));
+            String regimeSourceReference = optionalText(row.get("regime_source_reference"));
+            SessionCalendarEntry entry = new SessionCalendarEntry(date, open, first, last,
+                    regimeId, regimeSourceReference);
             if (sessions.putIfAbsent(date, entry) != null) {
                 throw new IllegalArgumentException("Duplicate session calendar date at row " + (i + 2));
             }
@@ -58,5 +62,11 @@ public final class SessionCalendarCsvReader {
         if (value == null || value.isBlank()) return Optional.empty();
         if (!value.equals(value.strip())) throw new IllegalArgumentException("calendar timestamps must be trimmed");
         return Optional.of(OffsetDateTime.parse(value).toInstant());
+    }
+
+    private static String optionalText(String value) {
+        if (value == null || value.isBlank()) return "";
+        if (!value.equals(value.strip())) throw new IllegalArgumentException("calendar text values must be trimmed");
+        return value;
     }
 }

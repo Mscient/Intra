@@ -1,2 +1,2 @@
-session_date,session_status,first_bar_timestamp,last_bar_timestamp
-2030-05-06,OPEN,2030-05-06T09:15:00+05:30,2030-05-06T09:44:00+05:30
+session_date,session_status,first_bar_timestamp,last_bar_timestamp,market_rule_regime_id,regime_source_reference
+2030-05-06,OPEN,2030-05-06T09:15:00+05:30,2030-05-06T09:44:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset

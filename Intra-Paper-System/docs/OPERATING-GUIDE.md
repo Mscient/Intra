@@ -191,9 +191,9 @@ The settlement input hash participates in the run identity and manifest. `settle
 
 ## Open-session calendar
 
-The UTF-8 CSV has columns `session_date,session_status,first_bar_timestamp,last_bar_timestamp`. Status is `OPEN` or `CLOSED`; closed dates must leave both timestamp fields blank. Open dates require explicit offset-bearing timestamps for the first and last expected bar labels. Duplicate dates fail.
+The UTF-8 CSV has columns session_date,session_status,first_bar_timestamp,last_bar_timestamp,market_rule_regime_id,regime_source_reference. Status is OPEN or CLOSED; closed dates must leave timestamp fields blank and may leave the regime fields blank. Open dates require explicit offset-bearing timestamps for the first and last expected bar labels plus a non-empty market-rule regime ID and source reference. IDs use letters, digits, dot, underscore, or hyphen. Duplicate dates fail.
 
-The calendar must include every local calendar date from the first through last bar, including dates marked closed. Every open date in that range must have bars, and its first/last bar timestamps must match the declared boundaries. Within each session, bars must match the configured interval by default. The optional gap override records incomplete sessions for diagnosis. These checks validate the supplied calendar windows; they cannot establish that the calendar itself is accurate or current.
+The calendar must include every local calendar date from the first through last bar, including dates marked closed. Every open date in that range must have bars, and its first/last bar timestamps must match the declared boundaries. Within each session, bars must match the configured interval by default. The optional gap override records incomplete sessions for diagnosis. These checks validate the supplied calendar windows; they cannot establish that the calendar itself is accurate or current. Each open session regime ID and source reference are copied to sessions.csv and run-manifest.json, and the calendar file hash remains part of run identity. Choose a new regime ID whenever any relevant exchange rule changes. The source reference is caller-supplied and is not checked against an exchange document; the ID does not make an unverified calendar authoritative.
 
 ## Run properties
 

@@ -80,13 +80,17 @@ public final class RunArtifactWriter {
                             point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
                             point.netPnlInr(), point.riskState())).toList()));
                 writeNew(stagingFolder.resolve("sessions.csv"), csv(
-                        "session_date,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
-                        result.sessionAudits().stream().map(session -> row(session.sessionDate(), session.expectedBars(),
+                        "session_date,market_rule_regime_id,regime_source_reference,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
+                        result.sessionAudits().stream().map(session -> {
+                            var calendarEntry = data.sessionCalendar().get(session.sessionDate());
+                            return row(session.sessionDate(), calendarEntry.marketRuleRegimeId(),
+                            calendarEntry.regimeSourceReference(), session.expectedBars(),
                             session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
                             session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
                             session.modeledSlippageInr(), session.netPnlChangeInr(),
                             session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
-                            session.endingRiskState())).toList()));
+                            session.endingRiskState());
+                        }).toList()));
                 writeNew(stagingFolder.resolve("settlements.csv"), csv(
                         "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,settlement_fees_inr,source_reference",
                         result.settlements().stream().map(settlement -> row(settlement.instrumentId(),
@@ -260,7 +264,7 @@ public final class RunArtifactWriter {
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         return "{\n"
-                + "  \"schema_version\": 8,\n"
+                + "  \"schema_version\": 9,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -277,6 +281,7 @@ public final class RunArtifactWriter {
                 + "  \"instrument_master_snapshot_id\": " + q(data.instrumentMaster().snapshotId()) + ",\n"
                 + "  \"instrument_master_sha256\": " + q(data.instrumentMaster().rawFileSha256()) + ",\n"
                 + "  \"session_calendar_sha256\": " + q(data.calendarSha256()) + ",\n"
+                + "  \"market_rule_regimes\": " + marketRuleRegimesJson(data, first.sessionDate(), last.sessionDate()) + ",\n"
                 + "  \"timezone\": " + q(config.timezone()) + ",\n"
                 + "  \"timestamp_role\": " + q(config.timestampRole().name()) + ",\n"
                 + "  \"interval\": " + q(config.interval()) + ",\n"
@@ -379,6 +384,19 @@ public final class RunArtifactWriter {
         List<String> values = new ArrayList<>();
         for (Object field : fields) values.add(CsvTable.escape(field == null ? "" : field.toString()));
         return String.join(",", values);
+    }
+
+    private static String marketRuleRegimesJson(ValidatedDataset data,
+            java.time.LocalDate firstDate, java.time.LocalDate lastDate) {
+        List<String> entries = data.sessionCalendar().entrySet().stream()
+                .filter(entry -> entry.getValue().open()
+                        && !entry.getKey().isBefore(firstDate) && !entry.getKey().isAfter(lastDate))
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> "{\"session_date\":" + q(entry.getKey().toString())
+                        + ",\"regime_id\":" + q(entry.getValue().marketRuleRegimeId())
+                        + ",\"source_reference\":" + q(entry.getValue().regimeSourceReference()) + "}")
+                .toList();
+        return "[" + String.join(",", entries) + "]";
     }
 
     private static String optionalJson(java.util.Optional<String> value) {

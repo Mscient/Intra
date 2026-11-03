@@ -1,0 +1,5 @@
+# User-supplied option-pricing benchmarks
+
+These files were supplied in files (1).zip and copied unchanged for review. The Python script was inspected as text and has not been executed. It computes synthetic Black-Scholes-Merton and Black-76 benchmarks, parity/forward/implied-volatility round trips, finite-difference checks, and a time-to-expiry convention comparison. It writes nifty_option_benchmarks.json in its current working directory.
+
+The JSON contains expected values emitted by that script, not independently established oracle values. The NIFTY-like inputs are synthetic, not market observations, and the script's claimed Hull textbook anchor and exchange-specific assumptions still need independent verification. Keep these artifacts separate from the Java runtime. Before using them to validate EuropeanOptionPricer, independently inspect the formulas, conventions, expected values, and numerical tolerances; any execution should occur in an isolated scratch directory after that review.
