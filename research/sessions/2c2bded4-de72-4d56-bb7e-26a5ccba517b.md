@@ -10,7 +10,7 @@ Add a deterministic quote eligibility and adverse-price helper for future offlin
 - Intra-Paper-System/README.md
 - Intra-Paper-System/docs/OPERATING-GUIDE.md
 - Intra-Paper-System/IMPLEMENTATION-TRACKER.md
-- esearch/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md
+- research/systems/PAPER-TRADING-BACKTESTING-ROADMAP.md
 
 ## Work completed
 

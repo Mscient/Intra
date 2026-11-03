@@ -80,13 +80,15 @@ The header must include these fields in any order:
 
 `timestamp,instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,interval,timestamp_role,open,high,low,close,volume,open_interest,source,raw_record_hash`
 
+CSV fields may be unquoted or enclosed in double quotes. Escape an embedded quote by doubling it. Stray quotes, characters after a closing quote, and quoted fields spanning multiple lines are rejected.
+
 - `timestamp` must include an explicit UTC offset. `timestamp_role` must be `BAR_START` or `BAR_END` and must agree with the run configuration.
 - The supported interval labels are `ONE_MINUTE`, `FIVE_MINUTE`, `FIFTEEN_MINUTE`, `THIRTY_MINUTE`, `ONE_HOUR`, and `ONE_DAY`.
 - OHLC prices must be positive, internally consistent, and exact multiples of `tick_size`. Volume and optional open interest must be non-negative.
 - `raw_record_hash` must be lowercase SHA-256 hex. The run manifest separately hashes the complete normalized bars CSV, reference CSV, calendar CSV, and configuration file.
 - `volume` and `open_interest` may be blank when absent; blank is preserved as null and numeric zero remains zero.
 - Each CSV input's SHA-256 is computed while the parser consumes that exact byte stream, so a later file change cannot make the manifest hash refer to different bytes than the parsed records. The properties file is likewise read once and hashed from the byte snapshot used to parse it. This establishes byte provenance for the local parser input; it does not establish source authenticity, entitlement, or correctness.
-- The loader checks the row-hash format but cannot independently verify its source relationship without the original raw packet/file; no raw capture or importer is included.
+- The loader checks the row-hash format but cannot independently verify its source relationship without the original raw packet/file and a source-specific raw-record decoder.
 - Bar dates are derived in the configured timezone and must exist in the supplied open-session calendar.
 - Adjacent bars within a session must be exactly one configured interval apart by default. `quality.allow_intrasession_gaps=true` permits spacing anomalies only as a reviewed diagnostic. `quality.max_missing_intervals_per_session` caps the estimated deficit against the calendar's expected bar count (zero in the example); exceeding the cap always fails input validation. The manifest records the configured cap and observed anomalies.
 

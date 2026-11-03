@@ -37,6 +37,7 @@
 - [x] Diagnostic gap overrides have an explicit maximum estimated missing-bar deficit per session; the default remains zero.
 - [x] Persisted run manifest with dataset/master/calendar/config hashes and hashes for output ledgers.
 - [x] Input hashes are derived from the exact CSV byte streams consumed by each parser and the same properties-file byte snapshot used to parse run configuration.
+- [x] Shared CSV parsing rejects malformed quotes, including stray quotes and characters after a closing quote; multiline quoted fields are outside the data contract.
 - [x] Require an explicit local-replay rights reference before accepting non-synthetic datasets; the software does not verify licensing itself.
 - [x] Long-only SMA crossover baseline with next eligible bar open market fills, fixed adverse tick slippage, explicit fee inputs, and no candle-touch/passive fills.
 - [x] Reusable strategy interface receives immutable bars through each decision point; strategy ID and sorted parameter values are recorded in the content ID and run manifest.

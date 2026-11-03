@@ -80,6 +80,7 @@ public record CsvTable(List<String> headers, List<Map<String, String>> rows, Str
         List<String> fields = new ArrayList<>();
         StringBuilder field = new StringBuilder();
         boolean quoted = false;
+        boolean quoteClosed = false;
         for (int i = 0; i < line.length(); i++) {
             char ch = line.charAt(i);
             if (quoted) {
@@ -89,17 +90,30 @@ public record CsvTable(List<String> headers, List<Map<String, String>> rows, Str
                         i++;
                     } else {
                         quoted = false;
+                        quoteClosed = true;
                     }
                 } else {
                     field.append(ch);
                 }
-            } else if (ch == ',') {
-                fields.add(field.toString());
-                field.setLength(0);
-            } else if (ch == '"' && field.isEmpty()) {
-                quoted = true;
             } else {
-                field.append(ch);
+                if (quoteClosed) {
+                    if (ch != ',') {
+                        throw new IllegalArgumentException("CSV field has characters after its closing quote");
+                    }
+                    fields.add(field.toString());
+                    field.setLength(0);
+                    quoteClosed = false;
+                } else if (ch == ',') {
+                    fields.add(field.toString());
+                    field.setLength(0);
+                } else if (ch == '"') {
+                    if (!field.isEmpty()) {
+                        throw new IllegalArgumentException("CSV quote may only start at the beginning of a field");
+                    }
+                    quoted = true;
+                } else {
+                    field.append(ch);
+                }
             }
         }
         if (quoted) {
