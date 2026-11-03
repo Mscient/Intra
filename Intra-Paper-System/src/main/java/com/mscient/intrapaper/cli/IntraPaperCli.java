@@ -8,6 +8,8 @@ import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
+import com.mscient.intrapaper.marketdata.FeedLifecycleAnalyzer;
+import com.mscient.intrapaper.marketdata.FeedLifecycleEvent;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
@@ -129,6 +131,23 @@ public final class IntraPaperCli {
                         summary.nonIncreasingUpstreamSequenceTransitions(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
+            if (args.length == 2 && args[0].equals("feed-lifecycle-report")) {
+                var analysis = FeedLifecycleAnalyzer.analyze(Path.of(args[1]));
+                var journal = analysis.journal();
+                System.out.printf("VERIFIED FEED LIFECYCLE: events=%d; connections=%d; transition_anomalies=%d; "
+                                + "active_subscriptions=%d; unresolved_subscriptions=%d; bytes=%d; final_hash=%s%n",
+                        journal.eventCount(), journal.connectionCount(), analysis.transitionAnomalyCount(),
+                        analysis.activeSubscriptionCount(), analysis.unresolvedSubscriptionCount(),
+                        journal.bytesRead(), journal.finalHashHex());
+                for (FeedLifecycleEvent.Type type : FeedLifecycleEvent.Type.values()) {
+                    System.out.printf("EVENT %s: %d%n", type, journal.eventCounts().getOrDefault(type, 0L));
+                }
+                for (FeedLifecycleAnalyzer.ConnectionState state : FeedLifecycleAnalyzer.ConnectionState.values()) {
+                    System.out.printf("CONNECTION_STATE %s: %d%n", state,
+                            analysis.connectionStateCounts().getOrDefault(state, 0L));
+                }
+                return;
+            }
             if (args.length == 4 && args[0].equals("replay-verify")) {
                 var verification = RunReplayVerifier.verify(
                         Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
@@ -212,6 +231,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output-root>\n"
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
+                + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
@@ -224,6 +244,7 @@ public final class IntraPaperCli {
                 + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes a content-addressed run folder.\n"
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
+                + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
