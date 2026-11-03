@@ -40,6 +40,16 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 `journal-verify` reads the complete journal and checks its header, record framing, canonical quote encoding, strictly increasing sequence numbers, and SHA-256 hash chain. It emits a final event count, sequence number, byte count, and chain hash. It does not contact or authenticate to a market-data source.
 
+## Validate a chronological evaluation split
+
+Provide a UTF-8 CSV with exactly `session_date,partition` columns. Assign every open session in the validated dataset date range exactly once, using only `DEVELOPMENT`, `VALIDATION`, or `HOLDOUT`. Each partition must have at least one session and the partition order must be contiguous and chronological.
+
+```powershell
+& $java -jar $jar split-validate .\bars.csv .\run.properties .\evaluation-splits.csv
+```
+
+The command checks coverage and ordering, then prints the split-file SHA-256. It does not score strategies or open the holdout results; that workflow remains unfinished.
+
 ## Reproduce and verify a saved run
 
 ```powershell

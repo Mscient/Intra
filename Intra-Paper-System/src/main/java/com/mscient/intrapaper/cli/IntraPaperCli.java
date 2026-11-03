@@ -1,6 +1,7 @@
 package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
@@ -42,6 +43,19 @@ public final class IntraPaperCli {
                         verification.runId(), verification.comparedFiles());
                 return;
             }
+            if (args.length == 4 && args[0].equals("split-validate")) {
+                Path barsPath = Path.of(args[1]).toAbsolutePath().normalize();
+                RunConfig config = RunConfig.load(Path.of(args[2]));
+                ValidatedDataset dataset = ValidatedDataset.load(barsPath, config);
+                EvaluationSplitPlan split = EvaluationSplitPlan.load(Path.of(args[3]), dataset);
+                for (EvaluationSplitPlan.Partition partition : EvaluationSplitPlan.Partition.values()) {
+                    var summary = split.summary(partition);
+                    System.out.printf("%s: sessions=%d; start=%s; end=%s%n", partition,
+                            summary.sessionCount(), summary.firstSession(), summary.lastSession());
+                }
+                System.out.printf("VALID SPLIT PLAN: sha256=%s; metrics not evaluated%n", split.splitFileSha256());
+                return;
+            }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
                 usage();
                 System.exit(2);
@@ -79,11 +93,13 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
-                + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n\n"
+                + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
+                + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
+                + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 }
