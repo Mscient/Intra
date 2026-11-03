@@ -16,4 +16,5 @@ public record SimSettlement(
         BigDecimal exitValuePerUnit,
         int positionUnitsSettled,
         BigDecimal grossPnlInr,
+        BigDecimal settlementFeesInr,
         String sourceReference) { }

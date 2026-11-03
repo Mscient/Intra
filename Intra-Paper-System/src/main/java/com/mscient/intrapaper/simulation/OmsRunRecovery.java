@@ -214,8 +214,13 @@ public final class OmsRunRecovery {
 
     private static int applySettlement(Path path, int netPosition) throws IOException {
         CsvTable table = CsvTable.read(path);
-        requireExactHeaders(table, "instrument_id", "settlement_date", "settlement_timestamp", "settlement_kind",
+        List<String> previousHeaders = List.of("instrument_id", "settlement_date", "settlement_timestamp", "settlement_kind",
                 "settlement_value", "exit_value_per_unit", "position_units_settled", "gross_pnl_inr", "source_reference");
+        List<String> currentHeaders = List.of("instrument_id", "settlement_date", "settlement_timestamp", "settlement_kind",
+                "settlement_value", "exit_value_per_unit", "position_units_settled", "gross_pnl_inr", "settlement_fees_inr", "source_reference");
+        if (!table.headers().equals(previousHeaders) && !table.headers().equals(currentHeaders)) {
+            throw new IOException("Unexpected CSV schema in recovered settlement ledger");
+        }
         if (table.rows().size() > 1) throw new IOException("More than one settlement in a single-contract run");
         if (table.rows().isEmpty()) return netPosition;
         int settledUnits = parseNonNegativeInt(table.rows().getFirst().get("position_units_settled"), "position_units_settled");

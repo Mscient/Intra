@@ -2,7 +2,7 @@
 
 This contract now has an offline derivatives-bar validator and replay path. It still does not capture market files, connect to a broker, determine entitlements, or authorize strategy-performance claims.
 
-The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation accepts one dated futures contract or one listed-option premium series per run. For options, the supplied bars are premiums; valuation, Greeks, multi-leg positions, exercise, and settlement are not modeled.
+The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation accepts one dated futures contract or one listed-option premium series per run. For options, the supplied bars are premiums; valuation, Greeks, and multi-leg positions are not modeled. Long-option expiry settlement is an explicit source-attributed input; itemized exercise STT and SEBI turnover are available when configured with a sourced turnover basis. Other expiry charges remain unmodeled.
 
 Volume and open interest may be blank when the source does not provide them. The parser preserves missing values as null and preserves numeric zero; downstream strategies must not interpret null as zero.
 

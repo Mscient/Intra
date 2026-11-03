@@ -38,13 +38,14 @@ public record ComponentCostSchedule(List<Entry> entries, String sha256) {
 
     public record Terms(BigDecimal brokeragePerOrderInr, BigDecimal brokeragePerUnitInr,
             BigDecimal brokerageBps, BigDecimal exchangeInrPerCrore, BigDecimal ipftInrPerCrore,
-            BigDecimal sebiInrPerCrore, BigDecimal sttBps, BigDecimal stampDutyBps,
+            BigDecimal sebiInrPerCrore, BigDecimal sttBps, BigDecimal exerciseSttBps, BigDecimal stampDutyBps,
             BigDecimal gstBps, boolean gstOnBrokerage, boolean gstOnExchange,
             boolean gstOnIpft, boolean gstOnSebi, boolean gstOnStt,
             boolean gstOnStampDuty, int slippageTicks) {
         public Terms {
             for (BigDecimal value : List.of(brokeragePerOrderInr, brokeragePerUnitInr, brokerageBps,
-                    exchangeInrPerCrore, ipftInrPerCrore, sebiInrPerCrore, sttBps, stampDutyBps, gstBps)) {
+                    exchangeInrPerCrore, ipftInrPerCrore, sebiInrPerCrore, sttBps, exerciseSttBps,
+                    stampDutyBps, gstBps)) {
                 if (value.signum() < 0) throw new IllegalArgumentException("component cost rates must be non-negative");
             }
             if (slippageTicks < 0) throw new IllegalArgumentException("slippageTicks must be non-negative");
@@ -70,6 +71,25 @@ public record ComponentCostSchedule(List<Entry> entries, String sha256) {
             if (gstOnStampDuty) taxableServiceFees = taxableServiceFees.add(stampDuty);
             BigDecimal gst = paise(bpsCharge(taxableServiceFees, gstBps));
             return new Charges(brokerage, exchange, ipft, sebi, stt, stampDuty, paise(taxableServiceFees), gst);
+        }
+
+        /** Calculates exercise STT on intrinsic value and additional SEBI turnover on a separately sourced base. */
+        public Charges calculateOptionExercise(BigDecimal intrinsicPerUnitInr,
+                BigDecimal sebiTurnoverPerUnitInr, int quantityUnits) {
+            if (intrinsicPerUnitInr.signum() < 0 || sebiTurnoverPerUnitInr.signum() < 0) {
+                throw new IllegalArgumentException("exercise fee bases must be non-negative");
+            }
+            if (quantityUnits < 1) throw new IllegalArgumentException("exercise quantity must be positive");
+            BigDecimal intrinsicBase = intrinsicPerUnitInr.multiply(BigDecimal.valueOf(quantityUnits));
+            BigDecimal sebiTurnoverBase = sebiTurnoverPerUnitInr.multiply(BigDecimal.valueOf(quantityUnits));
+            BigDecimal stt = paise(bpsCharge(intrinsicBase, exerciseSttBps));
+            BigDecimal sebi = paise(croreCharge(sebiTurnoverBase, sebiInrPerCrore));
+            BigDecimal taxableFees = BigDecimal.ZERO;
+            if (gstOnStt) taxableFees = taxableFees.add(stt);
+            if (gstOnSebi) taxableFees = taxableFees.add(sebi);
+            BigDecimal gst = paise(bpsCharge(taxableFees, gstBps));
+            return new Charges(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, sebi, stt,
+                    BigDecimal.ZERO, paise(taxableFees), gst);
         }
 
         private static BigDecimal croreCharge(BigDecimal tradedValueInr, BigDecimal inrPerCrore) {
@@ -115,7 +135,7 @@ public record ComponentCostSchedule(List<Entry> entries, String sha256) {
         List<String> expected = List.of("effective_from", "effective_through", "contract_kind", "side",
                 "brokerage_per_order_inr", "brokerage_per_unit_inr", "brokerage_bps",
                 "exchange_inr_per_crore", "ipft_inr_per_crore", "sebi_inr_per_crore", "stt_bps",
-                "stamp_duty_bps", "gst_bps", "gst_on_brokerage", "gst_on_exchange", "gst_on_ipft",
+                "exercise_stt_bps", "stamp_duty_bps", "gst_bps", "gst_on_brokerage", "gst_on_exchange", "gst_on_ipft",
                 "gst_on_sebi", "gst_on_stt", "gst_on_stamp_duty", "slippage_ticks");
         if (!table.headers().equals(expected)) {
             throw new IllegalArgumentException("Component cost schedule headers must be exactly: " + String.join(",", expected));
@@ -136,6 +156,7 @@ public record ComponentCostSchedule(List<Entry> entries, String sha256) {
                         nonNegative(row, "brokerage_per_unit_inr"), nonNegative(row, "brokerage_bps"),
                         nonNegative(row, "exchange_inr_per_crore"), nonNegative(row, "ipft_inr_per_crore"),
                         nonNegative(row, "sebi_inr_per_crore"), nonNegative(row, "stt_bps"),
+                        nonNegative(row, "exercise_stt_bps"),
                         nonNegative(row, "stamp_duty_bps"), nonNegative(row, "gst_bps"),
                         bool(row, "gst_on_brokerage"), bool(row, "gst_on_exchange"),
                         bool(row, "gst_on_ipft"), bool(row, "gst_on_sebi"),
@@ -144,6 +165,10 @@ public record ComponentCostSchedule(List<Entry> entries, String sha256) {
                 if (terms.slippageTicks() < 0) throw new IllegalArgumentException("slippage_ticks must be non-negative");
                 if (side == CostSchedule.Side.BUY && terms.sttBps().signum() != 0) {
                     throw new IllegalArgumentException("stt_bps must be zero on BUY rows");
+                }
+                if ((kind != ContractKind.OPTION || side != CostSchedule.Side.BUY)
+                        && terms.exerciseSttBps().signum() != 0) {
+                    throw new IllegalArgumentException("exercise_stt_bps is allowed only on OPTION BUY rows");
                 }
                 if (side == CostSchedule.Side.SELL && terms.stampDutyBps().signum() != 0) {
                     throw new IllegalArgumentException("stamp_duty_bps must be zero on SELL rows");

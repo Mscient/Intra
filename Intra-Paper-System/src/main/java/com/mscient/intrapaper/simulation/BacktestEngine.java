@@ -59,6 +59,7 @@ public final class BacktestEngine {
         List<SimFeeBreakdown> feeBreakdowns = new ArrayList<>();
         List<SimTrade> trades = new ArrayList<>();
         List<SimSettlement> settlements = new ArrayList<>();
+        List<SimSettlementChargeBreakdown> settlementChargeBreakdowns = new ArrayList<>();
         List<EquityPoint> curve = new ArrayList<>();
         BigDecimal realized = BigDecimal.ZERO;
         BigDecimal fees = BigDecimal.ZERO;
@@ -264,13 +265,18 @@ public final class BacktestEngine {
             Bar lastBar = bars.getLast();
             BigDecimal exitValuePerUnit = settlementExitValue(settlement, lastBar);
             int settledUnits = positionUnits(positionLots, lastBar.lotSize());
+            SimSettlementChargeBreakdown settlementCharges = settlementChargeBreakdown(
+                    dataset, settlement, lastBar, exitValuePerUnit, settledUnits);
+            BigDecimal settlementFee = settlementCharges.totalInr();
+            settlementChargeBreakdowns.add(settlementCharges);
+            fees = fees.add(settlementFee);
             BigDecimal settlementGross = BigDecimal.ZERO;
             if (positionLots > 0) {
                 if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
                 settlementGross = exitValuePerUnit.subtract(openTrade.entryPrice)
                         .multiply(BigDecimal.valueOf(settledUnits));
                 realized = realized.add(settlementGross);
-                BigDecimal tradeFees = openTrade.entryFee;
+                BigDecimal tradeFees = openTrade.entryFee.add(settlementFee);
                 String tradeId = String.format("T%07d", trades.size() + 1);
                 trades.add(new SimTrade(tradeId, lastBar.instrumentId(), openTrade.entryTimestamp,
                         settlement.settlementTimestamp(), settledUnits, openTrade.entryPrice,
@@ -281,7 +287,7 @@ public final class BacktestEngine {
             }
             settlements.add(new SimSettlement(lastBar.instrumentId(), settlement.settlementDate(),
                     settlement.settlementTimestamp(), settlement.kind(), settlement.settlementValue(),
-                    exitValuePerUnit, settledUnits, settlementGross, settlement.sourceReference()));
+                    exitValuePerUnit, settledUnits, settlementGross, settlementFee, settlement.sourceReference()));
             BigDecimal settlementNet = realized.subtract(fees);
             RiskGate.Evaluation settlementRisk = riskGate.markToMarket(settlementNet);
             if (settlementRisk.newlyHalted()) {
@@ -310,7 +316,8 @@ public final class BacktestEngine {
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
-        BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
+        BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements,
+                settlementChargeBreakdowns, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
@@ -329,6 +336,32 @@ public final class BacktestEngine {
                 yield intrinsic.max(BigDecimal.ZERO);
             }
         };
+    }
+
+    private static SimSettlementChargeBreakdown settlementChargeBreakdown(ValidatedDataset dataset,
+            ExpirySettlement settlement, Bar bar, BigDecimal exitValuePerUnit, int settledUnits) {
+        BigDecimal intrinsic = bar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                ? exitValuePerUnit : BigDecimal.ZERO;
+        BigDecimal sebiTurnoverPerUnit = settlement.sebiExerciseTurnoverValuePerUnitInr().orElse(BigDecimal.ZERO);
+        if (bar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                && dataset.componentCostSchedule().isPresent()) {
+            var terms = dataset.componentCostSchedule().orElseThrow().require(settlement.settlementDate(),
+                    bar.contractKind(), CostSchedule.Side.BUY);
+            boolean exercised = settledUnits > 0 && intrinsic.signum() > 0;
+            if (exercised && terms.sebiInrPerCrore().signum() > 0
+                    && settlement.sebiExerciseTurnoverValuePerUnitInr().isEmpty()) {
+                throw new IllegalArgumentException("An ITM option settlement with a configured SEBI turnover fee requires "
+                        + "sebi_exercise_turnover_value_per_unit_inr from the settlement source");
+            }
+            ComponentCostSchedule.Charges charges = exercised
+                    ? terms.calculateOptionExercise(intrinsic, sebiTurnoverPerUnit, settledUnits)
+                    : new ComponentCostSchedule.Charges(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+            return SimSettlementChargeBreakdown.componentized(settlement.settlementTimestamp(),
+                    bar.contractKind(), settledUnits, intrinsic, sebiTurnoverPerUnit, charges);
+        }
+        return SimSettlementChargeBreakdown.notModeled(settlement.settlementTimestamp(),
+                bar.contractKind(), settledUnits, intrinsic, sebiTurnoverPerUnit);
     }
 
     private static int positionUnits(int lots, int lotSize) {

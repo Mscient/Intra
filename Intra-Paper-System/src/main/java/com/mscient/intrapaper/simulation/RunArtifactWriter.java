@@ -87,16 +87,24 @@ public final class RunArtifactWriter {
                             session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
                             session.endingRiskState())).toList()));
                 writeNew(stagingFolder.resolve("settlements.csv"), csv(
-                        "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,source_reference",
+                        "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,settlement_fees_inr,source_reference",
                         result.settlements().stream().map(settlement -> row(settlement.instrumentId(),
                                 settlement.settlementDate(), settlement.settlementTimestamp(), settlement.kind(),
                                 settlement.settlementValue(), settlement.exitValuePerUnit(), settlement.positionUnitsSettled(),
-                                settlement.grossPnlInr(), settlement.sourceReference())).toList()));
+                                settlement.grossPnlInr(), settlement.settlementFeesInr(), settlement.sourceReference())).toList()));
+                writeNew(stagingFolder.resolve("settlement-charges.csv"), csv(
+                        "settlement_timestamp,model,contract_kind,position_units,option_intrinsic_per_unit_inr,exercise_stt_base_inr,sebi_exercise_turnover_base_inr,sebi_turnover_inr,exercise_stt_inr,gst_taxable_base_inr,gst_inr,total_inr",
+                        result.settlementChargeBreakdowns().stream().map(charge -> row(charge.settlementTimestamp(),
+                                charge.model(), charge.contractKind(), charge.positionUnits(),
+                                charge.optionIntrinsicPerUnitInr(), charge.exerciseSttBaseInr(),
+                                charge.sebiExerciseTurnoverBaseInr(), charge.sebiTurnoverInr(),
+                                charge.exerciseSttInr(), charge.gstTaxableBaseInr(), charge.gstInr(),
+                                charge.totalInr())).toList()));
 
                 writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
                 Map<String, String> outputHashes = new TreeMap<>();
                 for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
-                        "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
+                        "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv", "summary.json")) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
                 writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -200,6 +208,9 @@ public final class RunArtifactWriter {
                 + "  \"fee_breakdowns\": " + result.feeBreakdowns().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
                 + "  \"expiry_settlements\": " + result.settlements().size() + ",\n"
+                + "  \"settlement_charge_breakdowns\": " + result.settlementChargeBreakdowns().size() + ",\n"
+                + "  \"settlement_charges_paid_inr\": " + q(num(result.settlementChargeBreakdowns().stream()
+                        .map(SimSettlementChargeBreakdown::totalInr).reduce(BigDecimal.ZERO, BigDecimal::add))) + ",\n"
                 + "  \"filled_units\": " + metrics.filledUnits() + ",\n"
                 + "  \"filled_turnover_inr\": " + q(num(metrics.filledTurnoverInr())) + ",\n"
                 + "  \"completed_trade_diagnostics\": {\"wins\": " + metrics.winningTrades()
@@ -238,7 +249,7 @@ public final class RunArtifactWriter {
         data.componentCostSchedule().ifPresent(schedule -> inputHashes.put("component_cost_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         return "{\n"
-                + "  \"schema_version\": 4,\n"
+                + "  \"schema_version\": 5,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -305,8 +316,14 @@ public final class RunArtifactWriter {
                         + ", \"kind\": " + q(settlement.kind().name())
                         + ", \"value\": " + q(num(settlement.settlementValue()))
                         + ", \"source_reference\": " + q(settlement.sourceReference())
+                        + (settlement.sebiExerciseTurnoverValuePerUnitInr().isPresent()
+                                ? ", \"sebi_exercise_turnover_value_per_unit_inr\": "
+                                        + q(num(settlement.sebiExerciseTurnoverValuePerUnitInr().orElseThrow())) : "")
                         + ", \"sha256\": " + q(settlement.sha256()) + "}").orElse("null") + ",\n"
                 + "  \"settlement_charges_modeled\": false,\n"
+                + "  \"option_exercise_stt_sebi_modeled\": "
+                + (data.componentCostSchedule().isPresent() && first.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                        && data.expirySettlement().isPresent()) + ",\n"
                 + "  \"margin_model\": \"FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN\",\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"

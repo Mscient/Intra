@@ -18,7 +18,7 @@ public final class RunIdentity {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, "INTRA_RUN_ID_V4");
+                write(output, "INTRA_RUN_ID_V5");
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());

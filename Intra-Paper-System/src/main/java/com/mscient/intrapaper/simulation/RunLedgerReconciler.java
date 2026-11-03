@@ -3,6 +3,7 @@ package com.mscient.intrapaper.simulation;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
+import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
 
@@ -65,7 +66,23 @@ public final class RunLedgerReconciler {
             fillSlippage = fillSlippage.add(fill.slippageCostInr());
             fillsByOrder.merge(fill.orderId(), 1, Integer::sum);
         }
-        requireEqual("fill fees vs run fees", fillFees, result.feesPaidInr());
+        BigDecimal settlementFees = BigDecimal.ZERO;
+        for (SimSettlement settlement : result.settlements()) settlementFees = settlementFees.add(settlement.settlementFeesInr());
+        requireEqual("fill plus settlement fees vs run fees", fillFees.add(settlementFees), result.feesPaidInr());
+        Map<Instant, SimSettlementChargeBreakdown> settlementAuditByTimestamp = new HashMap<>();
+        for (SimSettlementChargeBreakdown audit : result.settlementChargeBreakdowns()) {
+            if (settlementAuditByTimestamp.putIfAbsent(audit.settlementTimestamp(), audit) != null) {
+                fail("duplicate settlement charge breakdown at " + audit.settlementTimestamp());
+            }
+        }
+        if (settlementAuditByTimestamp.size() != result.settlements().size()) {
+            fail("settlement charge breakdown count differs from settlement count");
+        }
+        for (SimSettlement settlement : result.settlements()) {
+            SimSettlementChargeBreakdown audit = settlementAuditByTimestamp.get(settlement.settlementTimestamp());
+            if (audit == null) fail("missing settlement charge breakdown at " + settlement.settlementTimestamp());
+            requireEqual("settlement charges vs audit", settlement.settlementFeesInr(), audit.totalInr());
+        }
         requireEqual("fill slippage vs run slippage", fillSlippage, result.modeledSlippageInr());
 
         Map<String, String> lastOrderEvent = new HashMap<>();
@@ -305,6 +322,78 @@ public final class RunLedgerReconciler {
             BigDecimal expectedSlippage = adverseTicks.multiply(BigDecimal.valueOf(fill.quantityUnits()));
             requireEqual("modeled slippage for " + fill.fillId(), expectedSlippage, fill.slippageCostInr());
         }
+        requireSettlementCostsConsistent(result, dataset);
+    }
+
+    private static void requireSettlementCostsConsistent(BacktestResult result, ValidatedDataset dataset) {
+        if (result.settlements().isEmpty()) {
+            if (!result.settlementChargeBreakdowns().isEmpty()) fail("settlement charge exists without a settlement");
+            return;
+        }
+        if (result.settlements().size() != 1) fail("single-contract run has more than one settlement");
+        var input = dataset.expirySettlement().orElseThrow(() ->
+                new IllegalStateException("settlement output exists without a settlement input"));
+        SimSettlement settlement = result.settlements().getFirst();
+        Bar lastBar = dataset.bars().getLast();
+        if (!settlement.instrumentId().equals(input.instrumentId())
+                || !settlement.settlementDate().equals(input.settlementDate())
+                || !settlement.settlementTimestamp().equals(input.settlementTimestamp())
+                || settlement.kind() != input.kind()
+                || settlement.settlementValue().compareTo(input.settlementValue()) != 0) {
+            fail("settlement ledger fields differ from the frozen settlement input");
+        }
+        BigDecimal intrinsic = BigDecimal.ZERO;
+        BigDecimal expectedExit;
+        if (input.kind() == com.mscient.intrapaper.provenance.ExpirySettlement.Kind.FUTURES_FINAL_PRICE) {
+            expectedExit = input.settlementValue();
+        } else {
+            BigDecimal strike = lastBar.strike().orElseThrow(() -> new IllegalStateException("option has no strike"));
+            BigDecimal rawIntrinsic = lastBar.optionRight().orElseThrow() == com.mscient.intrapaper.reference.OptionRight.CALL
+                    ? input.settlementValue().subtract(strike) : strike.subtract(input.settlementValue());
+            intrinsic = rawIntrinsic.max(BigDecimal.ZERO);
+            expectedExit = intrinsic;
+        }
+        requireEqual("settlement exit value", expectedExit, settlement.exitValuePerUnit());
+
+        SimSettlementChargeBreakdown audit = result.settlementChargeBreakdowns().getFirst();
+        if (!audit.settlementTimestamp().equals(settlement.settlementTimestamp())) fail("settlement charge timestamp mismatch");
+        if (audit.contractKind() != lastBar.contractKind()) fail("settlement charge contract kind mismatch");
+        if (audit.positionUnits() != settlement.positionUnitsSettled()) fail("settlement charge quantity mismatch");
+        BigDecimal sebiTurnoverPerUnit = input.sebiExerciseTurnoverValuePerUnitInr().orElse(BigDecimal.ZERO);
+        BigDecimal expectedSttBase = intrinsic.multiply(BigDecimal.valueOf(settlement.positionUnitsSettled()));
+        BigDecimal expectedSebiBase = sebiTurnoverPerUnit.multiply(BigDecimal.valueOf(settlement.positionUnitsSettled()));
+        requireEqual("option exercise intrinsic basis", intrinsic, audit.optionIntrinsicPerUnitInr());
+        requireEqual("option exercise STT base", expectedSttBase, audit.exerciseSttBaseInr());
+        requireEqual("option exercise SEBI turnover base", expectedSebiBase, audit.sebiExerciseTurnoverBaseInr());
+
+        String expectedModel = "NOT_MODELED";
+        ComponentCostSchedule.Charges expectedCharges = zeroCharges();
+        if (lastBar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                && dataset.componentCostSchedule().isPresent()) {
+            var terms = dataset.componentCostSchedule().orElseThrow().require(input.settlementDate(),
+                    lastBar.contractKind(), CostSchedule.Side.BUY);
+            boolean exercised = settlement.positionUnitsSettled() > 0 && intrinsic.signum() > 0;
+            if (exercised && terms.sebiInrPerCrore().signum() > 0
+                    && input.sebiExerciseTurnoverValuePerUnitInr().isEmpty()) {
+                fail("missing source-supplied SEBI option-exercise turnover base");
+            }
+            if (exercised) {
+                expectedCharges = terms.calculateOptionExercise(intrinsic, sebiTurnoverPerUnit,
+                        settlement.positionUnitsSettled());
+            }
+            expectedModel = "COMPONENTIZED_OPTION_EXERCISE";
+        }
+        if (!audit.model().equals(expectedModel)) fail("settlement charge model differs from frozen inputs");
+        requireEqual("settlement SEBI fee", expectedCharges.sebiInr(), audit.sebiTurnoverInr());
+        requireEqual("settlement exercise STT", expectedCharges.sttInr(), audit.exerciseSttInr());
+        requireEqual("settlement GST taxable base", expectedCharges.gstTaxableBaseInr(), audit.gstTaxableBaseInr());
+        requireEqual("settlement GST", expectedCharges.gstInr(), audit.gstInr());
+        requireEqual("settlement fee total", expectedCharges.totalInr(), settlement.settlementFeesInr());
+    }
+
+    private static ComponentCostSchedule.Charges zeroCharges() {
+        return new ComponentCostSchedule.Charges(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     private static void requireEqual(String label, BigDecimal left, BigDecimal right) {

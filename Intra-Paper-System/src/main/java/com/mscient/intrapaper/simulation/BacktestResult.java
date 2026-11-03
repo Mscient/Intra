@@ -14,6 +14,7 @@ public record BacktestResult(
         List<SimFeeBreakdown> feeBreakdowns,
         List<SimTrade> trades,
         List<SimSettlement> settlements,
+        List<SimSettlementChargeBreakdown> settlementChargeBreakdowns,
         List<SessionAudit> sessionAudits,
         List<EquityPoint> equityCurve,
         BigDecimal realizedPnlInr,
@@ -35,6 +36,7 @@ public record BacktestResult(
         feeBreakdowns = List.copyOf(feeBreakdowns);
         trades = List.copyOf(trades);
         settlements = List.copyOf(settlements);
+        settlementChargeBreakdowns = List.copyOf(settlementChargeBreakdowns);
         sessionAudits = List.copyOf(sessionAudits);
         equityCurve = List.copyOf(equityCurve);
         strategyParameters = Collections.unmodifiableMap(new TreeMap<>(strategyParameters));
