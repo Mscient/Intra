@@ -109,6 +109,24 @@ public final class ResearchTrialLedger {
         }
     }
 
+    /** Requires an exact prior registration for these frozen run inputs. */
+    public static Entry requireRegistered(Path path, Trial expected) throws IOException {
+        Objects.requireNonNull(path, "path");
+        Objects.requireNonNull(expected, "expected");
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ);
+             FileLock ignored = channel.lock(0L, Long.MAX_VALUE, true)) {
+            for (Entry entry : parse(readBytes(channel))) {
+                if (entry.trial().trialId().equals(expected.trialId())) {
+                    if (!entry.trial().equals(expected)) {
+                        throw new IOException("Registered research trial does not match the current card, data, split, or parameter inputs");
+                    }
+                    return entry;
+                }
+            }
+        }
+        throw new IOException("Research trial is not preregistered: " + expected.trialId());
+    }
+
     private static List<Entry> parse(byte[] bytes) throws IOException {
         if (bytes.length == 0) throw new IOException("Research trial ledger is empty");
         if (bytes.length > MAX_LEDGER_BYTES) throw new IOException("Research trial ledger exceeds the supported size");

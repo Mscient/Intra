@@ -2,6 +2,7 @@ package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
+import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.evaluation.ResearchTrialLedger;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
@@ -212,14 +213,18 @@ public final class IntraPaperCli {
                 System.out.printf("VALID SPLIT PLAN: sha256=%s; metrics not evaluated%n", split.splitFileSha256());
                 return;
             }
-            if (args.length == 10 && args[0].equals("trial-ledger-register")) {
-                var trial = new ResearchTrialLedger.Trial(args[2], args[3], args[4], args[5],
-                        args[6], args[7], args[8], args[9]);
-                var entry = ResearchTrialLedger.register(Path.of(args[1]), trial);
+            if (args.length == 3 && args[0].equals("trial-ledger-register")) {
+                Path barsPath = Path.of(args[1]).toAbsolutePath().normalize();
+                RunConfig config = RunConfig.load(Path.of(args[2]));
+                ValidatedDataset dataset = ValidatedDataset.load(barsPath, config);
+                SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
+                var trial = ResearchTrialBinding.expectedTrial(config, dataset, strategy);
+                var entry = ResearchTrialLedger.register(config.researchTrialLedgerPath().orElseThrow(), trial);
                 System.out.printf("REGISTERED RESEARCH TRIAL: sequence=%d; trial_id=%s; strategy=%s@%s; variant=%s; "
-                                + "timestamp=%s; chain_hash=%s%n",
+                                + "timestamp=%s; dataset_sha256=%s; split_sha256=%s; parameter_config_sha256=%s; chain_hash=%s%n",
                         entry.sequence(), trial.trialId(), trial.strategyId(), trial.strategyVersion(),
-                        trial.variantId(), entry.registeredAtUtc(), entry.recordHashSha256());
+                        trial.variantId(), entry.registeredAtUtc(), trial.datasetSha256(),
+                        trial.splitPlanSha256(), trial.parameterConfigSha256(), entry.recordHashSha256());
                 return;
             }
             if (args.length == 2 && args[0].equals("trial-ledger-verify")) {
@@ -296,7 +301,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
-                + "  java -jar intra-paper-system.jar trial-ledger-register <ledger.tsv> <trial-id> <strategy-id> <strategy-version> <variant-id> <card-sha256> <dataset-sha256> <split-sha256> <parameter-config-sha256>\n"
+                + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"

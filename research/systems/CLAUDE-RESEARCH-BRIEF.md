@@ -2,6 +2,12 @@
 
 Prepared 2026-11-03. This brief requests source-backed research to unblock the offline NIFTY derivatives backtester and paper-simulation system. The attached implementation plan is design guidance; this research request does not authorize account access, live data capture, broker orders, or trading.
 
+## Received findings (2026-11-03)
+
+The user supplied an R1–R13 report, archived at [`2026-11-03-r1-r13-compiled-findings.md`](2026-11-03-r1-r13-compiled-findings.md). Preserve its evidence grades: claims marked `[P-ref]` or `[S]` are leads, not verified exchange rules. Its section 3 describes possible outside follow-up; that text is not authorization to contact a broker or exchange, access accounts, or collect data.
+
+R3's NIFTY lot-size transition was independently checked against [NSE/FAOP/70616](https://nsearchives.nseindia.com/content/circulars/FAOP70616.pdf): the circular is dated 2025-10-03, changes NIFTY from 75 to 65, takes effect 2025-10-28 EOD, and specifies the contract-cycle transition through 2025-12-30. This supports treating lot size as a dated contract attribute. R1's revised pre-open phases, R2's CAS and expiry-settlement behavior, R4's 2026-10-30 gap, fee and margin inputs, and data-rights questions remain unresolved pending the evidence described in the report. Preserve missing bars; do not interpolate or infer their cause. R12 now informs exact run-to-registration binding, while DSR/PBO scoring and holdout controls remain open. R13 has no S01–S03 markout results; no performance claim is eligible.
+
 ## Research method and required answer format
 
 Use primary sources first: NSE, NSE Clearing, SEBI, and official Angel One SmartAPI documentation/terms. Use broker help pages, forums, GitHub samples, and social posts as leads only, clearly labeled secondary. Do not guess an effective date from a web page's last-updated date.
@@ -49,6 +55,6 @@ Do not include credentials, private account identifiers, personal data, or instr
 
 ## Suggested delivery order
 
-Return R1–R4 first because exchange dates and the observed feed gap affect data validation and replay semantics. Then R5–R8 for interface and operational boundaries. Finish R9–R13 for risk, valuation, and strategy-evidence work. If multiple people are researching, keep each topic in a separate note but use the same claim table so findings can be merged without losing provenance.
+The R1–R13 submission has been received. Continue with primary-source verification for R1–R3, authorized user data for R4, then the remaining rights, execution, cost, margin, pricing, and evaluation gaps. Keep each topic separately attributable and retain unresolved fields instead of converting secondary or circular-reference claims into rule rows.
 
 The repository's existing tracker is `research/systems/IMPLEMENTATION-TRACKER.md`; the detailed open questions are in `research/systems/NEXT-RESEARCH-REQUESTS.md`. Research findings should be added as dated evidence, with source hashes where useful, rather than silently converting a hypothesis into a rule.

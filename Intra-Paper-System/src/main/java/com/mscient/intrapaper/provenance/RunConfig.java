@@ -4,6 +4,8 @@ import com.mscient.intrapaper.reference.DataRightsStatus;
 import com.mscient.intrapaper.reference.TimestampRole;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -14,9 +16,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeMap;
 
 /** Frozen, explicit inputs for one offline run. */
 public record RunConfig(
@@ -69,7 +73,14 @@ public record RunConfig(
         Optional<String> quoteSourceName,
         Duration decisionToArrivalLatency,
         Duration quoteMaximumAge,
-        Duration quoteMaximumFutureSkew) {
+        Duration quoteMaximumFutureSkew,
+        Optional<Path> researchTrialLedgerPath,
+        Optional<String> researchTrialId,
+        Optional<String> researchStrategyVersion,
+        Optional<String> researchVariantId,
+        Optional<Path> researchStrategyCardPath,
+        Optional<Path> evaluationSplitPlanPath,
+        String trialParameterConfigSha256) {
 
     private static final Set<String> ALLOWED = Set.of(
             "dataset.id", "dataset.source_name", "dataset.acquired_at_utc", "dataset.timezone", "dataset.timestamp_role",
@@ -86,7 +97,9 @@ public record RunConfig(
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
             "quality.max_missing_intervals_per_session", "run.commit_id", "execution.model",
             "execution.quote_journal_file", "execution.quote_source_name", "execution.decision_to_arrival_latency_ms",
-            "execution.quote_maximum_age_ms", "execution.quote_maximum_future_skew_ms");
+            "execution.quote_maximum_age_ms", "execution.quote_maximum_future_skew_ms",
+            "research.trial_ledger_file", "research.trial_id", "research.strategy_version", "research.variant_id",
+            "research.strategy_card_file", "evaluation.split_plan_file");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -224,6 +237,26 @@ public record RunConfig(
         } else if (hasQuoteSettings) {
             throw new IllegalArgumentException("Quote execution settings require an L1 execution.model");
         }
+        Optional<Path> trialLedgerPath = optional(p, "research.trial_ledger_file")
+                .map(value -> resolve(base, value));
+        Optional<String> trialId = optional(p, "research.trial_id")
+                .map(value -> researchIdentifier(value, "research.trial_id"));
+        Optional<String> strategyVersion = optional(p, "research.strategy_version")
+                .map(value -> researchIdentifier(value, "research.strategy_version"));
+        Optional<String> variantId = optional(p, "research.variant_id")
+                .map(value -> researchIdentifier(value, "research.variant_id"));
+        Optional<Path> strategyCardPath = optional(p, "research.strategy_card_file")
+                .map(value -> resolve(base, value));
+        Optional<Path> splitPlanPath = optional(p, "evaluation.split_plan_file")
+                .map(value -> resolve(base, value));
+        int researchSettingCount = (trialLedgerPath.isPresent() ? 1 : 0) + (trialId.isPresent() ? 1 : 0)
+                + (strategyVersion.isPresent() ? 1 : 0) + (variantId.isPresent() ? 1 : 0)
+                + (strategyCardPath.isPresent() ? 1 : 0) + (splitPlanPath.isPresent() ? 1 : 0);
+        if (researchSettingCount != 0 && researchSettingCount != 6) {
+            throw new IllegalArgumentException("Research preregistration requires trial ledger, trial ID, strategy version, "
+                    + "variant ID, strategy-card file, and evaluation split-plan file together");
+        }
+        String trialParameterConfigSha256 = trialParameterConfigSha256(p);
         return new RunConfig(
                 absolute,
                 sha256(configBytes),
@@ -274,7 +307,52 @@ public record RunConfig(
                 quoteSourceName,
                 decisionToArrivalLatency,
                 quoteMaximumAge,
-                quoteMaximumFutureSkew);
+                quoteMaximumFutureSkew,
+                trialLedgerPath,
+                trialId,
+                strategyVersion,
+                variantId,
+                strategyCardPath,
+                splitPlanPath,
+                trialParameterConfigSha256);
+    }
+
+    private static String researchIdentifier(String value, String key) {
+        if (!value.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException(key + " must be a trimmed alphanumeric identifier");
+        }
+        return value;
+    }
+
+    /** Canonical hash of run settings, excluding registration pointers, split path, and build commit. */
+    private static String trialParameterConfigSha256(Properties properties) {
+        TreeMap<String, String> canonical = new TreeMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            if (key.startsWith("research.") || key.equals("evaluation.split_plan_file") || key.equals("run.commit_id")) {
+                continue;
+            }
+            canonical.put(key, properties.getProperty(key));
+        }
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (DataOutputStream output = new DataOutputStream(bytes)) {
+                writeCanonical(output, "INTRA_TRIAL_PARAMETER_CONFIG_V1");
+                output.writeInt(canonical.size());
+                for (Map.Entry<String, String> entry : canonical.entrySet()) {
+                    writeCanonical(output, entry.getKey());
+                    writeCanonical(output, entry.getValue());
+                }
+            }
+            return sha256(bytes.toByteArray());
+        } catch (IOException impossibleForMemoryStream) {
+            throw new IllegalStateException("Unable to hash trial parameter configuration", impossibleForMemoryStream);
+        }
+    }
+
+    private static void writeCanonical(DataOutputStream output, String value) throws IOException {
+        byte[] encoded = value.getBytes(StandardCharsets.UTF_8);
+        output.writeInt(encoded.length);
+        output.write(encoded);
     }
 
     private static Path resolve(Path base, String value) {

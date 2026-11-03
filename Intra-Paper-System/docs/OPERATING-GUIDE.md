@@ -143,14 +143,28 @@ The command checks coverage and ordering, then prints the split-file SHA-256. It
 
 ## Register attempted research variants
 
-Before evaluating a candidate, register each distinct strategy-version/variant together with the strategy-card, dataset, split-plan, and exact parameter-configuration SHA-256 hashes. The ledger stores identifiers and hashes only; do not put strategy secrets, private limits, or licensed inputs in the ledger. Use the split hash printed by `split-validate`.
+For every non-synthetic strategy run, place these six keys in `run.properties` before preregistration. Paths resolve relative to that file:
 
-```powershell
-& $java -jar $jar trial-ledger-register .\private\research-trials.tsv trial-0001 sma 1.0 variant-0001 $cardSha256 $datasetSha256 $splitSha256 $parameterConfigSha256
-& $java -jar $jar trial-ledger-verify .\private\research-trials.tsv
+```properties
+research.trial_ledger_file=private/research-trials.tsv
+research.trial_id=trial-0001
+research.strategy_version=1.0
+research.variant_id=variant-0001
+research.strategy_card_file=private/strategy-card.md
+evaluation.split_plan_file=private/evaluation-splits.csv
 ```
 
-Registration is append-only, takes an exclusive file lock, rejects duplicate trial IDs and duplicate variant IDs within a strategy version, and chains each row to the previous SHA-256. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. The built-in `run` command does not yet require a trial registration; the ledger does not score metrics, enforce holdout access, or implement Deflated Sharpe Ratio or Probability of Backtest Overfitting.
+Then register and run using the same frozen inputs:
+
+```powershell
+New-Item -ItemType Directory -Force .\private | Out-Null
+& $java -jar $jar split-validate .\bars.csv .\run.properties .\private\evaluation-splits.csv
+& $java -jar $jar trial-ledger-register .\bars.csv .\run.properties
+& $java -jar $jar trial-ledger-verify .\private\research-trials.tsv
+& $java -jar $jar run .\bars.csv .\run.properties
+```
+
+The command derives the strategy-card, complete dataset-input, split-plan, and canonical parameter-configuration hashes. Each non-synthetic `run` then requires an exact prior registry entry; the registration record hash is included in the run ID and manifest. Changing the card, dataset/reference inputs, split plan, or run settings requires a new variant registration. Registration is append-only, takes an exclusive file lock, and rejects duplicate trial IDs and duplicate variant IDs within a strategy version. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. The registry does not score metrics, enforce that a human kept holdout results sealed, or implement Deflated Sharpe Ratio or Probability of Backtest Overfitting. Synthetic plumbing fixtures may run without a research registration.
 
 ## Reproduce and verify a saved run
 

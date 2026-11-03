@@ -2,6 +2,7 @@ package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.CsvTable;
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.io.IOException;
@@ -30,6 +31,7 @@ public final class RunArtifactWriter {
 
     public WrittenRun write(Path outputRoot, String runId, ValidatedDataset data,
             RunConfig config, BacktestResult result) throws IOException {
+        var researchTrial = ResearchTrialBinding.resolve(config, data, result.strategyId());
         Path outputRootAbsolute = outputRoot.toAbsolutePath().normalize();
         if (!runId.matches("[0-9a-f]{24}")) throw new IllegalArgumentException("runId must be a 24-character lowercase hex content ID");
         Files.createDirectories(outputRootAbsolute);
@@ -122,7 +124,8 @@ public final class RunArtifactWriter {
                         "settlement-cost-lines.csv", "summary.json")) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
-                writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
+                writeNew(stagingFolder.resolve("run-manifest.json"),
+                        manifestJson(runId, data, config, result, outputHashes, researchTrial));
                 Files.move(stagingFolder, runFolder, StandardCopyOption.ATOMIC_MOVE);
                 return new WrittenRun(runId, runFolder);
             } catch (IOException | RuntimeException failure) {
@@ -252,7 +255,8 @@ public final class RunArtifactWriter {
     }
 
     private static String manifestJson(String runId, ValidatedDataset data, RunConfig config,
-            BacktestResult result, Map<String, String> outputHashes) {
+            BacktestResult result, Map<String, String> outputHashes,
+            java.util.Optional<ResearchTrialBinding.Evidence> researchTrial) {
         var bars = data.bars();
         var first = bars.getFirst();
         var last = bars.getLast();
@@ -269,7 +273,7 @@ public final class RunArtifactWriter {
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
         return "{\n"
-                + "  \"schema_version\": 11,\n"
+                + "  \"schema_version\": 12,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -307,6 +311,7 @@ public final class RunArtifactWriter {
                 + ", \"end\": " + q(bars.getLast().timestamp().toString()) + "},\n"
                 + "  \"strategy\": {\"id\": " + q(result.strategyId()) + ", \"parameters\": "
                 + mapJson(result.strategyParameters()) + "},\n"
+                + "  \"research_trial\": " + researchTrialJson(researchTrial) + ",\n"
                 + "  \"fill_model\": " + q(switch (config.executionModel()) {
                     case BAR_NEXT_OPEN -> "NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1";
                     case L1_FULL_SIZE_IOC -> "L1_TOP_OF_BOOK_FULL_SIZE_IOC_V1";
@@ -394,6 +399,23 @@ public final class RunArtifactWriter {
         new TreeMap<>(values).forEach((key, value) -> items.add("    " + q(key) + ": " + q(value)));
         if (items.isEmpty()) return "{}";
         return "{\n" + String.join(",\n", items) + "\n  }";
+    }
+
+    private static String researchTrialJson(java.util.Optional<ResearchTrialBinding.Evidence> evidence) {
+        if (evidence.isEmpty()) return "null";
+        var binding = evidence.orElseThrow();
+        var trial = binding.trial();
+        var entry = binding.registration();
+        return "{\"trial_id\": " + q(trial.trialId())
+                + ", \"strategy_id\": " + q(trial.strategyId())
+                + ", \"strategy_version\": " + q(trial.strategyVersion())
+                + ", \"variant_id\": " + q(trial.variantId())
+                + ", \"registration_sequence\": " + entry.sequence()
+                + ", \"registration_record_sha256\": " + q(entry.recordHashSha256())
+                + ", \"strategy_card_sha256\": " + q(trial.strategyCardSha256())
+                + ", \"dataset_sha256\": " + q(trial.datasetSha256())
+                + ", \"split_plan_sha256\": " + q(trial.splitPlanSha256())
+                + ", \"parameter_config_sha256\": " + q(trial.parameterConfigSha256()) + "}";
     }
 
     private static String inlineMapJson(Map<String, String> values) {

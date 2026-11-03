@@ -1,6 +1,7 @@
 package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.io.ByteArrayOutputStream;
@@ -8,17 +9,19 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 /** Stable content identity for one input dataset, build, configuration, and strategy. */
 public final class RunIdentity {
     private RunIdentity() { }
 
-    public static String contentId(ValidatedDataset dataset, RunConfig config, Strategy strategy) {
+    public static String contentId(ValidatedDataset dataset, RunConfig config, Strategy strategy) throws IOException {
+        Optional<ResearchTrialBinding.Evidence> trial = ResearchTrialBinding.resolve(config, dataset, strategy);
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, "INTRA_RUN_ID_V10");
+                write(output, trial.isPresent() ? "INTRA_RUN_ID_V11_TRIAL" : "INTRA_RUN_ID_V10");
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());
@@ -40,6 +43,11 @@ public final class RunIdentity {
                 for (Map.Entry<String, String> parameter : parameters.entrySet()) {
                     write(output, parameter.getKey());
                     write(output, parameter.getValue());
+                }
+                if (trial.isPresent()) {
+                    write(output, "RESEARCH_TRIAL_REGISTRATION_V1");
+                    output.writeLong(trial.orElseThrow().registration().sequence());
+                    write(output, trial.orElseThrow().registration().recordHashSha256());
                 }
             }
             return RunConfig.sha256(bytes.toByteArray()).substring(0, 24);
