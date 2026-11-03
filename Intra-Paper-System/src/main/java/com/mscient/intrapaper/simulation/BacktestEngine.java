@@ -281,6 +281,7 @@ public final class BacktestEngine {
                 net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
+        RunLedgerReconciler.requireFillCostsConsistent(result, config, dataset);
         return result;
     }
 

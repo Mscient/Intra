@@ -1,9 +1,14 @@
 package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.data.Bar;
+import com.mscient.intrapaper.data.IntervalSupport;
+import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -156,6 +161,41 @@ public final class RunLedgerReconciler {
                 }
             }
             if (!points.isEmpty()) priorSessionNet = points.getLast().netPnlInr();
+        }
+    }
+
+    /** Recomputes adverse tick fills and all configured per-fill charges from frozen inputs. */
+    public static void requireFillCostsConsistent(BacktestResult result, RunConfig config, ValidatedDataset dataset) {
+        Map<Instant, Bar> barsByFillTime = new HashMap<>();
+        var interval = IntervalSupport.duration(config.interval());
+        for (Bar bar : dataset.bars()) {
+            Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? bar.timestamp() : bar.timestamp().minus(interval);
+            if (barsByFillTime.putIfAbsent(barStart, bar) != null) fail("duplicate bar start in validated dataset: " + barStart);
+        }
+        for (SimFill fill : result.fills()) {
+            if (!fill.side().equals("BUY") && !fill.side().equals("SELL")) fail("invalid fill side in ledger: " + fill.fillId());
+            if (fill.quantityUnits() < 1) fail("non-positive fill quantity: " + fill.fillId());
+            Bar bar = barsByFillTime.get(fill.timestamp());
+            if (bar == null) fail("fill has no matching dataset bar: " + fill.fillId());
+            if (fill.referenceOpenPrice().compareTo(bar.open()) != 0) fail("fill reference price differs from dataset open: " + fill.fillId());
+            CostSchedule.Terms terms = dataset.costSchedule()
+                    .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(fill.side())))
+                    .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
+                            config.notionalFeeBps(), config.slippageTicks()));
+            BigDecimal adverseTicks = bar.tickSize().multiply(BigDecimal.valueOf(terms.slippageTicks()));
+            BigDecimal expectedFill = fill.side().equals("BUY")
+                    ? bar.open().add(adverseTicks) : bar.open().subtract(adverseTicks);
+            requireEqual("modeled adverse fill price for " + fill.fillId(), expectedFill, fill.fillPrice());
+            BigDecimal expectedSlippage = adverseTicks.multiply(BigDecimal.valueOf(fill.quantityUnits()));
+            requireEqual("modeled slippage for " + fill.fillId(), expectedSlippage, fill.slippageCostInr());
+            BigDecimal notional = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
+            BigDecimal notionalFee = notional.multiply(terms.notionalFeeBps())
+                    .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
+            BigDecimal expectedFee = terms.feePerOrderInr()
+                    .add(terms.feePerUnitInr().multiply(BigDecimal.valueOf(fill.quantityUnits())))
+                    .add(notionalFee);
+            requireEqual("fill fee for " + fill.fillId(), expectedFee, fill.feeInr());
         }
     }
 
