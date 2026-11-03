@@ -58,11 +58,14 @@ public final class RunArtifactWriter {
                         "timestamp,order_id,event,detail",
                         result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
                 writeNew(stagingFolder.resolve("fills.csv"), csv(
-                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,margin_per_lot_inr,margin_source_reference,position_units_after",
+                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,margin_per_lot_inr,margin_source_reference,position_units_after,execution_model,quote_source,quote_sequence,quote_received_at_utc,reference_execution_price",
                         result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
                             fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
                             fill.feeInr(), fill.marginPerLotInr(), fill.marginSourceReference(),
-                            fill.positionUnitsAfter())).toList()));
+                            fill.positionUnitsAfter(), fill.executionModel(), fill.quoteSource() == null ? "" : fill.quoteSource(),
+                            fill.quoteSequence() == 0 ? "" : fill.quoteSequence(),
+                            fill.quoteReceivedAt() == null ? "" : fill.quoteReceivedAt().toString(),
+                            fill.referenceExecutionPrice())).toList()));
                 writeNew(stagingFolder.resolve("fee-breakdowns.csv"), csv(
                         "fill_id,cost_model,contract_kind,traded_value_inr,legacy_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr",
                         result.feeBreakdowns().stream().map(fee -> row(fee.fillId(), fee.costModel(), fee.contractKind(),
@@ -264,8 +267,9 @@ public final class RunArtifactWriter {
         data.marginRequirementSchedule().ifPresent(schedule -> inputHashes.put("margin_requirement_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
+        data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
         return "{\n"
-                + "  \"schema_version\": 10,\n"
+                + "  \"schema_version\": 11,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -303,7 +307,25 @@ public final class RunArtifactWriter {
                 + ", \"end\": " + q(bars.getLast().timestamp().toString()) + "},\n"
                 + "  \"strategy\": {\"id\": " + q(result.strategyId()) + ", \"parameters\": "
                 + mapJson(result.strategyParameters()) + "},\n"
-                + "  \"fill_model\": \"NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1\",\n"
+                + "  \"fill_model\": " + q(config.executionModel() == com.mscient.intrapaper.provenance.ExecutionModel.BAR_NEXT_OPEN
+                        ? "NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1"
+                        : "L1_TOP_OF_BOOK_FULL_SIZE_IOC_V1") + ",\n"
+                + "  \"execution_model\": {\"id\": " + q(config.executionModel().name())
+                + ", \"quote_journal_sha256\": " + data.quoteHistory()
+                        .map(history -> q(history.fileSha256())).orElse("null")
+                + ", \"quote_source_name\": " + optionalJson(config.quoteSourceName())
+                + ", \"decision_to_arrival_latency_ms\": " + config.decisionToArrivalLatency().toMillis()
+                + ", \"quote_maximum_age_ms\": " + config.quoteMaximumAge().toMillis()
+                + ", \"quote_maximum_future_skew_ms\": " + config.quoteMaximumFutureSkew().toMillis() + "},\n"
+                + "  \"quote_journal\": " + data.quoteHistory().map(history ->
+                        "{\"sha256\": " + q(history.fileSha256())
+                                + ", \"event_count\": " + history.summary().eventCount()
+                                + ", \"last_sequence_number\": " + history.summary().lastSequenceNumber()
+                                + ", \"sequence_gap_count\": " + history.summary().sequenceGapCount()
+                                + ", \"missing_sequence_numbers\": " + history.summary().missingSequenceNumbers()
+                                + ", \"final_hash\": " + q(history.summary().finalHashHex())
+                                + ", \"bytes_read\": " + history.summary().bytesRead() + "}")
+                        .orElse("null") + ",\n"
                 + "  \"passive_orders_supported\": false,\n"
                 + "  \"partial_fills_supported\": false,\n"
                 + "  \"cost_model\": {\"status\": " + q(config.costStatus()) + ", \"evidence_reference\": "

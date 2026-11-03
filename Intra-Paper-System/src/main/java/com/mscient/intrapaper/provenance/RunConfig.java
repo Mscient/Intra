@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -62,7 +63,13 @@ public record RunConfig(
         BigDecimal feePerUnitInr,
         BigDecimal notionalFeeBps,
         boolean syntheticFixture,
-        String commitId) {
+        String commitId,
+        ExecutionModel executionModel,
+        Optional<Path> quoteJournalPath,
+        Optional<String> quoteSourceName,
+        Duration decisionToArrivalLatency,
+        Duration quoteMaximumAge,
+        Duration quoteMaximumFutureSkew) {
 
     private static final Set<String> ALLOWED = Set.of(
             "dataset.id", "dataset.source_name", "dataset.acquired_at_utc", "dataset.timezone", "dataset.timestamp_role",
@@ -77,7 +84,9 @@ public record RunConfig(
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
             "cost.notional_fee_bps", "cost.schedule_file", "cost.components_file",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
-            "quality.max_missing_intervals_per_session", "run.commit_id");
+            "quality.max_missing_intervals_per_session", "run.commit_id", "execution.model",
+            "execution.quote_journal_file", "execution.quote_source_name", "execution.decision_to_arrival_latency_ms",
+            "execution.quote_maximum_age_ms", "execution.quote_maximum_future_skew_ms");
 
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
@@ -183,6 +192,38 @@ public record RunConfig(
                 || notionalFeeBps.signum() != 0)) {
             throw new IllegalArgumentException("When cost.components_file is set, legacy cost fee/slippage inputs must be omitted or zero");
         }
+        ExecutionModel executionModel = ExecutionModel.valueOf(optional(p, "execution.model").orElse("BAR_NEXT_OPEN"));
+        Optional<Path> quoteJournalPath = optional(p, "execution.quote_journal_file")
+                .map(value -> resolve(base, value));
+        Optional<String> quoteSourceName = optional(p, "execution.quote_source_name");
+        Duration decisionToArrivalLatency = Duration.ZERO;
+        Duration quoteMaximumAge = Duration.ZERO;
+        Duration quoteMaximumFutureSkew = Duration.ZERO;
+        boolean hasQuoteSettings = quoteJournalPath.isPresent() || quoteSourceName.isPresent()
+                || optional(p, "execution.decision_to_arrival_latency_ms").isPresent()
+                || optional(p, "execution.quote_maximum_age_ms").isPresent()
+                || optional(p, "execution.quote_maximum_future_skew_ms").isPresent();
+        if (executionModel == ExecutionModel.L1_FULL_SIZE_IOC) {
+            if (quoteJournalPath.isEmpty() || quoteSourceName.isEmpty()) {
+                throw new IllegalArgumentException("L1_FULL_SIZE_IOC requires execution.quote_journal_file and execution.quote_source_name");
+            }
+            long latencyMillis = nonNegativeLong(p, "execution.decision_to_arrival_latency_ms");
+            long maximumAgeMillis = positiveLong(p, "execution.quote_maximum_age_ms");
+            long maximumFutureSkewMillis = optionalNonNegativeLong(p, "execution.quote_maximum_future_skew_ms", 0);
+            decisionToArrivalLatency = Duration.ofMillis(latencyMillis);
+            quoteMaximumAge = Duration.ofMillis(maximumAgeMillis);
+            quoteMaximumFutureSkew = Duration.ofMillis(maximumFutureSkewMillis);
+            Duration barInterval = intervalDuration(required(p, "dataset.interval"));
+            if (decisionToArrivalLatency.compareTo(barInterval) >= 0) {
+                throw new IllegalArgumentException("execution.decision_to_arrival_latency_ms must be shorter than dataset.interval");
+            }
+            if (quoteSourceName.orElseThrow().isBlank()
+                    || !quoteSourceName.orElseThrow().equals(quoteSourceName.orElseThrow().strip())) {
+                throw new IllegalArgumentException("execution.quote_source_name must be non-empty and trimmed");
+            }
+        } else if (hasQuoteSettings) {
+            throw new IllegalArgumentException("Quote execution settings require execution.model=L1_FULL_SIZE_IOC");
+        }
         return new RunConfig(
                 absolute,
                 sha256(configBytes),
@@ -227,12 +268,30 @@ public record RunConfig(
                 feeUnit,
                 notionalFeeBps,
                 synthetic,
-                resolveCommit(optional(p, "run.commit_id").orElse("BUILD_COMMIT"), synthetic));
+                resolveCommit(optional(p, "run.commit_id").orElse("BUILD_COMMIT"), synthetic),
+                executionModel,
+                quoteJournalPath,
+                quoteSourceName,
+                decisionToArrivalLatency,
+                quoteMaximumAge,
+                quoteMaximumFutureSkew);
     }
 
     private static Path resolve(Path base, String value) {
         Path path = Path.of(value);
         return (path.isAbsolute() ? path : base.resolve(path)).normalize();
+    }
+
+    private static Duration intervalDuration(String interval) {
+        return switch (interval) {
+            case "ONE_MINUTE" -> Duration.ofMinutes(1);
+            case "FIVE_MINUTE" -> Duration.ofMinutes(5);
+            case "FIFTEEN_MINUTE" -> Duration.ofMinutes(15);
+            case "THIRTY_MINUTE" -> Duration.ofMinutes(30);
+            case "ONE_HOUR" -> Duration.ofHours(1);
+            case "ONE_DAY" -> Duration.ofDays(1);
+            default -> throw new IllegalArgumentException("Unsupported interval (no timestamp guessing): " + interval);
+        };
     }
 
     private static String required(Properties p, String key) {
@@ -286,6 +345,20 @@ public record RunConfig(
 
     private static long nonNegativeLong(Properties p, String key) {
         long value = Long.parseLong(required(p, key));
+        if (value < 0) throw new IllegalArgumentException(key + " must be non-negative");
+        return value;
+    }
+
+    private static long positiveLong(Properties p, String key) {
+        long value = Long.parseLong(required(p, key));
+        if (value < 1) throw new IllegalArgumentException(key + " must be positive");
+        return value;
+    }
+
+    private static long optionalNonNegativeLong(Properties p, String key, long defaultValue) {
+        Optional<String> text = optional(p, key);
+        if (text.isEmpty()) return defaultValue;
+        long value = Long.parseLong(text.orElseThrow());
         if (value < 0) throw new IllegalArgumentException(key + " must be non-negative");
         return value;
     }

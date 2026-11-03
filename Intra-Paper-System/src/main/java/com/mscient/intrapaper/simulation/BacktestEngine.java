@@ -8,6 +8,8 @@ import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
+import com.mscient.intrapaper.provenance.ExecutionModel;
+import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -23,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Deterministic long-only futures simulator. Signals at a completed close can fill only at the next bar open. */
+/** Deterministic long-only simulator with bar-open and full-size L1 IOC execution modes. */
 public final class BacktestEngine {
     private record Pending(int orderIndex, int targetLots, LocalDate decisionSession) { }
     private static final class OpenTrade {
@@ -126,6 +128,13 @@ public final class BacktestEngine {
                 throw new UncheckedIOException("Unable to restore deterministic replay checkpoint", invalidCheckpoint);
             }
         }
+        QuoteExecutionBook quoteBook = null;
+        if (config.executionModel() == ExecutionModel.L1_FULL_SIZE_IOC) {
+            quoteBook = new QuoteExecutionBook(dataset.quoteHistory().orElseThrow(),
+                    config.quoteSourceName().orElseThrow(), bars.getFirst().instrumentId(),
+                    new QuoteQualityPolicy(config.quoteMaximumAge(), config.quoteMaximumFutureSkew()));
+            quoteBook.restoreConsumed(fills);
+        }
         var interval = IntervalSupport.duration(config.interval());
 
         for (int i = startBarIndex; i < bars.size(); i++) {
@@ -157,13 +166,23 @@ public final class BacktestEngine {
                 int targetLots = pending.targetLots();
                 int deltaLots = targetLots - positionLots;
                 SimOrder order = orders.get(pending.orderIndex());
-                updateOrder(orders, pending.orderIndex(), barStart, null, "ACKNOWLEDGED_BY_SIMULATOR", "local simulated market order");
-                events.add(new SimOrderEvent(barStart, order.orderId(), "ACKNOWLEDGED_BY_SIMULATOR", "local simulated market order"));
+                Instant executionTimestamp = barStart;
+                if (quoteBook != null) {
+                    Instant latencyArrival = order.decisionTimestamp().plus(config.decisionToArrivalLatency());
+                    if (latencyArrival.isAfter(executionTimestamp)) executionTimestamp = latencyArrival;
+                }
+                String executionDescription = quoteBook == null ? "local simulated market order"
+                        : "local simulated full-size L1 market IOC; arrival=" + executionTimestamp;
+                updateOrder(orders, pending.orderIndex(), executionTimestamp, null,
+                        "ACKNOWLEDGED_BY_SIMULATOR", executionDescription);
+                events.add(new SimOrderEvent(executionTimestamp, order.orderId(),
+                        "ACKNOWLEDGED_BY_SIMULATOR", executionDescription));
                 if (deltaLots == 0) {
                     updateOrder(orders, pending.orderIndex(), null, null, "REJECTED_NO_OP", "position already at target");
-                    events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_NO_OP", "position already at target"));
+                    events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "REJECTED_NO_OP", "position already at target"));
                 } else {
                     String side = deltaLots > 0 ? "BUY" : "SELL";
+                    ExecutionEvent.Side executionSide = ExecutionEvent.Side.valueOf(side);
                     int quantity = positionUnits(Math.abs(deltaLots), bar.lotSize());
                     CostSchedule.Terms costTerms = null;
                     ComponentCostSchedule.Terms componentTerms = null;
@@ -180,20 +199,45 @@ public final class BacktestEngine {
                         slippageTicks = costTerms.slippageTicks();
                     }
                     BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(slippageTicks));
+                    BigDecimal referenceExecutionPrice = bar.open();
                     BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
+                    QuoteExecutionBook.Decision quoteDecision = null;
+                    boolean quoteMiss = false;
+                    if (quoteBook != null) {
+                        quoteDecision = quoteBook.evaluate(executionTimestamp, executionSide, quantity, slippageTicks);
+                        if (quoteDecision.assessment().isEmpty()
+                                || !quoteDecision.assessment().orElseThrow().executable()) {
+                            quoteMiss = true;
+                            String detail = "reason=" + quoteDecision.reason()
+                                    + quoteDecision.quote().map(quote -> "; sequence=" + quote.sequenceNumber()
+                                            + "; received_at=" + quote.receivedAtUtc()).orElse("");
+                            updateOrder(orders, pending.orderIndex(), executionTimestamp, null,
+                                    "CANCELED", "L1 full-size IOC canceled; " + detail);
+                            events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "CANCELED", "IOC_CANCELED; " + detail));
+                        } else {
+                            var assessment = quoteDecision.assessment().orElseThrow();
+                            referenceExecutionPrice = bar.tickSize().multiply(BigDecimal.valueOf(
+                                    assessment.referencePriceTicks().orElseThrow()));
+                            fillPrice = bar.tickSize().multiply(BigDecimal.valueOf(
+                                    assessment.modeledFillPriceTicks().orElseThrow()));
+                        }
+                    }
                     var marginEntry = dataset.marginRequirementSchedule().map(schedule ->
                             schedule.require(bar.sessionDate(), bar.instrumentId(), bar.contractKind()));
                     BigDecimal marginPerLot = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::marginPerLotInr)
                             .orElse(config.marginPerLotInr());
                     String marginSource = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::sourceReference)
                             .orElse("FIXED_CONFIG_PROXY");
-                    String riskRejection = fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
+                    String riskRejection = quoteMiss ? null : fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
                             : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice, marginPerLot) : null;
-                    if (riskRejection != null) {
+                    if (quoteMiss) {
+                        // The IOC residual is canceled; position and displayed liquidity remain unchanged.
+                    } else if (riskRejection != null) {
                         String reason = riskRejection;
-                        updateOrder(orders, pending.orderIndex(), barStart, null, "REJECTED_RISK", reason);
-                        events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
+                        updateOrder(orders, pending.orderIndex(), executionTimestamp, null, "REJECTED_RISK", reason);
+                        events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "REJECTED_RISK", reason));
                     } else {
+                        if (quoteBook != null) quoteBook.consume(quoteDecision, executionSide, quantity);
                         BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(quantity));
                         String fillId = String.format("F%07d", fills.size() + 1);
                         BigDecimal fee;
@@ -215,14 +259,14 @@ public final class BacktestEngine {
                         if (side.equals("BUY")) {
                             if (positionLots != 0) throw new IllegalStateException("Simulator supports one entry and one exit per trade");
                             averageEntry = fillPrice;
-                            openTrade = new OpenTrade(barStart, fillPrice, quantity, fee);
+                            openTrade = new OpenTrade(executionTimestamp, fillPrice, quantity, fee);
                         } else {
                             if (positionLots <= 0 || openTrade == null) throw new IllegalStateException("Invalid long-only exit state");
                             realized = realized.add(fillPrice.subtract(averageEntry).multiply(BigDecimal.valueOf(quantity)));
                             BigDecimal tradeGross = fillPrice.subtract(openTrade.entryPrice).multiply(BigDecimal.valueOf(quantity));
                             BigDecimal tradeFees = openTrade.entryFee.add(fee);
                             String tradeId = String.format("T%07d", trades.size() + 1);
-                            trades.add(new SimTrade(tradeId, bar.instrumentId(), openTrade.entryTimestamp, barStart,
+                            trades.add(new SimTrade(tradeId, bar.instrumentId(), openTrade.entryTimestamp, executionTimestamp,
                                     quantity, openTrade.entryPrice, fillPrice, tradeGross, tradeFees, tradeGross.subtract(tradeFees)));
                             openTrade = null;
                             averageEntry = BigDecimal.ZERO;
@@ -230,11 +274,19 @@ public final class BacktestEngine {
                         positionLots = targetLots;
                         fees = fees.add(fee);
                         slippage = slippage.add(slippageCost);
-                        fills.add(new SimFill(fillId, order.orderId(), barStart, side, quantity,
-                                bar.open(), fillPrice, slippageCost, fee, marginPerLot, marginSource, newUnits));
+                        fills.add(new SimFill(fillId, order.orderId(), executionTimestamp, side, quantity,
+                                bar.open(), fillPrice, slippageCost, fee, marginPerLot, marginSource, newUnits,
+                                config.executionModel().name(),
+                                quoteDecision == null ? null : config.quoteSourceName().orElseThrow(),
+                                quoteDecision == null ? 0 : quoteDecision.quote().orElseThrow().sequenceNumber(),
+                                quoteDecision == null ? null : quoteDecision.quote().orElseThrow().receivedAtUtc(),
+                                referenceExecutionPrice));
                         feeBreakdowns.add(feeBreakdown);
-                        updateOrder(orders, pending.orderIndex(), barStart, barStart, "FILLED", "full simulated market fill");
-                        events.add(new SimOrderEvent(barStart, order.orderId(), "FILLED", "fill_id=" + fillId));
+                        String fillReason = quoteBook == null ? "full simulated market fill"
+                                : "full-size displayed L1 IOC fill; quote_sequence="
+                                        + quoteDecision.quote().orElseThrow().sequenceNumber();
+                        updateOrder(orders, pending.orderIndex(), executionTimestamp, executionTimestamp, "FILLED", fillReason);
+                        events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "FILLED", "fill_id=" + fillId));
                     }
                 }
                 pending = null;

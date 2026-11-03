@@ -148,7 +148,12 @@ public final class OmsRunRecovery {
         List<String> currentHeaders = List.of("fill_id", "order_id", "timestamp", "side", "quantity_units",
                 "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "margin_per_lot_inr",
                 "margin_source_reference", "position_units_after");
-        if (!table.headers().equals(priorHeaders) && !table.headers().equals(currentHeaders)) {
+        List<String> quoteExecutionHeaders = List.of("fill_id", "order_id", "timestamp", "side", "quantity_units",
+                "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "margin_per_lot_inr",
+                "margin_source_reference", "position_units_after", "execution_model", "quote_source",
+                "quote_sequence", "quote_received_at_utc", "reference_execution_price");
+        if (!table.headers().equals(priorHeaders) && !table.headers().equals(currentHeaders)
+                && !table.headers().equals(quoteExecutionHeaders)) {
             throw new IOException("Unexpected CSV schema in recovered execution ledger");
         }
         List<ExecutionEvent> events = new ArrayList<>();

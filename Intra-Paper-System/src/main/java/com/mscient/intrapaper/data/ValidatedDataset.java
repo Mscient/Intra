@@ -7,6 +7,7 @@ import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.MarginRequirementSchedule;
 import com.mscient.intrapaper.provenance.SettlementCostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.marketdata.VerifiedQuoteHistory;
 import com.mscient.intrapaper.reference.TimestampRole;
 import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
@@ -38,6 +39,7 @@ public record ValidatedDataset(
         Optional<MarginRequirementSchedule> marginRequirementSchedule,
         Optional<ExpirySettlement> expirySettlement,
         Optional<SettlementCostSchedule> settlementCostSchedule,
+        Optional<VerifiedQuoteHistory> quoteHistory,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
         long expectedBarCount,
@@ -63,6 +65,8 @@ public record ValidatedDataset(
                 ? Optional.of(ExpirySettlement.load(config.expirySettlementPath().orElseThrow())) : Optional.empty();
         Optional<SettlementCostSchedule> settlementCostSchedule = config.settlementCostSchedulePath().isPresent()
                 ? Optional.of(SettlementCostSchedule.load(config.settlementCostSchedulePath().orElseThrow())) : Optional.empty();
+        Optional<VerifiedQuoteHistory> quoteHistory = config.quoteJournalPath().isPresent()
+                ? Optional.of(VerifiedQuoteHistory.load(config.quoteJournalPath().orElseThrow())) : Optional.empty();
         if (settlementCostSchedule.isPresent() && expirySettlement.isEmpty()) {
             throw new IllegalArgumentException("settlement.cost_schedule_file requires settlement.file");
         }
@@ -76,6 +80,15 @@ public record ValidatedDataset(
         var onlyKind = first.contractKind();
         var onlyStrike = first.strike();
         var onlyRight = first.optionRight();
+        if (config.executionModel() == com.mscient.intrapaper.provenance.ExecutionModel.L1_FULL_SIZE_IOC) {
+            String requiredSource = config.quoteSourceName().orElseThrow();
+            boolean matchingQuoteExists = quoteHistory.orElseThrow().quotes().stream()
+                    .anyMatch(quote -> quote.source().equals(requiredSource)
+                            && quote.instrumentId().equals(onlyInstrument));
+            if (!matchingQuoteExists) {
+                throw new IllegalArgumentException("Quote journal contains no snapshots for configured source and bar instrument");
+            }
+        }
         ZoneId timezone = ZoneId.of(config.timezone());
 
         for (Bar bar : bars) {
@@ -255,6 +268,7 @@ public record ValidatedDataset(
         componentCostSchedule.ifPresent(schedule -> inputs.put("component-cost-schedule", schedule.sha256()));
         marginRequirementSchedule.ifPresent(schedule -> inputs.put("margin-requirement-schedule", schedule.sha256()));
         expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
+        quoteHistory.ifPresent(history -> inputs.put("quote-journal", history.fileSha256()));
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),
@@ -270,7 +284,7 @@ public record ValidatedDataset(
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, marketRuleRegimeSchedule, manifest,
                 barsHash, config.configSha256(), calendarHash, costSchedule, componentCostSchedule,
-                marginRequirementSchedule, expirySettlement, settlementCostSchedule, anomalies,
+                marginRequirementSchedule, expirySettlement, settlementCostSchedule, quoteHistory, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 

@@ -18,7 +18,7 @@ public final class RunIdentity {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, "INTRA_RUN_ID_V8");
+                write(output, "INTRA_RUN_ID_V9");
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());
@@ -31,6 +31,8 @@ public final class RunIdentity {
                 write(output, dataset.expirySettlement().map(com.mscient.intrapaper.provenance.ExpirySettlement::sha256).orElse("NO_EXPIRY_SETTLEMENT"));
                 write(output, dataset.settlementCostSchedule().map(com.mscient.intrapaper.provenance.SettlementCostSchedule::sha256)
                         .orElse("NO_SETTLEMENT_COST_SCHEDULE"));
+                write(output, dataset.quoteHistory().map(com.mscient.intrapaper.marketdata.VerifiedQuoteHistory::fileSha256)
+                        .orElse("NO_QUOTE_JOURNAL"));
                 write(output, config.commitId());
                 write(output, strategy.id());
                 Map<String, String> parameters = new TreeMap<>(strategy.parameters());

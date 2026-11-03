@@ -5,6 +5,7 @@ import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.CostSchedule;
+import com.mscient.intrapaper.provenance.ExecutionModel;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.math.BigDecimal;
@@ -187,7 +188,11 @@ public final class RunLedgerReconciler {
             priorEntryDecision = currentEntryDecision;
         }
         for (SimFill fill : result.fills()) {
-            Bar bar = barsByFillTime.get(fill.timestamp());
+            SimOrder order = orders.get(fill.orderId());
+            if (order == null) fail("risk audit fill has no order: " + fill.fillId());
+            Bar bar = config.executionModel() == ExecutionModel.BAR_NEXT_OPEN
+                    ? barsByFillTime.get(fill.timestamp())
+                    : findQuoteExecutionBar(dataset, order, fill, interval, config.timestampRole());
             if (bar == null) fail("risk audit fill has no matching bar: " + fill.fillId());
             var marginEntry = dataset.marginRequirementSchedule().map(schedule ->
                     schedule.require(bar.sessionDate(), bar.instrumentId(), bar.contractKind()));
@@ -198,8 +203,6 @@ public final class RunLedgerReconciler {
             requireEqual("recorded margin per lot for " + fill.fillId(), marginPerLot, fill.marginPerLotInr());
             if (!marginSource.equals(fill.marginSourceReference())) fail("recorded margin source differs from frozen input for " + fill.fillId());
             if (!fill.side().equals("BUY")) continue;
-            SimOrder order = orders.get(fill.orderId());
-            if (order == null) fail("risk audit fill has no order: " + fill.fillId());
             int lots = order.requestedUnits() / lotSize;
             if (order.requestedUnits() % lotSize != 0 || lots < 1 || lots > config.maxPositionLots()) {
                 fail("entry fill exceeds configured lot limit: " + fill.fillId());
@@ -300,10 +303,27 @@ public final class RunLedgerReconciler {
                     ? bar.timestamp() : bar.timestamp().minus(interval);
             if (barsByFillTime.putIfAbsent(barStart, bar) != null) fail("duplicate bar start in validated dataset: " + barStart);
         }
+        Map<String, SimOrder> ordersById = new HashMap<>();
+        for (SimOrder order : result.orders()) {
+            if (ordersById.putIfAbsent(order.orderId(), order) != null) fail("duplicate order ID: " + order.orderId());
+        }
+        QuoteExecutionBook quoteAuditBook = config.executionModel() == ExecutionModel.L1_FULL_SIZE_IOC
+                ? new QuoteExecutionBook(dataset.quoteHistory().orElseThrow(), config.quoteSourceName().orElseThrow(),
+                        dataset.bars().getFirst().instrumentId(),
+                        new com.mscient.intrapaper.marketdata.QuoteQualityPolicy(
+                                config.quoteMaximumAge(), config.quoteMaximumFutureSkew()))
+                : null;
         for (SimFill fill : result.fills()) {
             if (!fill.side().equals("BUY") && !fill.side().equals("SELL")) fail("invalid fill side in ledger: " + fill.fillId());
             if (fill.quantityUnits() < 1) fail("non-positive fill quantity: " + fill.fillId());
-            Bar bar = barsByFillTime.get(fill.timestamp());
+            SimOrder order = ordersById.get(fill.orderId());
+            if (order == null) fail("fill has no matching simulated order: " + fill.fillId());
+            if (!fill.executionModel().equals(config.executionModel().name())) {
+                fail("fill execution model differs from run configuration: " + fill.fillId());
+            }
+            Bar bar = config.executionModel() == ExecutionModel.BAR_NEXT_OPEN
+                    ? barsByFillTime.get(fill.timestamp())
+                    : findQuoteExecutionBar(dataset, order, fill, interval, config.timestampRole());
             if (bar == null) fail("fill has no matching dataset bar: " + fill.fillId());
             if (fill.referenceOpenPrice().compareTo(bar.open()) != 0) fail("fill reference price differs from dataset open: " + fill.fillId());
             SimFeeBreakdown feeAudit = feeAudits.get(fill.fillId());
@@ -346,13 +366,55 @@ public final class RunLedgerReconciler {
             }
             if (feeAudit.totalInr().compareTo(fill.feeInr()) != 0) fail("fee breakdown does not sum to fill fee: " + fill.fillId());
             BigDecimal adverseTicks = bar.tickSize().multiply(BigDecimal.valueOf(slippageTicks));
+            BigDecimal referenceExecutionPrice;
+            if (config.executionModel() == ExecutionModel.BAR_NEXT_OPEN) {
+                if (fill.quoteSource() != null || fill.quoteSequence() != 0 || fill.quoteReceivedAt() != null) {
+                    fail("bar-open fill unexpectedly references a quote: " + fill.fillId());
+                }
+                referenceExecutionPrice = bar.open();
+            } else {
+                Instant arrival = order.decisionTimestamp().plus(config.decisionToArrivalLatency());
+                Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                        ? bar.timestamp() : bar.timestamp().minus(interval);
+                if (arrival.isBefore(barStart)) arrival = barStart;
+                if (!arrival.equals(fill.timestamp())) fail("quote fill timestamp differs from configured arrival: " + fill.fillId());
+                QuoteExecutionBook.Decision decision = quoteAuditBook.evaluate(arrival,
+                        ExecutionEvent.Side.valueOf(fill.side()), fill.quantityUnits(), slippageTicks);
+                if (decision.quote().isEmpty() || decision.assessment().isEmpty()
+                        || !decision.assessment().orElseThrow().executable()) {
+                    fail("persisted quote fill is not eligible under the frozen quote policy: " + fill.fillId());
+                }
+                var quote = decision.quote().orElseThrow();
+                if (!quote.source().equals(fill.quoteSource())
+                        || fill.quoteSequence() != quote.sequenceNumber()
+                        || !quote.receivedAtUtc().equals(fill.quoteReceivedAt())) {
+                    fail("persisted quote reference differs from the selected quote: " + fill.fillId());
+                }
+                referenceExecutionPrice = bar.tickSize().multiply(BigDecimal.valueOf(
+                        decision.assessment().orElseThrow().referencePriceTicks().orElseThrow()));
+                quoteAuditBook.consume(decision, ExecutionEvent.Side.valueOf(fill.side()), fill.quantityUnits());
+            }
+            requireEqual("reference execution price for " + fill.fillId(), referenceExecutionPrice,
+                    fill.referenceExecutionPrice());
             BigDecimal expectedFill = fill.side().equals("BUY")
-                    ? bar.open().add(adverseTicks) : bar.open().subtract(adverseTicks);
+                    ? referenceExecutionPrice.add(adverseTicks) : referenceExecutionPrice.subtract(adverseTicks);
             requireEqual("modeled adverse fill price for " + fill.fillId(), expectedFill, fill.fillPrice());
             BigDecimal expectedSlippage = adverseTicks.multiply(BigDecimal.valueOf(fill.quantityUnits()));
             requireEqual("modeled slippage for " + fill.fillId(), expectedSlippage, fill.slippageCostInr());
         }
         requireSettlementCostsConsistent(result, dataset);
+    }
+
+    private static Bar findQuoteExecutionBar(ValidatedDataset dataset, SimOrder order, SimFill fill,
+            Duration interval, com.mscient.intrapaper.reference.TimestampRole timestampRole) {
+        for (Bar candidate : dataset.bars()) {
+            Instant start = timestampRole == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? candidate.timestamp() : candidate.timestamp().minus(interval);
+            Instant end = start.plus(interval);
+            if (!start.isBefore(order.decisionTimestamp()) && !fill.timestamp().isBefore(start)
+                    && fill.timestamp().isBefore(end)) return candidate;
+        }
+        return null;
     }
 
     private static void requireSettlementCostsConsistent(BacktestResult result, ValidatedDataset dataset) {
