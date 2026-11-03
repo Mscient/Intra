@@ -40,7 +40,7 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 & $java -jar $jar journal-verify .\path\to\quotes.qjr
 ```
 
-`journal-verify` reads the complete journal and checks its header, record framing, canonical quote encoding, strictly increasing sequence numbers, and SHA-256 hash chain. It emits a final event count, sequence number, byte count, and chain hash. It does not contact or authenticate to a market-data source.
+`journal-verify` reads the complete journal and checks its header, record framing, canonical quote encoding, strictly increasing sequence numbers, and SHA-256 hash chain. It emits a final event count, sequence number, byte count, and chain hash, plus the number of sequence jumps and total missing sequence integers between recorded events. A jump is diagnostic only: whether it represents loss depends on the upstream sequence domain and subscription coverage. The first recorded sequence is not compared to an assumed origin. The verifier does not contact or authenticate to a market-data source.
 
 Java callers may use `QuoteJournalWriter.resume(path)` to continue an existing journal. Resume takes an exclusive file lock, scans and validates the complete journal before returning a writer, restores the last sequence number and chain hash, and appends at the verified end. Corrupt, truncated, or concurrently changed journals are rejected; no automatic truncation or repair is attempted. All writers using this API honor the exclusive lock. This restores the quote journal only; it does not restore simulator, OMS, or risk state.
 

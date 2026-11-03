@@ -32,8 +32,9 @@ public final class IntraPaperCli {
             }
             if (args.length == 2 && args[0].equals("journal-verify")) {
                 var summary = QuoteJournalReader.replay(Path.of(args[1]), quote -> { });
-                System.out.printf("VERIFIED JOURNAL: events=%d; last_sequence=%d; bytes=%d; final_hash=%s%n",
-                        summary.eventCount(), summary.lastSequenceNumber(), summary.bytesRead(), summary.finalHashHex());
+                System.out.printf("VERIFIED JOURNAL: events=%d; last_sequence=%d; sequence_gaps=%d; missing_sequence_numbers=%d; bytes=%d; final_hash=%s%n",
+                        summary.eventCount(), summary.lastSequenceNumber(), summary.sequenceGapCount(),
+                        summary.missingSequenceNumbers(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
             if (args.length == 4 && args[0].equals("replay-verify")) {

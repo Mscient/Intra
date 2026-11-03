@@ -29,6 +29,8 @@ public final class QuoteJournalReader {
             byte[] previousHash = QuoteHashChain.genesisHash();
             long eventCount = 0;
             long lastSequenceNumber = 0;
+            long sequenceGapCount = 0;
+            long missingSequenceNumbers = 0;
 
             while (true) {
                 int first = buffered.read();
@@ -53,6 +55,11 @@ public final class QuoteJournalReader {
                 if (quote.sequenceNumber() <= lastSequenceNumber) {
                     throw new IOException("Journal sequence numbers are not strictly increasing");
                 }
+                if (eventCount > 0 && quote.sequenceNumber() - lastSequenceNumber > 1) {
+                    sequenceGapCount++;
+                    missingSequenceNumbers = Math.addExact(missingSequenceNumbers,
+                            quote.sequenceNumber() - lastSequenceNumber - 1);
+                }
                 byte[] expectedHash = QuoteHashChain.nextHash(previousHash, payload);
                 if (!MessageDigest.isEqual(expectedHash, storedHash)) {
                     throw new IOException("Journal hash-chain mismatch at sequence " + quote.sequenceNumber());
@@ -62,7 +69,8 @@ public final class QuoteJournalReader {
                 lastSequenceNumber = quote.sequenceNumber();
                 eventCount++;
             }
-            return new QuoteJournalSummary(eventCount, lastSequenceNumber, QuoteHashChain.hex(previousHash), bytesRead);
+            return new QuoteJournalSummary(eventCount, lastSequenceNumber, sequenceGapCount,
+                    missingSequenceNumbers, QuoteHashChain.hex(previousHash), bytesRead);
         }
     }
 
