@@ -11,7 +11,7 @@ $jar = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\build\intra-paper-system.
 $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
 ```
 
-The build compiles into a new temporary classes directory under the external build folder, packages only that directory, then removes it. This avoids stale class files carrying over between builds. Set `INTRA_PAPER_BUILD_DIR` to override the default output folder.
+The build compiles into a new temporary classes directory under the external build folder, stages the JAR, and atomically replaces the published artifact after packaging succeeds. It then removes temporary output. This avoids stale class files carrying over and preserves the previous JAR if a build fails. Set `INTRA_PAPER_BUILD_DIR` to override the default output folder.
 
 Validate inputs before a run:
 

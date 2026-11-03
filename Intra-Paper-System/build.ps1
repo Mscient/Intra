@@ -11,6 +11,7 @@ if ([string]::IsNullOrWhiteSpace($buildRoot)) {
 $buildRoot = [System.IO.Path]::GetFullPath($buildRoot)
 $classesRoot = Join-Path $buildRoot ("classes-" + [guid]::NewGuid().ToString('N'))
 $jarPath = Join-Path $buildRoot 'intra-paper-system.jar'
+$stagedJarPath = Join-Path $buildRoot ("intra-paper-system-" + [guid]::NewGuid().ToString('N') + '.tmp.jar')
 $sources = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
 
 if (-not $javac -or -not (Test-Path -LiteralPath $javac) -or -not (Test-Path -LiteralPath $jarTool)) {
@@ -51,13 +52,17 @@ try {
     $manifestPath = Join-Path $buildRoot 'MANIFEST.MF'
     $manifestText = "Manifest-Version: 1.0`r`nMain-Class: com.mscient.intrapaper.cli.IntraPaperCli`r`nBuild-Commit: $buildCommit`r`nImplementation-Version: 1.0.0`r`n`r`n"
     [System.IO.File]::WriteAllText($manifestPath, $manifestText, [System.Text.UTF8Encoding]::new($false))
-    & $jarTool --create --file $jarPath --manifest $manifestPath -C $classesRootAbsolute .
+    & $jarTool --create --file $stagedJarPath --manifest $manifestPath -C $classesRootAbsolute .
     if ($LASTEXITCODE -ne 0) {
         throw "jar failed with exit code $LASTEXITCODE"
     }
+    [System.IO.File]::Move($stagedJarPath, $jarPath, $true)
 } finally {
     if (Test-Path -LiteralPath $classesRootAbsolute) {
         Remove-Item -LiteralPath $classesRootAbsolute -Recurse -Force
+    }
+    if (Test-Path -LiteralPath $stagedJarPath) {
+        Remove-Item -LiteralPath $stagedJarPath -Force
     }
 }
 Write-Output "Built $jarPath"
