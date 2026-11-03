@@ -44,6 +44,8 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 Java callers may use `QuoteJournalWriter.resume(path)` to continue an existing journal. Resume takes an exclusive file lock, scans and validates the complete journal before returning a writer, restores the last sequence number and chain hash, and appends at the verified end. Corrupt, truncated, or concurrently changed journals are rejected; no automatic truncation or repair is attempted. All writers using this API honor the exclusive lock. This restores the quote journal only; it does not restore simulator, OMS, or risk state.
 
+Java callers may apply `QuoteQualityPolicy(maximumAge, maximumFutureSkew)` to get stale/future exchange-timestamp flags in addition to the quote's structural quality flags. Both durations are explicit inputs; the assessor retains the snapshot and does not choose an exchange or broker tolerance. Missing exchange time remains flagged by the base quote assessment.
+
 Journal creation uses create-new semantics. If initialization fails, the writer closes the handle and removes the file it just created so an incomplete header cannot masquerade as a valid empty journal.
 
 ## Validate a chronological evaluation split

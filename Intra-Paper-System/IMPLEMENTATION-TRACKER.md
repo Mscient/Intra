@@ -22,6 +22,7 @@
 
 - [x] Isolated `Intra-Paper-System/` Java 21 project and research links.
 - [x] Versioned quote record, quote quality flags, canonical encoding, SHA-256 chain, append-only journal, and integrity-checked replay.
+- [x] Configurable event-time quote freshness assessment flags stale and future-dated snapshots while retaining the original quote; thresholds remain caller-supplied and no feed-specific tolerance is presumed.
 - [x] Effective-dated instrument references and immutable master-snapshot model.
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
 - [x] User-supplied session calendar and as-of dated instrument-master CSV resolution; one dated futures or option contract per run; no expiry stitching.
