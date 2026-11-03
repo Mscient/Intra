@@ -54,3 +54,4 @@ a7ef463f-0534-4ce6-9679-e0623244f7e2,2026-11-03,542b42d519eba5f569d7361cc6e8c4ad
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,c42b687,"Ordered batch quote replay by arrival and consumed displayed side quantity once per selected snapshot; Java 21 build succeeded; runtime fixtures not run."
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,dd04804,"Indexed quotes by source/instrument/receive time for batch lookups; Java 21 compilation succeeded; runtime fixtures not run."
 5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,fe71b12,"Added content-addressed IOC quote replay artifacts with input/output hashes, build and quality provenance, and artifact verifier; Java 21 build succeeded; no runtime fixtures run."
+5c18a656-aad1-4b35-a471-86c4e8947b0e,2026-11-03,a32aae7,"Added separate hash-chained feed lifecycle journal, verified resume, connection/subscription state analysis, and offline report CLI; Java 21 build succeeded; no runtime lifecycle fixtures run."
