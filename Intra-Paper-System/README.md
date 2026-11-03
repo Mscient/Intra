@@ -5,6 +5,7 @@ An isolated, offline-first Java 21 futures and single-option premium-bar backtes
 ## Built in this increment
 
 - JDK 21 command-line application with `validate`, `run`, run-artifact `verify`, quote-journal `journal-verify`, raw-capture `raw-capture-verify`, and deterministic `replay-verify` commands.
+- Java API to import verified raw captures into normalized quote journals through caller-supplied offline decoders; the importer publishes only a fully verified journal and does not include a vendor adapter.
 - Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
 - Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures or single-option contract; expiry stitching and index-to-futures substitution are rejected.
 - A reusable strategy API receives immutable history ending at the decision candle, so strategy code cannot read future bars through the replay interface. The built-in long-only SMA crossover is a plumbing harness; signals can execute only as simulated market orders at the next eligible candle's open.
