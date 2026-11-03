@@ -46,6 +46,7 @@
 - [x] Explicit cross-session position policy: `REQUIRE_FLAT` fails closed on an overnight or end-of-data position; it does not synthesize a forced close.
 - [x] Synthetic fixture and operating guide. Synthetic reports are plumbing-only; every report marks `performance_claim_eligible=false`.
 - [x] Java 21 build and synthetic CLI validation/replay completed; no tests were added or run. The 30-bar sample is plumbing-only and is not real-data strategy evidence.
+- [x] Build script compiles into a fresh temporary classes directory and packages only that output, preventing stale `.class` files from earlier builds from entering the JAR; temporary classes are removed after packaging.
 - [ ] Confirm the G0 charter, data rights/retention, route, operator, current rule sources, and actual risk budgets.
 - [ ] Add raw source capture/import, stronger completeness and stale/gap rules, and reproducible recovery.
 - [ ] Add reviewed end-of-session liquidation behavior, full risk reconciliation, exchange margin, and detailed current cost schedule evidence.

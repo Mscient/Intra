@@ -8,7 +8,8 @@ $buildRoot = $env:INTRA_PAPER_BUILD_DIR
 if ([string]::IsNullOrWhiteSpace($buildRoot)) {
     $buildRoot = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\build'
 }
-$classesRoot = Join-Path $buildRoot 'classes'
+$buildRoot = [System.IO.Path]::GetFullPath($buildRoot)
+$classesRoot = Join-Path $buildRoot ("classes-" + [guid]::NewGuid().ToString('N'))
 $jarPath = Join-Path $buildRoot 'intra-paper-system.jar'
 $sources = @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
 
@@ -23,29 +24,40 @@ if ($sources.Count -eq 0) {
     throw "No Java sources found under $sourceRoot"
 }
 
-New-Item -ItemType Directory -Force -Path $classesRoot | Out-Null
-& $javac --release 21 -encoding UTF-8 -d $classesRoot @sources
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+$classesRootAbsolute = [System.IO.Path]::GetFullPath($classesRoot)
+$buildRootPrefix = $buildRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+if (-not $classesRootAbsolute.StartsWith($buildRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Temporary classes directory must be inside the configured build directory.'
 }
-$buildCommit = 'unknown'
-$gitCommand = Get-Command git -ErrorAction SilentlyContinue
-if ($gitCommand) {
-    $candidateCommit = (& $gitCommand.Source -C $projectRoot rev-parse --verify HEAD 2>$null | Out-String).Trim()
-    if ($LASTEXITCODE -eq 0 -and $candidateCommit -match '^[0-9a-f]{40}$') {
-        $worktreeStatus = @(& $gitCommand.Source -C $projectRoot status --porcelain --untracked-files=normal 2>$null)
-        if ($LASTEXITCODE -eq 0 -and $worktreeStatus.Count -eq 0) {
-            $buildCommit = $candidateCommit
-        } else {
-            $buildCommit = 'unknown-dirty'
+New-Item -ItemType Directory -Force -Path $classesRootAbsolute | Out-Null
+try {
+    & $javac --release 21 -encoding UTF-8 -d $classesRootAbsolute @sources
+    if ($LASTEXITCODE -ne 0) {
+        throw "javac failed with exit code $LASTEXITCODE"
+    }
+    $buildCommit = 'unknown'
+    $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitCommand) {
+        $candidateCommit = (& $gitCommand.Source -C $projectRoot rev-parse --verify HEAD 2>$null | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0 -and $candidateCommit -match '^[0-9a-f]{40}$') {
+            $worktreeStatus = @(& $gitCommand.Source -C $projectRoot status --porcelain --untracked-files=normal 2>$null)
+            if ($LASTEXITCODE -eq 0 -and $worktreeStatus.Count -eq 0) {
+                $buildCommit = $candidateCommit
+            } else {
+                $buildCommit = 'unknown-dirty'
+            }
         }
     }
-}
-$manifestPath = Join-Path $buildRoot 'MANIFEST.MF'
-$manifestText = "Manifest-Version: 1.0`r`nMain-Class: com.mscient.intrapaper.cli.IntraPaperCli`r`nBuild-Commit: $buildCommit`r`nImplementation-Version: 1.0.0`r`n`r`n"
-[System.IO.File]::WriteAllText($manifestPath, $manifestText, [System.Text.UTF8Encoding]::new($false))
-& $jarTool --create --file $jarPath --manifest $manifestPath -C $classesRoot .
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+    $manifestPath = Join-Path $buildRoot 'MANIFEST.MF'
+    $manifestText = "Manifest-Version: 1.0`r`nMain-Class: com.mscient.intrapaper.cli.IntraPaperCli`r`nBuild-Commit: $buildCommit`r`nImplementation-Version: 1.0.0`r`n`r`n"
+    [System.IO.File]::WriteAllText($manifestPath, $manifestText, [System.Text.UTF8Encoding]::new($false))
+    & $jarTool --create --file $jarPath --manifest $manifestPath -C $classesRootAbsolute .
+    if ($LASTEXITCODE -ne 0) {
+        throw "jar failed with exit code $LASTEXITCODE"
+    }
+} finally {
+    if (Test-Path -LiteralPath $classesRootAbsolute) {
+        Remove-Item -LiteralPath $classesRootAbsolute -Recurse -Force
+    }
 }
 Write-Output "Built $jarPath"
