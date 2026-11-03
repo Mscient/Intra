@@ -7,9 +7,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /** Simple deterministic baseline used to exercise the simulator, not a proposed trading edge. */
-public final class SmaCrossoverStrategy {
+public final class SmaCrossoverStrategy implements Strategy {
     public static final String ID = "SMA_CROSSOVER_LONG_ONLY_V1";
 
     private final int fastBars;
@@ -22,11 +23,24 @@ public final class SmaCrossoverStrategy {
         this.lots = config.requestedLots();
     }
 
-    public StrategySignal evaluate(List<Bar> bars, int index, Instant decisionTimestamp) {
+    @Override
+    public String id() {
+        return ID;
+    }
+
+    @Override
+    public Map<String, String> parameters() {
+        return Map.of("fast_bars", Integer.toString(fastBars),
+                "slow_bars", Integer.toString(slowBars), "lots", Integer.toString(lots));
+    }
+
+    @Override
+    public StrategySignal evaluate(List<Bar> bars, Instant decisionTimestamp) {
+        int index = bars.size() - 1;
         Bar bar = bars.get(index);
         if (index + 1 < slowBars) {
             return new StrategySignal(index + 1, decisionTimestamp, bar.sessionDate(), bar.instrumentId(),
-                    null, null, null, "WARMING_UP");
+                    null, "WARMING_UP", Map.of());
         }
         BigDecimal fastSum = sumCloses(bars, index - fastBars + 1, index);
         BigDecimal slowSum = sumCloses(bars, index - slowBars + 1, index);
@@ -34,8 +48,11 @@ public final class SmaCrossoverStrategy {
         BigDecimal slowAverage = slowSum.divide(BigDecimal.valueOf(slowBars), 8, RoundingMode.HALF_EVEN);
         int targetLots = fastSum.multiply(BigDecimal.valueOf(slowBars))
                 .compareTo(slowSum.multiply(BigDecimal.valueOf(fastBars))) > 0 ? lots : 0;
+        Map<String, String> metrics = Map.of(
+                "fast_sma", fastAverage.stripTrailingZeros().toPlainString(),
+                "slow_sma", slowAverage.stripTrailingZeros().toPlainString());
         return new StrategySignal(index + 1, decisionTimestamp, bar.sessionDate(), bar.instrumentId(),
-                fastAverage, slowAverage, targetLots, "ACTIVE");
+                targetLots, "ACTIVE", metrics);
     }
 
     private static BigDecimal sumCloses(List<Bar> bars, int from, int through) {

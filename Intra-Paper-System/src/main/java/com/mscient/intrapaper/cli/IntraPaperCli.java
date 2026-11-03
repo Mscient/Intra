@@ -7,9 +7,10 @@ import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
+import com.mscient.intrapaper.simulation.RunIdentity;
 import com.mscient.intrapaper.simulation.RunReplayVerifier;
+import com.mscient.intrapaper.simulation.SmaCrossoverStrategy;
 
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
 /** Offline-only command line entry point. There is deliberately no broker or network adapter. */
@@ -54,10 +55,9 @@ public final class IntraPaperCli {
                         config.dataRightsStatus());
                 return;
             }
-            BacktestResult result = new BacktestEngine().run(dataset, config);
-            String runId = RunConfig.sha256((dataset.barsSha256() + dataset.configSha256()
-                    + dataset.instrumentMaster().rawFileSha256() + dataset.calendarSha256() + config.commitId()).getBytes(StandardCharsets.UTF_8))
-                    .substring(0, 24);
+            SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
+            BacktestResult result = new BacktestEngine().run(dataset, config, strategy);
+            String runId = RunIdentity.contentId(dataset, config, strategy);
             String configuredRunsRoot = System.getenv("INTRA_PAPER_RUNS_DIR");
             String localAppData = System.getenv("LOCALAPPDATA");
             Path runsRoot = configuredRunsRoot != null && !configuredRunsRoot.isBlank()

@@ -34,41 +34,41 @@ public final class RunArtifactWriter {
         try {
 
             writeNew(stagingFolder.resolve("signals.csv"), csv(
-                    "bar_number,decision_timestamp,session_date,instrument_id,fast_sma,slow_sma,target_lots,status",
+                    "bar_number,decision_timestamp,session_date,instrument_id,target_lots,status,metrics_json",
                     result.signals().stream().map(signal -> row(signal.barNumber(), signal.decisionTimestamp(),
-                            signal.sessionDate(), signal.instrumentId(), signal.fastAverage(), signal.slowAverage(),
-                            signal.targetLots(), signal.status())).toList()));
+                            signal.sessionDate(), signal.instrumentId(), signal.targetLots(), signal.status(),
+                            inlineMapJson(signal.metrics()))).toList()));
             writeNew(stagingFolder.resolve("orders.csv"), csv(
                     "order_id,decision_timestamp,submit_timestamp,fill_timestamp,side,target_lots,requested_units,order_type,status,reason",
                     result.orders().stream().map(order -> row(order.orderId(), order.decisionTimestamp(), order.submitTimestamp(),
-                            order.fillTimestamp(), order.side(), order.targetLots(), order.requestedUnits(), order.orderType(),
-                            order.status(), order.reason())).toList()));
+                        order.fillTimestamp(), order.side(), order.targetLots(), order.requestedUnits(), order.orderType(),
+                        order.status(), order.reason())).toList()));
             writeNew(stagingFolder.resolve("order-events.csv"), csv(
                     "timestamp,order_id,event,detail",
                     result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
             writeNew(stagingFolder.resolve("fills.csv"), csv(
                     "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,position_units_after",
                     result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
-                            fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
-                            fill.feeInr(), fill.positionUnitsAfter())).toList()));
+                        fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
+                        fill.feeInr(), fill.positionUnitsAfter())).toList()));
             writeNew(stagingFolder.resolve("trades.csv"), csv(
                     "trade_id,instrument_id,entry_timestamp,exit_timestamp,quantity_units,entry_price,exit_price,gross_pnl_inr,fees_inr,net_pnl_inr",
                     result.trades().stream().map(trade -> row(trade.tradeId(), trade.instrumentId(), trade.entryTimestamp(),
-                            trade.exitTimestamp(), trade.quantityUnits(), trade.entryPrice(), trade.exitPrice(),
-                            trade.grossPnlInr(), trade.feesInr(), trade.netPnlInr())).toList()));
+                        trade.exitTimestamp(), trade.quantityUnits(), trade.entryPrice(), trade.exitPrice(),
+                        trade.grossPnlInr(), trade.feesInr(), trade.netPnlInr())).toList()));
             writeNew(stagingFolder.resolve("equity.csv"), csv(
                     "timestamp,session_date,close,position_units,realized_pnl_inr,unrealized_pnl_inr,fees_paid_inr,net_pnl_inr,risk_state",
                     result.equityCurve().stream().map(point -> row(point.timestamp(), point.sessionDate(), point.close(),
-                            point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
-                            point.netPnlInr(), point.riskState())).toList()));
+                        point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
+                        point.netPnlInr(), point.riskState())).toList()));
             writeNew(stagingFolder.resolve("sessions.csv"), csv(
                     "session_date,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
                     result.sessionAudits().stream().map(session -> row(session.sessionDate(), session.expectedBars(),
-                            session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
-                            session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
-                            session.modeledSlippageInr(), session.netPnlChangeInr(),
-                            session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
-                            session.endingRiskState())).toList()));
+                        session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
+                        session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
+                        session.modeledSlippageInr(), session.netPnlChangeInr(),
+                        session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
+                        session.endingRiskState())).toList()));
 
             writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
             Map<String, String> outputHashes = new TreeMap<>();
@@ -122,6 +122,7 @@ public final class RunArtifactWriter {
                 + "  \"max_drawdown_inr\": " + q(num(result.maxDrawdownInr())) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
                 + "  \"data_rights_status\": " + q(config.dataRightsStatus().name()) + ",\n"
+                + "  \"strategy_id\": " + q(result.strategyId()) + ",\n"
                 + "  \"cost_status\": " + q(config.costStatus()) + "\n"
                 + "}\n";
     }
@@ -137,7 +138,7 @@ public final class RunArtifactWriter {
         inputHashes.put("instrument_master", data.instrumentMaster().rawFileSha256());
         inputHashes.put("session_calendar", data.calendarSha256());
         return "{\n"
-                + "  \"schema_version\": 1,\n"
+                + "  \"schema_version\": 2,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -170,8 +171,8 @@ public final class RunArtifactWriter {
                 + ", \"end\": " + q(bars.getLast().sessionDate().toString()) + "},\n"
                 + "  \"bar_timestamp_range\": {\"start\": " + q(bars.getFirst().timestamp().toString())
                 + ", \"end\": " + q(bars.getLast().timestamp().toString()) + "},\n"
-                + "  \"strategy\": {\"id\": " + q(SmaCrossoverStrategy.ID) + ", \"fast_bars\": " + config.fastBars()
-                + ", \"slow_bars\": " + config.slowBars() + ", \"lots\": " + config.requestedLots() + "},\n"
+                + "  \"strategy\": {\"id\": " + q(result.strategyId()) + ", \"parameters\": "
+                + mapJson(result.strategyParameters()) + "},\n"
                 + "  \"fill_model\": \"NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1\",\n"
                 + "  \"passive_orders_supported\": false,\n"
                 + "  \"partial_fills_supported\": false,\n"
@@ -200,6 +201,12 @@ public final class RunArtifactWriter {
         new TreeMap<>(values).forEach((key, value) -> items.add("    " + q(key) + ": " + q(value)));
         if (items.isEmpty()) return "{}";
         return "{\n" + String.join(",\n", items) + "\n  }";
+    }
+
+    private static String inlineMapJson(Map<String, String> values) {
+        List<String> items = new ArrayList<>();
+        new TreeMap<>(values).forEach((key, value) -> items.add(q(key) + ": " + q(value)));
+        return "{" + String.join(", ", items) + "}";
     }
 
     private static String csv(String header, List<String> rows) {

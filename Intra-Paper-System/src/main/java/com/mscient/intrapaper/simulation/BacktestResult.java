@@ -1,7 +1,10 @@
 package com.mscient.intrapaper.simulation;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public record BacktestResult(
         List<StrategySignal> signals,
@@ -19,7 +22,9 @@ public record BacktestResult(
         BigDecimal maxDrawdownInr,
         int finalPositionUnits,
         int riskHalts,
-        String resultClassification) {
+        String resultClassification,
+        String strategyId,
+        Map<String, String> strategyParameters) {
     public BacktestResult {
         signals = List.copyOf(signals);
         orders = List.copyOf(orders);
@@ -28,6 +33,7 @@ public record BacktestResult(
         trades = List.copyOf(trades);
         sessionAudits = List.copyOf(sessionAudits);
         equityCurve = List.copyOf(equityCurve);
+        strategyParameters = Collections.unmodifiableMap(new TreeMap<>(strategyParameters));
     }
 
     public boolean performanceClaimEligible() {

@@ -46,7 +46,7 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 & $java -jar $jar replay-verify .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties $runFolder
 ```
 
-`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID, runs the simulator in a new temporary directory, and compares all eight output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
+`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all eight output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
@@ -85,7 +85,8 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 - `dataset.rights_status`: `UNVERIFIED` or `AUTHORIZED_LOCAL_REPLAY`. The latter requires a logical `dataset.rights_reference` identifier. Non-synthetic replay is rejected unless `AUTHORIZED_LOCAL_REPLAY` is selected; this is an operator assertion, not an automated entitlement check.
 - `dataset.synthetic_fixture`: must remain `true` for synthetic bars; synthetic runs must keep data rights and costs unverified.
 - `reference.file`, `calendar.file`: paths relative to the properties file unless absolute.
-- `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: long-only SMA crossover harness settings.
+- `strategy.fast_bars`, `strategy.slow_bars`, `strategy.lots`: built-in long-only SMA harness settings. It receives immutable history through the decision bar; strategy ID and parameters are written into the run manifest and content ID.
+- The CLI selects the built-in SMA harness. Java callers can inject another implementation of `Strategy`; the engine supplies only bars through the current decision point and records that implementation's ID and stable parameters.
 - `risk.max_position_lots`, `risk.max_notional_inr`, `risk.margin_per_lot_inr`, `risk.max_margin_inr`, and `risk.max_daily_loss_inr`: mandatory configured limits. Margin is a fixed user-supplied proxy used only to cap simulated entries; it is not an exchange SPAN/ELM calculation. Sample values are arbitrary and must never be carried into a real deployment.
 - `orders.allow_next_session`: whether an order created at a session close may fill at the next session's open. It is `false` in the sample. Set it explicitly for daily bars or any workflow that permits cross-session pending orders.
 - `position.cross_session_policy`: `ALLOW_OVERNIGHT` permits positions to cross session boundaries and be marked at end of data. `REQUIRE_FLAT` rejects a run if a position crosses an open-session boundary or remains open at the end; it does not invent a liquidation fill and cannot be combined with `orders.allow_next_session=true`.

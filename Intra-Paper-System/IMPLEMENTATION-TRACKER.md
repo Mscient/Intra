@@ -29,6 +29,7 @@
 - [x] Persisted run manifest with dataset/master/calendar/config hashes and hashes for output ledgers.
 - [x] Require an explicit local-replay rights reference before accepting non-synthetic datasets; the software does not verify licensing itself.
 - [x] Long-only SMA crossover baseline with next eligible bar open market fills, fixed adverse tick slippage, explicit fee inputs, and no candle-touch/passive fills.
+- [x] Reusable strategy interface receives immutable bars through each decision point; strategy ID and sorted parameter values are recorded in the content ID and run manifest.
 - [x] Independent position/notional and per-session loss `RiskGate`.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.

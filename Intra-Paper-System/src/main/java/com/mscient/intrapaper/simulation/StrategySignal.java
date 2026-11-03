@@ -1,8 +1,10 @@
 package com.mscient.intrapaper.simulation;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.Map;
+import java.util.TreeMap;
 
 /** One reproducible strategy decision (or warm-up row) at a completed candle. */
 public record StrategySignal(
@@ -10,7 +12,10 @@ public record StrategySignal(
         Instant decisionTimestamp,
         LocalDate sessionDate,
         String instrumentId,
-        BigDecimal fastAverage,
-        BigDecimal slowAverage,
         Integer targetLots,
-        String status) { }
+        String status,
+        Map<String, String> metrics) {
+    public StrategySignal {
+        metrics = Collections.unmodifiableMap(new TreeMap<>(metrics));
+    }
+}

@@ -4,7 +4,6 @@ import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -22,23 +21,27 @@ public final class RunReplayVerifier {
     private RunReplayVerifier() { }
 
     public static Verification verify(Path barsPath, Path configPath, Path requestedRunFolder) throws IOException {
+        RunConfig config = RunConfig.load(configPath);
+        return verify(barsPath, config, requestedRunFolder, new SmaCrossoverStrategy(config));
+    }
+
+    public static Verification verify(Path barsPath, RunConfig config,
+            Path requestedRunFolder, Strategy strategy) throws IOException {
         Path runFolder = requestedRunFolder.toAbsolutePath().normalize();
         RunArtifactVerifier.verify(runFolder);
 
         Path normalizedBarsPath = barsPath.toAbsolutePath().normalize();
-        RunConfig config = RunConfig.load(configPath);
         ValidatedDataset dataset = ValidatedDataset.load(normalizedBarsPath, config);
-        String runId = RunConfig.sha256((dataset.barsSha256() + dataset.configSha256()
-                + dataset.instrumentMaster().rawFileSha256() + dataset.calendarSha256() + config.commitId())
-                .getBytes(StandardCharsets.UTF_8)).substring(0, 24);
+        String runId = RunIdentity.contentId(dataset, config, strategy);
         Path folderName = runFolder.getFileName();
         if (folderName == null || !folderName.toString().equals(runId)) {
             throw new IOException("Supplied bars/configuration resolve to run ID " + runId
                     + ", which does not match the saved run folder");
         }
 
-        BacktestResult result = new BacktestEngine().run(dataset, config);
+        BacktestResult result = new BacktestEngine().run(dataset, config, strategy);
         Path temporaryRoot = Files.createTempDirectory("intra-paper-replay-verify-");
+        Verification verification;
         try {
             RunArtifactWriter.WrittenRun replay = new RunArtifactWriter()
                     .write(temporaryRoot, runId, dataset, config, result);
@@ -49,10 +52,17 @@ public final class RunReplayVerifier {
                     throw new IOException("Replay artifact differs from the saved run: " + name);
                 }
             }
-            return new Verification(runId, ARTIFACTS.size());
-        } finally {
-            deleteTree(temporaryRoot);
+            verification = new Verification(runId, ARTIFACTS.size());
+        } catch (IOException | RuntimeException | Error failure) {
+            try {
+                deleteTree(temporaryRoot);
+            } catch (IOException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
         }
+        deleteTree(temporaryRoot);
+        return verification;
     }
 
     private static void deleteTree(Path root) throws IOException {

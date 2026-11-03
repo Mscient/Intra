@@ -11,9 +11,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** Deterministic long-only futures simulator. Signals at a completed close can fill only at the next bar open. */
 public final class BacktestEngine {
@@ -33,6 +35,18 @@ public final class BacktestEngine {
     }
 
     public BacktestResult run(ValidatedDataset dataset, RunConfig config) {
+        return run(dataset, config, new SmaCrossoverStrategy(config));
+    }
+
+    public BacktestResult run(ValidatedDataset dataset, RunConfig config, Strategy strategy) {
+        Objects.requireNonNull(dataset, "dataset");
+        Objects.requireNonNull(config, "config");
+        Objects.requireNonNull(strategy, "strategy");
+        String strategyId = Objects.requireNonNull(strategy.id(), "strategy.id");
+        if (strategyId.isBlank() || !strategyId.equals(strategyId.strip())) {
+            throw new IllegalArgumentException("Strategy ID must be non-empty and trimmed");
+        }
+        Map<String, String> strategyParameters = Map.copyOf(strategy.parameters());
         List<Bar> bars = dataset.bars();
         List<StrategySignal> signals = new ArrayList<>();
         List<SimOrder> orders = new ArrayList<>();
@@ -51,7 +65,6 @@ public final class BacktestEngine {
         BigDecimal netAtPriorClose = BigDecimal.ZERO;
         int riskHalts = 0;
         RiskGate riskGate = new RiskGate(config);
-        SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
         BigDecimal highWater = BigDecimal.ZERO;
         BigDecimal maxDrawdown = BigDecimal.ZERO;
         var interval = IntervalSupport.duration(config.interval());
@@ -135,7 +148,17 @@ public final class BacktestEngine {
             BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
                     : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * bar.lotSize()));
             BigDecimal net = realized.add(unrealized).subtract(fees);
-            StrategySignal signal = strategy.evaluate(bars, i, barEnd);
+            List<Bar> availableBars = Collections.unmodifiableList(bars.subList(0, i + 1));
+            StrategySignal signal = Objects.requireNonNull(strategy.evaluate(availableBars, barEnd),
+                    "Strategy returned a null signal");
+            if (signal.barNumber() != i + 1 || !signal.decisionTimestamp().equals(barEnd)
+                    || !signal.sessionDate().equals(bar.sessionDate())
+                    || !signal.instrumentId().equals(bar.instrumentId())) {
+                throw new IllegalStateException("Strategy signal metadata does not match its decision bar");
+            }
+            if (signal.targetLots() != null && signal.targetLots() < 0) {
+                throw new IllegalStateException("Strategy targetLots cannot be negative in the long-only simulator");
+            }
             signals.add(signal);
             if (net.compareTo(highWater) > 0) highWater = net;
             BigDecimal drawdown = highWater.subtract(net);
@@ -182,7 +205,7 @@ public final class BacktestEngine {
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
         return new BacktestResult(signals, orders, events, fills, trades, sessionAudits, curve, realized, unrealized, fees, slippage,
-                net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification);
+                net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification, strategyId, strategyParameters);
     }
 
     private static List<SessionAudit> reconcileSessions(ValidatedDataset dataset, RunConfig config,

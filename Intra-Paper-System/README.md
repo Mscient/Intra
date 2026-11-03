@@ -7,11 +7,11 @@ An isolated, offline-first Java 21 futures and single-option premium-bar backtes
 - JDK 21 command-line application with `validate`, `run`, run-artifact `verify`, quote-journal `journal-verify`, and deterministic `replay-verify` commands.
 - Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
 - Required open-session calendar with expected first/last bar labels, effective-dated instrument-master resolution for every candle, and within-session spacing checks. A run is restricted to one dated futures or single-option contract; expiry stitching and index-to-futures substitution are rejected.
-- Long-only SMA crossover harness. A signal computed from a completed candle can execute only as a simulated market order at the next eligible candle's open.
-- One signal-audit row per candle, with the moving averages and warm-up status recorded.
+- A reusable strategy API receives immutable history ending at the decision candle, so strategy code cannot read future bars through the replay interface. The built-in long-only SMA crossover is a plumbing harness; signals can execute only as simulated market orders at the next eligible candle's open.
+- One strategy-audit row per candle, with strategy diagnostics and warm-up status recorded.
 - Fixed adverse tick slippage, explicit fee inputs, position/notional caps, and a per-session loss halt. These settings are recorded in each run.
 - Local simulated order lifecycle, fills, completed trades, marked equity curve, run summary, input hashes, and output hashes.
-- Content-addressed run IDs; artifacts are written to a sibling staging directory and published with a same-volume atomic move after all files and hashes are complete. Write failures clean the staging directory. Results default outside the repository under `%LOCALAPPDATA%\Intra-Paper-System\runs`.
+- Content-addressed run IDs include input, configuration, build, and strategy ID/parameter hashes; artifacts are written to a sibling staging directory and published with a same-volume atomic move after all files and hashes are complete. Write failures clean the staging directory. Results default outside the repository under `%LOCALAPPDATA%\Intra-Paper-System\runs`.
 
 The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PLUMBING_ONLY` or `REPLAY_DIAGNOSTIC_ONLY`, and `performance_claim_eligible` is always `false` in this build.
 
