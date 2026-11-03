@@ -141,6 +141,17 @@ Provide a UTF-8 CSV with exactly `session_date,partition` columns. Assign every 
 
 The command checks coverage and ordering, then prints the split-file SHA-256. It does not score strategies or open the holdout results; that workflow remains unfinished.
 
+## Register attempted research variants
+
+Before evaluating a candidate, register each distinct strategy-version/variant together with the strategy-card, dataset, split-plan, and exact parameter-configuration SHA-256 hashes. The ledger stores identifiers and hashes only; do not put strategy secrets, private limits, or licensed inputs in the ledger. Use the split hash printed by `split-validate`.
+
+```powershell
+& $java -jar $jar trial-ledger-register .\private\research-trials.tsv trial-0001 sma 1.0 variant-0001 $cardSha256 $datasetSha256 $splitSha256 $parameterConfigSha256
+& $java -jar $jar trial-ledger-verify .\private\research-trials.tsv
+```
+
+Registration is append-only, takes an exclusive file lock, rejects duplicate trial IDs and duplicate variant IDs within a strategy version, and chains each row to the previous SHA-256. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. The built-in `run` command does not yet require a trial registration; the ledger does not score metrics, enforce holdout access, or implement Deflated Sharpe Ratio or Probability of Backtest Overfitting.
+
 ## Reproduce and verify a saved run
 
 ```powershell

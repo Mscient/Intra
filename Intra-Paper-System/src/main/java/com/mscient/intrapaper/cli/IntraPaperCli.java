@@ -2,6 +2,7 @@ package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
+import com.mscient.intrapaper.evaluation.ResearchTrialLedger;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
@@ -211,6 +212,22 @@ public final class IntraPaperCli {
                 System.out.printf("VALID SPLIT PLAN: sha256=%s; metrics not evaluated%n", split.splitFileSha256());
                 return;
             }
+            if (args.length == 10 && args[0].equals("trial-ledger-register")) {
+                var trial = new ResearchTrialLedger.Trial(args[2], args[3], args[4], args[5],
+                        args[6], args[7], args[8], args[9]);
+                var entry = ResearchTrialLedger.register(Path.of(args[1]), trial);
+                System.out.printf("REGISTERED RESEARCH TRIAL: sequence=%d; trial_id=%s; strategy=%s@%s; variant=%s; "
+                                + "timestamp=%s; chain_hash=%s%n",
+                        entry.sequence(), trial.trialId(), trial.strategyId(), trial.strategyVersion(),
+                        trial.variantId(), entry.registeredAtUtc(), entry.recordHashSha256());
+                return;
+            }
+            if (args.length == 2 && args[0].equals("trial-ledger-verify")) {
+                var summary = ResearchTrialLedger.verify(Path.of(args[1]));
+                System.out.printf("VERIFIED RESEARCH TRIAL LEDGER: entries=%d; strategy_versions=%d; final_hash=%s%n",
+                        summary.entryCount(), summary.distinctStrategyVersions(), summary.finalHashSha256());
+                return;
+            }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
                 usage();
                 System.exit(2);
@@ -279,6 +296,8 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
+                + "  java -jar intra-paper-system.jar trial-ledger-register <ledger.tsv> <trial-id> <strategy-id> <strategy-version> <variant-id> <card-sha256> <dataset-sha256> <split-sha256> <parameter-config-sha256>\n"
+                + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
@@ -294,6 +313,8 @@ public final class IntraPaperCli {
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
+                + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"
+                + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 }
