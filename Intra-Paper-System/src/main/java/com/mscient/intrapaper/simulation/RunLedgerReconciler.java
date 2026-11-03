@@ -124,6 +124,11 @@ public final class RunLedgerReconciler {
                 haltsByDate.computeIfAbsent(event.timestamp().atZone(zone).toLocalDate(), ignored -> new ArrayList<>()).add(event);
             }
         }
+        long recordedHaltCount = haltsByDate.values().stream().mapToLong(List::size).sum();
+        if (recordedHaltCount != result.riskHalts()) fail("risk halt counter differs from event ledger");
+        haltsByDate.forEach((date, events) -> {
+            if (events.size() > 1) fail("multiple risk halts recorded in one session: " + date);
+        });
         Map<LocalDate, List<EquityPoint>> pointsByDate = new java.util.TreeMap<>();
         for (EquityPoint point : result.equityCurve()) {
             pointsByDate.computeIfAbsent(point.sessionDate(), ignored -> new ArrayList<>()).add(point);
@@ -137,7 +142,7 @@ public final class RunLedgerReconciler {
                 if (priorSessionNet.subtract(point.netPnlInr()).compareTo(config.maxDailyLossInr()) >= 0) {
                     breached = true;
                     boolean hasHalt = haltsByDate.getOrDefault(entry.getKey(), List.of()).stream()
-                            .anyMatch(event -> !event.timestamp().isBefore(point.timestamp()));
+                            .anyMatch(event -> event.timestamp().equals(point.timestamp()));
                     if (!hasHalt) fail("daily loss limit breached without a recorded risk halt on " + entry.getKey());
                     break;
                 }
