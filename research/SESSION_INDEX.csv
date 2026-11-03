@@ -42,3 +42,4 @@ a36808b9-37a2-43de-b088-16ac720b05ad,2026-11-03,756dfab9fa60142775fec498026464f7
 f35dff0a-c708-48a0-9195-f0f1b40f7f54,2026-11-03,783255a6691e1a0fb1c9b316bcfbdf635a1c5d54,"Independent reconciliation now validates all order transitions and timestamps; Java 21 build succeeded; runtime fixtures not run."
 2c2bded4-de72-4d56-bb7e-26a5ccba517b,2026-11-03,0f91c6a789ea5747566a83dbdeb88c5bf7dbd246,"Added decision-time quote eligibility and full-size adverse pricing helper; Java 21 build succeeded; runtime fixtures not run."
 8b56de48-17f0-4785-8f1b-7f49060bf51c,2026-11-03,592fa9e1a7a3bf88a94b02c636d00839ffc09360,"Preserved missing bar volume/OI as null and zero distinctly; Java 21 build succeeded; fixtures not run."
+a7ef463f-0534-4ce6-9679-e0623244f7e2,2026-11-03,542b42d519eba5f569d7361cc6e8c4adac8f0964,"Throttled BUY intents, rejected unsupported scale-ins, and independently reconciled single-position flow; Java 21 build succeeded; fixtures not run."
