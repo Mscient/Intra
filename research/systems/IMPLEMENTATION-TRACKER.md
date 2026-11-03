@@ -15,6 +15,7 @@
 - A clearly synthetic fixture was validated and replayed through the CLI: run `e9c5e0585cbf2dba6c24d632`, 30 bars, one complete supplied session, `REQUIRE_FLAT`, final position 0, `SYNTHETIC_PLUMBING_ONLY`, diagnostic net P&L `-1.36 INR`. No behavior tests or real-data strategy evaluation were performed; no real market data, credentials, account, or broker API were accessed.
 - A separate Python offline backtest engine is described in earlier session records but its implementation was not present in the checked-out HFT 2 workspace; the Java simulator is not represented as a port of it.
 - Added a standalone caller-input European Black–Scholes–Merton API for theoretical value and delta/gamma/vega/theta/rho. It compiles with the CLI but is not integrated into replay, settlement, or portfolio accounting and has not been independently validated against a second implementation; it does not cover futures options or a volatility surface.
+- Added `feed-capture-reconcile` to verify raw and lifecycle journals independently and compare raw message receive times with acknowledged subscription windows using source/connection/subscription IDs and explicit wall-clock tolerance. It reports unmatched messages, empty acknowledged intervals, transition/timestamp anomalies, and both chain hashes. It does not map decoded instruments, establish completeness or data rights, or connect to a vendor feed.
 
 ## Gate tracker
 
@@ -22,7 +23,7 @@
 |---|---|---|
 | S0 / G0 — charter (WP0) | **Open; work started** | Confirm operator/stop authority, route and current rules, data rights/retention, current source set, private risk budgets, and unresolved A1–A15 assumptions. Keep order egress disabled. |
 | S1 / G1 — foundations (WP1) | Implementation started; gate open | Review market-model assumptions and freeze a research card with mechanism, horizon, benchmark, costs, data, variant count, universe, and rejection rules. The SMA is only a harness. |
-| S2 / G2 — data and simulator (WP2–WP5) | Offline single-contract replay slice built; incomplete | Raw capture/import, full quality/completeness checks, session-hours policy, independently checked option pricing, integration of valuation/Greeks with replay and portfolio accounting, volatility inputs/surface, futures-option pricing, reproducible recovery, exchange margin, verified fees, verified expiry-source/cost inputs, and broader simulator evidence remain open. Basic long-only settlement requires an explicit source-attributed row; it does not validate source truth. |
+| S2 / G2 — data and simulator (WP2–WP5) | Offline single-contract replay slice built; incomplete | Vendor raw capture/import wiring, instrument-aware completeness checks, session-hours policy, independently checked option pricing, integration of valuation/Greeks with replay and portfolio accounting, volatility inputs/surface, futures-option pricing, reproducible recovery, exchange margin, verified fees, verified expiry-source/cost inputs, and broader simulator evidence remain open. The caller-fed raw/lifecycle journals and cross-journal timestamp reconciliation are diagnostics only. Basic long-only settlement requires an explicit source-attributed row; it does not validate source truth. |
 | S3 / G3 — strategy evidence (WP6) | Blocked on G1/G2 | Preregister a candidate; use authorized dated data, verified execution/cost assumptions, chronological development/validation/holdout, and independent review. No performance claim is currently eligible. |
 | S4 / G4 — forward paper (WP8) | Not started | 60 complete sessions, 20 consecutive passing pre-open checks, daily reconciliation, successful drills, and no open severe incident. |
 | S5 / G5 — optional live pilot (WP9) | Not authorized | Requires a separate human decision and independent review after all G4 evidence. No live route exists in the project. |
@@ -40,7 +41,7 @@
 ## Next work
 
 1. Keep G0 unresolved items out of public Git where they contain private budgets or account-specific information.
-2. Add raw source capture/import, stronger stale/gap/completeness rules, and recovery/reconciliation artifacts.
+2. Wire an authorized raw source capture/import path only after permissions are documented; add instrument-aware expected-coverage reconciliation and stronger stale/gap rules, and validate recovery/reconciliation artifacts.
 3. Review the new cross-session policy and define a realistic end-of-session liquidation model before intraday deployment.
 4. Independently validate the standalone option valuation/Greeks helper, then integrate an appropriate, sourced pricing model and portfolio risk accounting; validate the explicit settlement path against authorized source rows.
 5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.

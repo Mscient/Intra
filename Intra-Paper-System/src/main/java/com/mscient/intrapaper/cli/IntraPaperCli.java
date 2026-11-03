@@ -10,6 +10,8 @@ import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 import com.mscient.intrapaper.marketdata.FeedLifecycleAnalyzer;
 import com.mscient.intrapaper.marketdata.FeedLifecycleEvent;
+import com.mscient.intrapaper.marketdata.FeedCaptureReconciler;
+import com.mscient.intrapaper.marketdata.FeedCaptureReconciliationReport;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
@@ -148,6 +150,30 @@ public final class IntraPaperCli {
                 }
                 return;
             }
+            if (args.length == 4 && args[0].equals("feed-capture-reconcile")) {
+                var report = FeedCaptureReconciler.reconcile(Path.of(args[1]), Path.of(args[2]),
+                        Duration.ofMillis(Long.parseLong(args[3])));
+                System.out.printf("FEED/CAPTURE RECONCILIATION (DIAGNOSTIC ONLY): raw_messages=%d; "
+                                + "acknowledged_intervals=%d; intervals_with_messages=%d; empty_intervals=%d; "
+                                + "closed_by_unsubscribe=%d; closed_by_connection_loss=%d; "
+                                + "closed_by_timeline_anomaly=%d; still_open_intervals=%d; "
+                                + "allowed_wall_clock_skew=%s; lifecycle_transition_anomalies=%d; "
+                                + "lifecycle_timestamp_regressions=%d; lifecycle_timeline_anomalies=%d; "
+                                + "raw_final_hash=%s; lifecycle_final_hash=%s%n",
+                        report.rawCapture().eventCount(), report.acknowledgedIntervalCount(),
+                        report.intervalsWithCapturedMessages(),
+                        report.acknowledgedIntervalCount() - report.intervalsWithCapturedMessages(),
+                        report.closedByUnsubscriptionCount(), report.closedByConnectionLossCount(),
+                        report.closedByTimelineAnomalyCount(), report.stillOpenIntervalCount(),
+                        report.allowedWallClockSkew(), report.lifecycle().transitionAnomalyCount(),
+                        report.lifecycleTimestampRegressionCount(), report.lifecycleTimelineAnomalyCount(),
+                        report.rawCapture().finalHashHex(), report.lifecycle().journal().finalHashHex());
+                for (FeedCaptureReconciliationReport.MessageDisposition disposition
+                        : FeedCaptureReconciliationReport.MessageDisposition.values()) {
+                    System.out.printf("MESSAGE %s: %d%n", disposition, report.messageCounts().get(disposition));
+                }
+                return;
+            }
             if (args.length == 4 && args[0].equals("replay-verify")) {
                 var verification = RunReplayVerifier.verify(
                         Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
@@ -232,6 +258,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
+                + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
@@ -245,6 +272,7 @@ public final class IntraPaperCli {
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
+                + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
