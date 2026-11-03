@@ -8,6 +8,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.HexFormat;
 
 /** Local-only append writer for exact inbound payload bytes; it has no network/feed adapter. */
 public final class RawCaptureJournalWriter implements AutoCloseable {
@@ -29,6 +30,23 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         } catch (IOException | RuntimeException failure) {
             try { channel.close(); } catch (IOException closeFailure) { failure.addSuppressed(closeFailure); }
             try { Files.deleteIfExists(path); } catch (IOException cleanupFailure) { failure.addSuppressed(cleanupFailure); }
+            throw failure;
+        }
+    }
+
+    /** Verifies the complete existing capture before restoring its hash state and resuming append. */
+    public static RawCaptureJournalWriter resume(Path path) throws IOException {
+        FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
+        try {
+            FileLock lock = channel.lock();
+            RawCaptureSummary summary = RawCaptureJournalReader.replay(path, ignored -> { });
+            if (summary.bytesRead() != channel.size()) throw new IOException("Raw capture journal changed while it was being verified");
+            channel.position(channel.size());
+            RawCaptureJournalWriter writer = new RawCaptureJournalWriter(channel, lock);
+            writer.previousHash = HexFormat.of().parseHex(summary.finalHashHex());
+            return writer;
+        } catch (IOException | RuntimeException failure) {
+            try { channel.close(); } catch (IOException closeFailure) { failure.addSuppressed(closeFailure); }
             throw failure;
         }
     }
