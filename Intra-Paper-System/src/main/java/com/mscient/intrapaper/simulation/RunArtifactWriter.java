@@ -94,18 +94,25 @@ public final class RunArtifactWriter {
                                 settlement.settlementValue(), settlement.exitValuePerUnit(), settlement.positionUnitsSettled(),
                                 settlement.grossPnlInr(), settlement.settlementFeesInr(), settlement.sourceReference())).toList()));
                 writeNew(stagingFolder.resolve("settlement-charges.csv"), csv(
-                        "settlement_timestamp,model,contract_kind,position_units,option_intrinsic_per_unit_inr,exercise_stt_base_inr,sebi_exercise_turnover_base_inr,sebi_turnover_inr,exercise_stt_inr,gst_taxable_base_inr,gst_inr,total_inr",
+                        "settlement_timestamp,model,contract_kind,position_units,option_intrinsic_per_unit_inr,exercise_stt_base_inr,sebi_exercise_turnover_base_inr,sebi_turnover_inr,exercise_stt_inr,gst_taxable_base_inr,gst_inr,additional_settlement_fees_inr,total_inr",
                         result.settlementChargeBreakdowns().stream().map(charge -> row(charge.settlementTimestamp(),
                                 charge.model(), charge.contractKind(), charge.positionUnits(),
                                 charge.optionIntrinsicPerUnitInr(), charge.exerciseSttBaseInr(),
                                 charge.sebiExerciseTurnoverBaseInr(), charge.sebiTurnoverInr(),
                                 charge.exerciseSttInr(), charge.gstTaxableBaseInr(), charge.gstInr(),
-                                charge.totalInr())).toList()));
+                                charge.additionalSettlementFeesInr(), charge.totalInr())).toList()));
+                writeNew(stagingFolder.resolve("settlement-cost-lines.csv"), csv(
+                        "settlement_timestamp,component_code,basis,calculation_base,rate,charge_inr,gst_bps,gst_taxable_base_inr,gst_inr,total_inr,source_reference",
+                        result.settlementCostLines().stream().map(line -> row(line.settlementTimestamp(),
+                                line.componentCode(), line.basis(), line.calculationBase(), line.rate(),
+                                line.chargeInr(), line.gstBps(), line.gstTaxableBaseInr(), line.gstInr(),
+                                line.totalInr(), line.sourceReference())).toList()));
 
                 writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
                 Map<String, String> outputHashes = new TreeMap<>();
                 for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
-                        "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv", "summary.json")) {
+                        "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
+                        "settlement-cost-lines.csv", "summary.json")) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
                 writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -210,6 +217,7 @@ public final class RunArtifactWriter {
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
                 + "  \"expiry_settlements\": " + result.settlements().size() + ",\n"
                 + "  \"settlement_charge_breakdowns\": " + result.settlementChargeBreakdowns().size() + ",\n"
+                + "  \"additional_settlement_cost_lines\": " + result.settlementCostLines().size() + ",\n"
                 + "  \"settlement_charges_paid_inr\": " + q(num(result.settlementChargeBreakdowns().stream()
                         .map(SimSettlementChargeBreakdown::totalInr).reduce(BigDecimal.ZERO, BigDecimal::add))) + ",\n"
                 + "  \"filled_units\": " + metrics.filledUnits() + ",\n"
@@ -250,8 +258,9 @@ public final class RunArtifactWriter {
         data.componentCostSchedule().ifPresent(schedule -> inputHashes.put("component_cost_schedule", schedule.sha256()));
         data.marginRequirementSchedule().ifPresent(schedule -> inputHashes.put("margin_requirement_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
+        data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         return "{\n"
-                + "  \"schema_version\": 7,\n"
+                + "  \"schema_version\": 8,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -326,7 +335,14 @@ public final class RunArtifactWriter {
                                 ? ", \"sebi_exercise_turnover_value_per_unit_inr\": "
                                         + q(num(settlement.sebiExerciseTurnoverValuePerUnitInr().orElseThrow())) : "")
                         + ", \"sha256\": " + q(settlement.sha256()) + "}").orElse("null") + ",\n"
-                + "  \"settlement_charges_modeled\": false,\n"
+                + "  \"settlement_charge_components_modeled\": " + (data.settlementCostSchedule().isPresent()
+                        || (data.componentCostSchedule().isPresent()
+                                && first.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                                && data.expirySettlement().isPresent())) + ",\n"
+                + "  \"settlement_cost_schedule\": " + data.settlementCostSchedule().map(schedule ->
+                        "{\"sha256\": " + q(schedule.sha256())
+                                + ", \"lines_file\": \"settlement-cost-lines.csv\", \"rate_source\": \"CALLER_SUPPLIED_EFFECTIVE_DATED\"}")
+                        .orElse("null") + ",\n"
                 + "  \"option_exercise_stt_sebi_modeled\": "
                 + (data.componentCostSchedule().isPresent() && first.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
                         && data.expirySettlement().isPresent()) + ",\n"

@@ -27,6 +27,10 @@ public final class RunArtifactVerifier {
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json");
     private static final Set<String> CURRENT_OUTPUT_FILES = Set.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
+            "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
+            "settlement-cost-lines.csv", "summary.json");
+    private static final Set<String> PREVIOUS_CURRENT_OUTPUT_FILES = Set.of(
+            "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv", "summary.json");
     private static final Set<String> OUTPUT_FILES = CURRENT_OUTPUT_FILES;
     private static final Pattern RUN_ID = Pattern.compile(
@@ -72,6 +76,7 @@ public final class RunArtifactVerifier {
         }
         if (!expectedHashes.keySet().equals(LEGACY_OUTPUT_FILES)
                 && !expectedHashes.keySet().equals(PREVIOUS_OUTPUT_FILES)
+                && !expectedHashes.keySet().equals(PREVIOUS_CURRENT_OUTPUT_FILES)
                 && !expectedHashes.keySet().equals(CURRENT_OUTPUT_FILES)) {
             throw new IOException("Run manifest output hash list is incomplete");
         }

@@ -5,6 +5,7 @@ import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.MarginRequirementSchedule;
+import com.mscient.intrapaper.provenance.SettlementCostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
@@ -33,6 +34,7 @@ public record ValidatedDataset(
         Optional<ComponentCostSchedule> componentCostSchedule,
         Optional<MarginRequirementSchedule> marginRequirementSchedule,
         Optional<ExpirySettlement> expirySettlement,
+        Optional<SettlementCostSchedule> settlementCostSchedule,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
         long expectedBarCount,
@@ -54,6 +56,11 @@ public record ValidatedDataset(
                 ? Optional.of(MarginRequirementSchedule.load(config.marginRequirementSchedulePath().orElseThrow())) : Optional.empty();
         Optional<ExpirySettlement> expirySettlement = config.expirySettlementPath().isPresent()
                 ? Optional.of(ExpirySettlement.load(config.expirySettlementPath().orElseThrow())) : Optional.empty();
+        Optional<SettlementCostSchedule> settlementCostSchedule = config.settlementCostSchedulePath().isPresent()
+                ? Optional.of(SettlementCostSchedule.load(config.settlementCostSchedulePath().orElseThrow())) : Optional.empty();
+        if (settlementCostSchedule.isPresent() && expirySettlement.isEmpty()) {
+            throw new IllegalArgumentException("settlement.cost_schedule_file requires settlement.file");
+        }
         Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
         Bar first = bars.getFirst();
         Bar last = bars.getLast();
@@ -202,6 +209,7 @@ public record ValidatedDataset(
             if (!finalSessionComplete) {
                 throw new IllegalArgumentException("Expiry settlement requires a complete final session");
             }
+            settlementCostSchedule.ifPresent(schedule -> schedule.requireCoverage(settlement.settlementDate(), onlyKind));
             if (!settlement.settlementTimestamp().atZone(timezone).toLocalDate().equals(settlement.settlementDate())) {
                 throw new IllegalArgumentException("Settlement timestamp does not resolve to settlement_date in dataset.timezone");
             }
@@ -239,7 +247,7 @@ public record ValidatedDataset(
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
                 barsHash, config.configSha256(), calendarHash, costSchedule, componentCostSchedule,
-                marginRequirementSchedule, expirySettlement, anomalies,
+                marginRequirementSchedule, expirySettlement, settlementCostSchedule, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 

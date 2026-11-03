@@ -78,6 +78,19 @@ public final class RunLedgerReconciler {
         if (settlementAuditByTimestamp.size() != result.settlements().size()) {
             fail("settlement charge breakdown count differs from settlement count");
         }
+        if (result.settlements().isEmpty() && !result.settlementCostLines().isEmpty()) {
+            fail("settlement cost lines exist without a settlement");
+        }
+        Set<String> settlementCostKeys = new HashSet<>();
+        for (SimSettlementCostLine line : result.settlementCostLines()) {
+            if (result.settlements().stream().noneMatch(settlement -> settlement.settlementTimestamp()
+                    .equals(line.settlementTimestamp()))) {
+                fail("settlement cost line refers to an unknown settlement timestamp");
+            }
+            if (!settlementCostKeys.add(line.settlementTimestamp() + ":" + line.componentCode())) {
+                fail("duplicate settlement cost line for " + line.componentCode());
+            }
+        }
         for (SimSettlement settlement : result.settlements()) {
             SimSettlementChargeBreakdown audit = settlementAuditByTimestamp.get(settlement.settlementTimestamp());
             if (audit == null) fail("missing settlement charge breakdown at " + settlement.settlementTimestamp());
@@ -400,12 +413,44 @@ public final class RunLedgerReconciler {
             }
             expectedModel = "COMPONENTIZED_OPTION_EXERCISE";
         }
+        List<com.mscient.intrapaper.provenance.SettlementCostSchedule.ChargeLine> expectedSettlementLines =
+                dataset.settlementCostSchedule().isPresent()
+                        ? dataset.settlementCostSchedule().orElseThrow().calculate(input.settlementDate(),
+                                lastBar.contractKind(), input.settlementValue(), intrinsic,
+                                settlement.positionUnitsSettled())
+                        : List.of();
+        if (expectedSettlementLines.size() != result.settlementCostLines().size()) {
+            fail("settlement cost line count differs from the frozen schedule");
+        }
+        BigDecimal expectedAdditionalSettlementFees = BigDecimal.ZERO;
+        for (int i = 0; i < expectedSettlementLines.size(); i++) {
+            var expected = expectedSettlementLines.get(i);
+            SimSettlementCostLine actual = result.settlementCostLines().get(i);
+            if (!actual.settlementTimestamp().equals(settlement.settlementTimestamp())
+                    || !actual.componentCode().equals(expected.componentCode())
+                    || actual.basis() != expected.basis()
+                    || !actual.sourceReference().equals(expected.sourceReference())) {
+                fail("settlement cost line identity differs from the frozen schedule");
+            }
+            requireEqual("settlement cost calculation base", expected.calculationBase(), actual.calculationBase());
+            requireEqual("settlement cost rate", expected.rate(), actual.rate());
+            requireEqual("settlement cost amount", expected.chargeInr(), actual.chargeInr());
+            requireEqual("settlement cost GST rate", expected.gstBps(), actual.gstBps());
+            requireEqual("settlement cost GST base", expected.gstTaxableBaseInr(), actual.gstTaxableBaseInr());
+            requireEqual("settlement cost GST amount", expected.gstInr(), actual.gstInr());
+            expectedAdditionalSettlementFees = expectedAdditionalSettlementFees.add(expected.totalInr());
+        }
+        if (dataset.settlementCostSchedule().isPresent()) {
+            expectedModel = expectedModel.equals("COMPONENTIZED_OPTION_EXERCISE")
+                    ? "COMPONENTIZED_OPTION_EXERCISE_AND_SETTLEMENT_COSTS" : "COMPONENTIZED_SETTLEMENT_COSTS";
+        }
         if (!audit.model().equals(expectedModel)) fail("settlement charge model differs from frozen inputs");
         requireEqual("settlement SEBI fee", expectedCharges.sebiInr(), audit.sebiTurnoverInr());
         requireEqual("settlement exercise STT", expectedCharges.sttInr(), audit.exerciseSttInr());
         requireEqual("settlement GST taxable base", expectedCharges.gstTaxableBaseInr(), audit.gstTaxableBaseInr());
         requireEqual("settlement GST", expectedCharges.gstInr(), audit.gstInr());
-        requireEqual("settlement fee total", expectedCharges.totalInr(), settlement.settlementFeesInr());
+        requireEqual("additional settlement fee total", expectedAdditionalSettlementFees, audit.additionalSettlementFeesInr());
+        requireEqual("settlement fee total", expectedCharges.totalInr().add(expectedAdditionalSettlementFees), settlement.settlementFeesInr());
     }
 
     private static ComponentCostSchedule.Charges zeroCharges() {

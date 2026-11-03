@@ -75,6 +75,7 @@ public final class BacktestEngine {
         List<SimTrade> trades = new ArrayList<>();
         List<SimSettlement> settlements = new ArrayList<>();
         List<SimSettlementChargeBreakdown> settlementChargeBreakdowns = new ArrayList<>();
+        List<SimSettlementCostLine> settlementCostLines = new ArrayList<>();
         List<EquityPoint> curve = new ArrayList<>();
         BigDecimal realized = BigDecimal.ZERO;
         BigDecimal fees = BigDecimal.ZERO;
@@ -332,6 +333,21 @@ public final class BacktestEngine {
             int settledUnits = positionUnits(positionLots, lastBar.lotSize());
             SimSettlementChargeBreakdown settlementCharges = settlementChargeBreakdown(
                     dataset, settlement, lastBar, exitValuePerUnit, settledUnits);
+            BigDecimal optionIntrinsic = lastBar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                    ? exitValuePerUnit : BigDecimal.ZERO;
+            List<com.mscient.intrapaper.provenance.SettlementCostSchedule.ChargeLine> additionalLines =
+                    dataset.settlementCostSchedule().map(schedule -> schedule.calculate(settlement.settlementDate(),
+                            lastBar.contractKind(), settlement.settlementValue(), optionIntrinsic, settledUnits))
+                            .orElseGet(List::of);
+            for (var line : additionalLines) {
+                settlementCostLines.add(new SimSettlementCostLine(settlement.settlementTimestamp(), line.componentCode(),
+                        line.basis(), line.calculationBase(), line.rate(), line.chargeInr(), line.gstBps(),
+                        line.gstTaxableBaseInr(), line.gstInr(), line.sourceReference()));
+            }
+            BigDecimal additionalSettlementFees = additionalLines.stream()
+                    .map(line -> line.chargeInr().add(line.gstInr())).reduce(BigDecimal.ZERO, BigDecimal::add);
+            settlementCharges = settlementCharges.withAdditionalSettlementFees(additionalSettlementFees,
+                    dataset.settlementCostSchedule().isPresent());
             BigDecimal settlementFee = settlementCharges.totalInr();
             settlementChargeBreakdowns.add(settlementCharges);
             fees = fees.add(settlementFee);
@@ -382,7 +398,7 @@ public final class BacktestEngine {
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
         BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements,
-                settlementChargeBreakdowns, sessionAudits, curve, realized, unrealized, fees, slippage,
+                settlementChargeBreakdowns, settlementCostLines, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
