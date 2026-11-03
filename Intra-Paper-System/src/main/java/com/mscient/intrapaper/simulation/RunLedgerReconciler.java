@@ -50,7 +50,8 @@ public final class RunLedgerReconciler {
 
         BigDecimal fillFees = BigDecimal.ZERO;
         BigDecimal fillSlippage = BigDecimal.ZERO;
-        Map<String, Integer> fillsByOrder = new HashMap<>();
+        Map<String, Integer> fillCountByOrder = new HashMap<>();
+        Map<String, Integer> filledUnitsByOrder = new HashMap<>();
         ExecutionIdempotencyLedger executionLedger = new ExecutionIdempotencyLedger();
         for (SimFill fill : result.fills()) {
             ExecutionIdempotencyLedger.ApplyResult applyResult;
@@ -65,7 +66,8 @@ public final class RunLedgerReconciler {
             }
             fillFees = fillFees.add(fill.feeInr());
             fillSlippage = fillSlippage.add(fill.slippageCostInr());
-            fillsByOrder.merge(fill.orderId(), 1, Integer::sum);
+            fillCountByOrder.merge(fill.orderId(), 1, Integer::sum);
+            filledUnitsByOrder.merge(fill.orderId(), fill.quantityUnits(), Math::addExact);
         }
         BigDecimal settlementFees = BigDecimal.ZERO;
         for (SimSettlement settlement : result.settlements()) settlementFees = settlementFees.add(settlement.settlementFeesInr());
@@ -130,15 +132,22 @@ public final class RunLedgerReconciler {
             if (!order.status().equals(lastOrderEvent.get(order.orderId()))) {
                 fail("final order status/event mismatch for " + order.orderId());
             }
-            int fills = fillsByOrder.getOrDefault(order.orderId(), 0);
-            if (order.status().equals("FILLED") && fills != 1) {
-                fail("filled order must have exactly one fill: " + order.orderId());
+            int fills = fillCountByOrder.getOrDefault(order.orderId(), 0);
+            int filledUnits = filledUnitsByOrder.getOrDefault(order.orderId(), 0);
+            if (order.status().equals("FILLED")
+                    && (fills != 1 || filledUnits != order.requestedUnits())) {
+                fail("filled order quantity must equal its request with exactly one fill: " + order.orderId());
             }
-            if (!order.status().equals("FILLED") && fills != 0) {
+            if (order.status().equals("CANCELED")) {
+                if (filledUnits < 0 || filledUnits >= order.requestedUnits()
+                        || fills > 1 || fills == 1 && filledUnits == 0 || fills == 0 && filledUnits != 0) {
+                    fail("canceled order has invalid IOC fill/residual quantities: " + order.orderId());
+                }
+            } else if (!order.status().equals("FILLED") && fills != 0) {
                 fail("non-filled order has a fill: " + order.orderId());
             }
         }
-        for (String fillOrderId : fillsByOrder.keySet()) {
+        for (String fillOrderId : fillCountByOrder.keySet()) {
             if (!orderIds.contains(fillOrderId)) fail("fill refers to unknown order " + fillOrderId);
         }
 
@@ -203,8 +212,10 @@ public final class RunLedgerReconciler {
             requireEqual("recorded margin per lot for " + fill.fillId(), marginPerLot, fill.marginPerLotInr());
             if (!marginSource.equals(fill.marginSourceReference())) fail("recorded margin source differs from frozen input for " + fill.fillId());
             if (!fill.side().equals("BUY")) continue;
-            int lots = order.requestedUnits() / lotSize;
-            if (order.requestedUnits() % lotSize != 0 || lots < 1 || lots > config.maxPositionLots()) {
+            int lots = order.targetLots();
+            if (order.requestedUnits() % lotSize != 0 || order.requestedUnits() < 1
+                    || lots < 1 || lots > config.maxPositionLots()
+                    || fill.quantityUnits() > order.requestedUnits()) {
                 fail("entry fill exceeds configured lot limit: " + fill.fillId());
             }
             BigDecimal notional = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
@@ -256,19 +267,18 @@ public final class RunLedgerReconciler {
         }
     }
 
-    /** Independently replays single-position full-fill flow, including explicit expiry settlement. */
+    /** Independently replays long-only position flow, including partial fills and expiry settlement. */
     private static void requirePositionFlowConsistent(BacktestResult result) {
         int positionUnits = 0;
         for (SimFill fill : result.fills()) {
             if (fill.quantityUnits() < 1) fail("non-positive fill quantity: " + fill.fillId());
             if (fill.side().equals("BUY")) {
-                if (positionUnits != 0) fail("scale-in fill is unsupported while a position is open: " + fill.fillId());
-                positionUnits = fill.quantityUnits();
+                positionUnits = Math.addExact(positionUnits, fill.quantityUnits());
             } else if (fill.side().equals("SELL")) {
-                if (positionUnits <= 0 || fill.quantityUnits() != positionUnits) {
-                    fail("SELL fill must close the one complete open position: " + fill.fillId());
+                if (positionUnits <= 0 || fill.quantityUnits() > positionUnits) {
+                    fail("SELL fill exceeds the open long position: " + fill.fillId());
                 }
-                positionUnits = 0;
+                positionUnits -= fill.quantityUnits();
             } else {
                 fail("invalid fill side in ledger: " + fill.fillId());
             }
@@ -307,7 +317,7 @@ public final class RunLedgerReconciler {
         for (SimOrder order : result.orders()) {
             if (ordersById.putIfAbsent(order.orderId(), order) != null) fail("duplicate order ID: " + order.orderId());
         }
-        QuoteExecutionBook quoteAuditBook = config.executionModel() == ExecutionModel.L1_FULL_SIZE_IOC
+        QuoteExecutionBook quoteAuditBook = config.executionModel() != ExecutionModel.BAR_NEXT_OPEN
                 ? new QuoteExecutionBook(dataset.quoteHistory().orElseThrow(), config.quoteSourceName().orElseThrow(),
                         dataset.bars().getFirst().instrumentId(),
                         new com.mscient.intrapaper.marketdata.QuoteQualityPolicy(
@@ -379,10 +389,12 @@ public final class RunLedgerReconciler {
                 if (arrival.isBefore(barStart)) arrival = barStart;
                 if (!arrival.equals(fill.timestamp())) fail("quote fill timestamp differs from configured arrival: " + fill.fillId());
                 QuoteExecutionBook.Decision decision = quoteAuditBook.evaluate(arrival,
-                        ExecutionEvent.Side.valueOf(fill.side()), fill.quantityUnits(), slippageTicks);
-                if (decision.quote().isEmpty() || decision.assessment().isEmpty()
+                        ExecutionEvent.Side.valueOf(fill.side()), order.requestedUnits(), bar.lotSize(),
+                        slippageTicks, config.executionModel());
+                if (decision.filledUnits() != fill.quantityUnits() || decision.quote().isEmpty()
+                        || decision.assessment().isEmpty()
                         || !decision.assessment().orElseThrow().executable()) {
-                    fail("persisted quote fill is not eligible under the frozen quote policy: " + fill.fillId());
+                    fail("persisted quote fill quantity is not eligible under the frozen quote policy: " + fill.fillId());
                 }
                 var quote = decision.quote().orElseThrow();
                 if (!quote.source().equals(fill.quoteSource())

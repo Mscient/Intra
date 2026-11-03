@@ -80,7 +80,7 @@ public record ValidatedDataset(
         var onlyKind = first.contractKind();
         var onlyStrike = first.strike();
         var onlyRight = first.optionRight();
-        if (config.executionModel() == com.mscient.intrapaper.provenance.ExecutionModel.L1_FULL_SIZE_IOC) {
+        if (config.executionModel() != com.mscient.intrapaper.provenance.ExecutionModel.BAR_NEXT_OPEN) {
             String requiredSource = config.quoteSourceName().orElseThrow();
             boolean matchingQuoteExists = quoteHistory.orElseThrow().quotes().stream()
                     .anyMatch(quote -> quote.source().equals(requiredSource)

@@ -13,16 +13,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Stateful, deterministic full-size L1 IOC consumption for one replay run. */
+/** Stateful, deterministic L1 IOC consumption for one replay run. */
 final class QuoteExecutionBook {
     record Decision(Optional<MarketQuote> quote, Optional<QuoteExecutionGate.Assessment> assessment,
-            String reason) {
+            long filledUnits, String reason) {
         Decision {
             quote = Objects.requireNonNull(quote, "quote");
             assessment = Objects.requireNonNull(assessment, "assessment");
             if (reason == null || reason.isBlank()) throw new IllegalArgumentException("reason is required");
-            if (quote.isPresent() != assessment.isPresent()) {
-                throw new IllegalArgumentException("quote and assessment must be present together");
+            if (quote.isPresent() != assessment.isPresent() || filledUnits < 0
+                    || filledUnits > 0 && (quote.isEmpty() || !assessment.orElseThrow().executable())) {
+                throw new IllegalArgumentException("quote decision reference and quantity are inconsistent");
             }
         }
     }
@@ -51,27 +52,51 @@ final class QuoteExecutionBook {
         this.byStream = Map.of(new StreamKey(source, instrumentId), matching);
     }
 
-    Decision evaluate(Instant arrival, ExecutionEvent.Side side, long requestedUnits, int adverseSlippageTicks) {
+    Decision evaluate(Instant arrival, ExecutionEvent.Side side, long requestedUnits, int lotSize,
+            int adverseSlippageTicks, com.mscient.intrapaper.provenance.ExecutionModel model) {
         Objects.requireNonNull(arrival, "arrival");
         Objects.requireNonNull(side, "side");
+        Objects.requireNonNull(model, "model");
+        if (requestedUnits < 1 || lotSize < 1 || requestedUnits % lotSize != 0) {
+            throw new IllegalArgumentException("Quote IOC requested size must be a positive whole number of market lots");
+        }
         MarketQuote quote = latestAsOf(arrival);
-        if (quote == null) return new Decision(Optional.empty(), Optional.empty(), "NO_ELIGIBLE_QUOTE");
+        if (quote == null) return new Decision(Optional.empty(), Optional.empty(), 0, "NO_ELIGIBLE_QUOTE");
 
         SideKey key = new SideKey(source, instrumentId, quote.sequenceNumber(), side);
         long originalDisplayed = side == ExecutionEvent.Side.BUY ? quote.askQuantity() : quote.bidQuantity();
         long available = remainingByQuoteSide.getOrDefault(key, originalDisplayed);
         MarketQuote availableQuote = withAvailableSideQuantity(quote, side, available);
+        long assessmentUnits = requestedUnits;
+        if (model == com.mscient.intrapaper.provenance.ExecutionModel.L1_PARTIAL_IOC) {
+            long displayedLots = available / lotSize;
+            long requestedLots = requestedUnits / lotSize;
+            assessmentUnits = Math.min(displayedLots, requestedLots) * lotSize;
+            if (assessmentUnits == 0) {
+                QuoteExecutionGate.Side noFillSide = side == ExecutionEvent.Side.BUY
+                        ? QuoteExecutionGate.Side.BUY : QuoteExecutionGate.Side.SELL;
+                QuoteExecutionGate.Assessment noFill = QuoteExecutionGate.assess(availableQuote, instrumentId,
+                        arrival, noFillSide, requestedUnits, adverseSlippageTicks, qualityPolicy);
+                return new Decision(Optional.of(quote), Optional.of(noFill), 0, noFill.reason());
+            }
+        }
         QuoteExecutionGate.Side gateSide = side == ExecutionEvent.Side.BUY
                 ? QuoteExecutionGate.Side.BUY : QuoteExecutionGate.Side.SELL;
         QuoteExecutionGate.Assessment assessment = QuoteExecutionGate.assess(availableQuote, instrumentId,
-                arrival, gateSide, requestedUnits, adverseSlippageTicks, qualityPolicy);
-        return new Decision(Optional.of(quote), Optional.of(assessment), assessment.reason());
+                arrival, gateSide, assessmentUnits, adverseSlippageTicks, qualityPolicy);
+        long filledUnits = assessment.executable() ? assessmentUnits : 0;
+        String reason = filledUnits > 0 && filledUnits < requestedUnits
+                ? "PARTIAL_SIZE_TOP_OF_BOOK" : assessment.reason();
+        return new Decision(Optional.of(quote), Optional.of(assessment), filledUnits, reason);
     }
 
     void consume(Decision decision, ExecutionEvent.Side side, long filledUnits) {
         if (decision.quote().isEmpty() || decision.assessment().isEmpty()
                 || !decision.assessment().orElseThrow().executable()) {
             throw new IllegalArgumentException("Only an executable quote decision can consume displayed liquidity");
+        }
+        if (filledUnits != decision.filledUnits()) {
+            throw new IllegalArgumentException("Consumed quantity must equal the evaluated IOC fill quantity");
         }
         MarketQuote quote = decision.quote().orElseThrow();
         SideKey key = new SideKey(source, instrumentId, quote.sequenceNumber(), side);
@@ -89,7 +114,7 @@ final class QuoteExecutionBook {
             bySequence.put(quote.sequenceNumber(), quote);
         }
         for (SimFill fill : fills) {
-            if (!fill.executionModel().equals("L1_FULL_SIZE_IOC")) continue;
+            if (fill.executionModel().equals("BAR_NEXT_OPEN")) continue;
             String fillSource = fill.quoteSource();
             if (fillSource == null) throw new IllegalStateException("Quote-model checkpoint fill has no source");
             if (!fillSource.equals(source)) throw new IllegalStateException("Checkpoint quote source differs from configured source");

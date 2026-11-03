@@ -25,20 +25,83 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Deterministic long-only simulator with bar-open and full-size L1 IOC execution modes. */
+/** Deterministic long-only simulator with bar-open and L1 IOC execution modes. */
 public final class BacktestEngine {
     private record Pending(int orderIndex, int targetLots, LocalDate decisionSession) { }
+    private record ClosedSlice(BigDecimal entryPrice, BigDecimal grossPnl, BigDecimal fees) { }
     private static final class OpenTrade {
         private final Instant entryTimestamp;
-        private final BigDecimal entryPrice;
-        private final int quantity;
-        private final BigDecimal entryFee;
+        private final int targetLots;
+        private BigDecimal remainingEntryBasis;
+        private int remainingQuantity;
+        private BigDecimal remainingEntryFee;
+        private boolean exitStarted;
 
-        private OpenTrade(Instant entryTimestamp, BigDecimal entryPrice, int quantity, BigDecimal entryFee) {
+        private OpenTrade(Instant entryTimestamp, int targetLots, BigDecimal entryPrice, int quantity, BigDecimal entryFee) {
+            if (targetLots < 1 || quantity < 1 || entryPrice.signum() <= 0 || entryFee.signum() < 0) {
+                throw new IllegalArgumentException("invalid open-trade state");
+            }
             this.entryTimestamp = entryTimestamp;
-            this.entryPrice = entryPrice;
-            this.quantity = quantity;
-            this.entryFee = entryFee;
+            this.targetLots = targetLots;
+            this.remainingEntryBasis = entryPrice.multiply(BigDecimal.valueOf(quantity));
+            this.remainingQuantity = quantity;
+            this.remainingEntryFee = entryFee;
+        }
+
+        private OpenTrade(Instant entryTimestamp, int targetLots, BigDecimal remainingEntryBasis,
+                int remainingQuantity, BigDecimal remainingEntryFee, boolean exitStarted) {
+            if (entryTimestamp == null || targetLots < 1 || remainingEntryBasis == null
+                    || remainingEntryBasis.signum() <= 0 || remainingQuantity < 1
+                    || remainingEntryFee == null || remainingEntryFee.signum() < 0) {
+                throw new IllegalArgumentException("invalid restored open-trade state");
+            }
+            this.entryTimestamp = entryTimestamp;
+            this.targetLots = targetLots;
+            this.remainingEntryBasis = remainingEntryBasis;
+            this.remainingQuantity = remainingQuantity;
+            this.remainingEntryFee = remainingEntryFee;
+            this.exitStarted = exitStarted;
+        }
+
+        private void addEntry(BigDecimal price, int quantity, BigDecimal fee) {
+            if (exitStarted || quantity < 1 || price.signum() <= 0 || fee.signum() < 0) {
+                throw new IllegalStateException("cannot add entry units after a position exit has started");
+            }
+            remainingEntryBasis = remainingEntryBasis.add(price.multiply(BigDecimal.valueOf(quantity)));
+            remainingQuantity = Math.addExact(remainingQuantity, quantity);
+            remainingEntryFee = remainingEntryFee.add(fee);
+        }
+
+        private ClosedSlice close(BigDecimal exitPrice, int quantity, BigDecimal exitFee) {
+            if (exitPrice == null || exitPrice.signum() < 0 || quantity < 1 || quantity > remainingQuantity
+                    || exitFee == null || exitFee.signum() < 0) {
+                throw new IllegalArgumentException("invalid open-trade close quantity or price");
+            }
+            BigDecimal allocatedBasis = allocate(remainingEntryBasis, quantity, remainingQuantity, 12);
+            BigDecimal allocatedEntryFee = allocate(remainingEntryFee, quantity, remainingQuantity, 10);
+            BigDecimal entryPrice = allocatedBasis.divide(BigDecimal.valueOf(quantity), 10, RoundingMode.HALF_UP);
+            BigDecimal gross = exitPrice.multiply(BigDecimal.valueOf(quantity)).subtract(allocatedBasis);
+            remainingEntryBasis = remainingEntryBasis.subtract(allocatedBasis);
+            remainingEntryFee = remainingEntryFee.subtract(allocatedEntryFee);
+            remainingQuantity -= quantity;
+            exitStarted = true;
+            return new ClosedSlice(entryPrice, gross, allocatedEntryFee.add(exitFee));
+        }
+
+        private BigDecimal averageEntryPrice() {
+            return remainingQuantity == 0 ? BigDecimal.ZERO
+                    : remainingEntryBasis.divide(BigDecimal.valueOf(remainingQuantity), 10, RoundingMode.HALF_UP);
+        }
+
+        private BigDecimal unrealizedPnl(BigDecimal markPrice) {
+            return remainingQuantity == 0 ? BigDecimal.ZERO
+                    : markPrice.multiply(BigDecimal.valueOf(remainingQuantity)).subtract(remainingEntryBasis);
+        }
+
+        private static BigDecimal allocate(BigDecimal amount, int units, int totalUnits, int scale) {
+            if (units == totalUnits) return amount;
+            return amount.multiply(BigDecimal.valueOf(units))
+                    .divide(BigDecimal.valueOf(totalUnits), scale, RoundingMode.HALF_UP);
         }
     }
 
@@ -114,8 +177,9 @@ public final class BacktestEngine {
                             checkpoint.pending().orderIndex(), checkpoint.pending().targetLots(),
                             checkpoint.pending().decisionSession());
                     openTrade = checkpoint.openTrade() == null ? null : new OpenTrade(
-                            checkpoint.openTrade().entryTimestamp(), checkpoint.openTrade().entryPrice(),
-                            checkpoint.openTrade().quantity(), checkpoint.openTrade().entryFee());
+                            checkpoint.openTrade().entryTimestamp(), checkpoint.openTrade().targetLots(),
+                            checkpoint.openTrade().remainingEntryBasis(), checkpoint.openTrade().remainingQuantity(),
+                            checkpoint.openTrade().remainingEntryFee(), checkpoint.openTrade().exitStarted());
                     activeSession = checkpoint.activeSession();
                     netAtPriorClose = checkpoint.netAtPriorClose();
                     riskHalts = checkpoint.riskHalts();
@@ -129,7 +193,7 @@ public final class BacktestEngine {
             }
         }
         QuoteExecutionBook quoteBook = null;
-        if (config.executionModel() == ExecutionModel.L1_FULL_SIZE_IOC) {
+        if (config.executionModel() != ExecutionModel.BAR_NEXT_OPEN) {
             quoteBook = new QuoteExecutionBook(dataset.quoteHistory().orElseThrow(),
                     config.quoteSourceName().orElseThrow(), bars.getFirst().instrumentId(),
                     new QuoteQualityPolicy(config.quoteMaximumAge(), config.quoteMaximumFutureSkew()));
@@ -172,7 +236,8 @@ public final class BacktestEngine {
                     if (latencyArrival.isAfter(executionTimestamp)) executionTimestamp = latencyArrival;
                 }
                 String executionDescription = quoteBook == null ? "local simulated market order"
-                        : "local simulated full-size L1 market IOC; arrival=" + executionTimestamp;
+                        : "local simulated " + (config.executionModel() == ExecutionModel.L1_PARTIAL_IOC
+                                ? "partial-fill" : "full-size") + " L1 market IOC; arrival=" + executionTimestamp;
                 updateOrder(orders, pending.orderIndex(), executionTimestamp, null,
                         "ACKNOWLEDGED_BY_SIMULATOR", executionDescription);
                 events.add(new SimOrderEvent(executionTimestamp, order.orderId(),
@@ -204,15 +269,16 @@ public final class BacktestEngine {
                     QuoteExecutionBook.Decision quoteDecision = null;
                     boolean quoteMiss = false;
                     if (quoteBook != null) {
-                        quoteDecision = quoteBook.evaluate(executionTimestamp, executionSide, quantity, slippageTicks);
-                        if (quoteDecision.assessment().isEmpty()
+                        quoteDecision = quoteBook.evaluate(executionTimestamp, executionSide, quantity,
+                                bar.lotSize(), slippageTicks, config.executionModel());
+                        if (quoteDecision.filledUnits() == 0 || quoteDecision.assessment().isEmpty()
                                 || !quoteDecision.assessment().orElseThrow().executable()) {
                             quoteMiss = true;
                             String detail = "reason=" + quoteDecision.reason()
                                     + quoteDecision.quote().map(quote -> "; sequence=" + quote.sequenceNumber()
                                             + "; received_at=" + quote.receivedAtUtc()).orElse("");
                             updateOrder(orders, pending.orderIndex(), executionTimestamp, null,
-                                    "CANCELED", "L1 full-size IOC canceled; " + detail);
+                                    "CANCELED", "L1 IOC canceled with no fill; " + detail);
                             events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "CANCELED", "IOC_CANCELED; " + detail));
                         } else {
                             var assessment = quoteDecision.assessment().orElseThrow();
@@ -228,6 +294,11 @@ public final class BacktestEngine {
                             .orElse(config.marginPerLotInr());
                     String marginSource = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::sourceReference)
                             .orElse("FIXED_CONFIG_PROXY");
+                    int fillQuantity = quoteBook == null ? quantity : Math.toIntExact(quoteDecision.filledUnits());
+                    if (quoteBook != null && config.executionModel() == ExecutionModel.L1_FULL_SIZE_IOC
+                            && fillQuantity != quantity) {
+                        throw new IllegalStateException("Full-size L1 IOC produced a partial fill");
+                    }
                     String riskRejection = quoteMiss ? null : fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
                             : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice, marginPerLot) : null;
                     if (quoteMiss) {
@@ -237,44 +308,56 @@ public final class BacktestEngine {
                         updateOrder(orders, pending.orderIndex(), executionTimestamp, null, "REJECTED_RISK", reason);
                         events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "REJECTED_RISK", reason));
                     } else {
-                        if (quoteBook != null) quoteBook.consume(quoteDecision, executionSide, quantity);
-                        BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(quantity));
+                        if (quoteBook != null) quoteBook.consume(quoteDecision, executionSide, fillQuantity);
+                        BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(fillQuantity));
                         String fillId = String.format("F%07d", fills.size() + 1);
                         BigDecimal fee;
                         SimFeeBreakdown feeBreakdown;
                         if (componentTerms != null) {
-                            var charges = componentTerms.calculate(fillNotional, quantity);
+                            var charges = componentTerms.calculate(fillNotional, fillQuantity);
                             feeBreakdown = SimFeeBreakdown.componentized(fillId, bar.contractKind(), fillNotional, charges);
                             fee = feeBreakdown.totalInr();
                         } else {
                             BigDecimal notionalFee = fillNotional.multiply(costTerms.notionalFeeBps())
                                     .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
                             fee = costTerms.feePerOrderInr()
-                                    .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
+                                    .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(fillQuantity)))
                                     .add(notionalFee);
                             feeBreakdown = SimFeeBreakdown.legacy(fillId, bar.contractKind(), fillNotional, fee);
                         }
-                        BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
-                        int newUnits = positionUnits(targetLots, bar.lotSize());
+                        BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(fillQuantity));
+                        if (fillQuantity % bar.lotSize() != 0) {
+                            throw new IllegalStateException("IOC fill quantity is not a whole number of market lots");
+                        }
+                        int fillLots = fillQuantity / bar.lotSize();
+                        int updatedPositionLots = side.equals("BUY")
+                                ? Math.addExact(positionLots, fillLots) : positionLots - fillLots;
+                        if (updatedPositionLots < 0) throw new IllegalStateException("IOC sell fill would create a short position");
+                        int newUnits = positionUnits(updatedPositionLots, bar.lotSize());
                         if (side.equals("BUY")) {
-                            if (positionLots != 0) throw new IllegalStateException("Simulator supports one entry and one exit per trade");
-                            averageEntry = fillPrice;
-                            openTrade = new OpenTrade(executionTimestamp, fillPrice, quantity, fee);
+                            if (openTrade == null) {
+                                openTrade = new OpenTrade(executionTimestamp, targetLots, fillPrice, fillQuantity, fee);
+                            } else {
+                                if (openTrade.exitStarted || targetLots > openTrade.targetLots) {
+                                    throw new IllegalStateException("Entry fill exceeds the original unexited trade target");
+                                }
+                                openTrade.addEntry(fillPrice, fillQuantity, fee);
+                            }
                         } else {
                             if (positionLots <= 0 || openTrade == null) throw new IllegalStateException("Invalid long-only exit state");
-                            realized = realized.add(fillPrice.subtract(averageEntry).multiply(BigDecimal.valueOf(quantity)));
-                            BigDecimal tradeGross = fillPrice.subtract(openTrade.entryPrice).multiply(BigDecimal.valueOf(quantity));
-                            BigDecimal tradeFees = openTrade.entryFee.add(fee);
+                            ClosedSlice closed = openTrade.close(fillPrice, fillQuantity, fee);
+                            realized = realized.add(closed.grossPnl());
                             String tradeId = String.format("T%07d", trades.size() + 1);
                             trades.add(new SimTrade(tradeId, bar.instrumentId(), openTrade.entryTimestamp, executionTimestamp,
-                                    quantity, openTrade.entryPrice, fillPrice, tradeGross, tradeFees, tradeGross.subtract(tradeFees)));
-                            openTrade = null;
-                            averageEntry = BigDecimal.ZERO;
+                                    fillQuantity, closed.entryPrice(), fillPrice, closed.grossPnl(), closed.fees(),
+                                    closed.grossPnl().subtract(closed.fees())));
+                            if (updatedPositionLots == 0) openTrade = null;
                         }
-                        positionLots = targetLots;
+                        positionLots = updatedPositionLots;
+                        averageEntry = openTrade == null ? BigDecimal.ZERO : openTrade.averageEntryPrice();
                         fees = fees.add(fee);
                         slippage = slippage.add(slippageCost);
-                        fills.add(new SimFill(fillId, order.orderId(), executionTimestamp, side, quantity,
+                        fills.add(new SimFill(fillId, order.orderId(), executionTimestamp, side, fillQuantity,
                                 bar.open(), fillPrice, slippageCost, fee, marginPerLot, marginSource, newUnits,
                                 config.executionModel().name(),
                                 quoteDecision == null ? null : config.quoteSourceName().orElseThrow(),
@@ -282,11 +365,25 @@ public final class BacktestEngine {
                                 quoteDecision == null ? null : quoteDecision.quote().orElseThrow().receivedAtUtc(),
                                 referenceExecutionPrice));
                         feeBreakdowns.add(feeBreakdown);
-                        String fillReason = quoteBook == null ? "full simulated market fill"
-                                : "full-size displayed L1 IOC fill; quote_sequence="
-                                        + quoteDecision.quote().orElseThrow().sequenceNumber();
-                        updateOrder(orders, pending.orderIndex(), executionTimestamp, executionTimestamp, "FILLED", fillReason);
-                        events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "FILLED", "fill_id=" + fillId));
+                        boolean partialIoc = quoteBook != null && fillQuantity < quantity;
+                        String quoteReference = quoteBook == null ? "" : "; quote_sequence="
+                                + quoteDecision.quote().orElseThrow().sequenceNumber();
+                        if (partialIoc) {
+                            String partialDetail = "fill_id=" + fillId + "; filled_units=" + fillQuantity
+                                    + "; residual_units=" + (quantity - fillQuantity) + quoteReference;
+                            updateOrder(orders, pending.orderIndex(), executionTimestamp, executionTimestamp,
+                                    "PARTIALLY_FILLED", partialDetail);
+                            events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "PARTIALLY_FILLED", partialDetail));
+                            updateOrder(orders, pending.orderIndex(), null, null, "CANCELED",
+                                    "IOC residual canceled; " + partialDetail);
+                            events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "CANCELED",
+                                    "IOC residual canceled; " + partialDetail));
+                        } else {
+                            String fillReason = quoteBook == null ? "full simulated market fill"
+                                    : "displayed L1 IOC fill" + quoteReference;
+                            updateOrder(orders, pending.orderIndex(), executionTimestamp, executionTimestamp, "FILLED", fillReason);
+                            events.add(new SimOrderEvent(executionTimestamp, order.orderId(), "FILLED", "fill_id=" + fillId));
+                        }
                     }
                 }
                 pending = null;
@@ -298,8 +395,7 @@ public final class BacktestEngine {
                         + bar.sessionDate());
             }
 
-            BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
-                    : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionUnits(positionLots, bar.lotSize())));
+            BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(bar.close());
             BigDecimal net = realized.add(unrealized).subtract(fees);
             List<Bar> availableBars = Collections.unmodifiableList(bars.subList(0, i + 1));
             StrategySignal signal = Objects.requireNonNull(strategy.evaluate(availableBars, barEnd),
@@ -333,11 +429,12 @@ public final class BacktestEngine {
                 reason = signal.status().equals("ACTIVE") ? "SMA_CROSSOVER_TARGET" : "STRATEGY_WARMING_UP";
             }
 
-            if (positionLots > 0 && targetLots > positionLots) {
+            if (positionLots > 0 && targetLots > positionLots
+                    && (openTrade == null || openTrade.exitStarted || targetLots > openTrade.targetLots)) {
                 events.add(new SimOrderEvent(barEnd, "", "STRATEGY_TARGET_REJECTED",
-                        "SCALE_IN_UNSUPPORTED; target_lots=" + targetLots));
+                        "SCALE_IN_BEYOND_ORIGINAL_ENTRY_TARGET; target_lots=" + targetLots));
                 targetLots = positionLots;
-                reason = "SCALE_IN_UNSUPPORTED";
+                reason = "SCALE_IN_BEYOND_ORIGINAL_ENTRY_TARGET";
             }
 
             if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
@@ -406,14 +503,13 @@ public final class BacktestEngine {
             BigDecimal settlementGross = BigDecimal.ZERO;
             if (positionLots > 0) {
                 if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
-                settlementGross = exitValuePerUnit.subtract(openTrade.entryPrice)
-                        .multiply(BigDecimal.valueOf(settledUnits));
-                realized = realized.add(settlementGross);
-                BigDecimal tradeFees = openTrade.entryFee.add(settlementFee);
+                ClosedSlice closed = openTrade.close(exitValuePerUnit, settledUnits, settlementFee);
+                settlementGross = closed.grossPnl();
+                realized = realized.add(closed.grossPnl());
                 String tradeId = String.format("T%07d", trades.size() + 1);
                 trades.add(new SimTrade(tradeId, lastBar.instrumentId(), openTrade.entryTimestamp,
-                        settlement.settlementTimestamp(), settledUnits, openTrade.entryPrice,
-                        exitValuePerUnit, settlementGross, tradeFees, settlementGross.subtract(tradeFees)));
+                        settlement.settlementTimestamp(), settledUnits, closed.entryPrice(),
+                        exitValuePerUnit, settlementGross, closed.fees(), settlementGross.subtract(closed.fees())));
                 positionLots = 0;
                 averageEntry = BigDecimal.ZERO;
                 openTrade = null;
@@ -444,8 +540,7 @@ public final class BacktestEngine {
                     + config.crossSessionPositionPolicy());
         }
         Bar last = bars.getLast();
-        BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
-                : last.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionUnits(positionLots, last.lotSize())));
+        BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(last.close());
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
@@ -469,8 +564,9 @@ public final class BacktestEngine {
         BacktestCheckpoint.PendingState pendingState = pending == null ? null
                 : new BacktestCheckpoint.PendingState(pending.orderIndex(), pending.targetLots(), pending.decisionSession());
         BacktestCheckpoint.OpenTradeState openTradeState = openTrade == null ? null
-                : new BacktestCheckpoint.OpenTradeState(openTrade.entryTimestamp, openTrade.entryPrice,
-                        openTrade.quantity, openTrade.entryFee);
+                : new BacktestCheckpoint.OpenTradeState(openTrade.entryTimestamp, openTrade.targetLots,
+                        openTrade.remainingEntryBasis, openTrade.remainingQuantity, openTrade.remainingEntryFee,
+                        openTrade.exitStarted);
         BacktestCheckpoint checkpoint = checkpointStore.newCheckpoint(completedBars, dataset, config, strategy,
                 signals, orders, events, fills, feeBreakdowns, trades, curve, realized, fees, slippage,
                 averageEntry, positionLots, pendingState, openTradeState, activeSession,

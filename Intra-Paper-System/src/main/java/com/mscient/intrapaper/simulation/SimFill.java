@@ -31,13 +31,14 @@ public record SimFill(
         if (marginSourceReference.isBlank() || !marginSourceReference.equals(marginSourceReference.strip())) {
             throw new IllegalArgumentException("marginSourceReference must be non-empty and trimmed");
         }
-        if (!executionModel.equals("BAR_NEXT_OPEN") && !executionModel.equals("L1_FULL_SIZE_IOC")) {
+        if (!executionModel.equals("BAR_NEXT_OPEN") && !executionModel.equals("L1_FULL_SIZE_IOC")
+                && !executionModel.equals("L1_PARTIAL_IOC")) {
             throw new IllegalArgumentException("Unsupported simulated execution model: " + executionModel);
         }
         boolean hasQuoteReference = quoteSource != null && !quoteSource.isBlank()
                 && quoteSequence > 0 && quoteReceivedAt != null;
         boolean hasAnyQuoteReference = quoteSource != null || quoteSequence != 0 || quoteReceivedAt != null;
-        if (executionModel.equals("L1_FULL_SIZE_IOC") != hasQuoteReference
+        if (!executionModel.equals("BAR_NEXT_OPEN") != hasQuoteReference
                 || hasAnyQuoteReference && !hasQuoteReference) {
             throw new IllegalArgumentException("Quote execution fills require a complete quote source/sequence/receive-time reference");
         }

@@ -307,9 +307,11 @@ public final class RunArtifactWriter {
                 + ", \"end\": " + q(bars.getLast().timestamp().toString()) + "},\n"
                 + "  \"strategy\": {\"id\": " + q(result.strategyId()) + ", \"parameters\": "
                 + mapJson(result.strategyParameters()) + "},\n"
-                + "  \"fill_model\": " + q(config.executionModel() == com.mscient.intrapaper.provenance.ExecutionModel.BAR_NEXT_OPEN
-                        ? "NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1"
-                        : "L1_TOP_OF_BOOK_FULL_SIZE_IOC_V1") + ",\n"
+                + "  \"fill_model\": " + q(switch (config.executionModel()) {
+                    case BAR_NEXT_OPEN -> "NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1";
+                    case L1_FULL_SIZE_IOC -> "L1_TOP_OF_BOOK_FULL_SIZE_IOC_V1";
+                    case L1_PARTIAL_IOC -> "L1_TOP_OF_BOOK_WHOLE_LOT_PARTIAL_IOC_V1";
+                }) + ",\n"
                 + "  \"execution_model\": {\"id\": " + q(config.executionModel().name())
                 + ", \"quote_journal_sha256\": " + data.quoteHistory()
                         .map(history -> q(history.fileSha256())).orElse("null")

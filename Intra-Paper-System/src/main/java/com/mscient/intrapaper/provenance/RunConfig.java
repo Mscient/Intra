@@ -203,9 +203,9 @@ public record RunConfig(
                 || optional(p, "execution.decision_to_arrival_latency_ms").isPresent()
                 || optional(p, "execution.quote_maximum_age_ms").isPresent()
                 || optional(p, "execution.quote_maximum_future_skew_ms").isPresent();
-        if (executionModel == ExecutionModel.L1_FULL_SIZE_IOC) {
+        if (executionModel != ExecutionModel.BAR_NEXT_OPEN) {
             if (quoteJournalPath.isEmpty() || quoteSourceName.isEmpty()) {
-                throw new IllegalArgumentException("L1_FULL_SIZE_IOC requires execution.quote_journal_file and execution.quote_source_name");
+                throw new IllegalArgumentException("L1 quote execution requires execution.quote_journal_file and execution.quote_source_name");
             }
             long latencyMillis = nonNegativeLong(p, "execution.decision_to_arrival_latency_ms");
             long maximumAgeMillis = positiveLong(p, "execution.quote_maximum_age_ms");
@@ -222,7 +222,7 @@ public record RunConfig(
                 throw new IllegalArgumentException("execution.quote_source_name must be non-empty and trimmed");
             }
         } else if (hasQuoteSettings) {
-            throw new IllegalArgumentException("Quote execution settings require execution.model=L1_FULL_SIZE_IOC");
+            throw new IllegalArgumentException("Quote execution settings require an L1 execution.model");
         }
         return new RunConfig(
                 absolute,

@@ -49,11 +49,12 @@ public record BacktestCheckpoint(
         }
     }
 
-    public record OpenTradeState(Instant entryTimestamp, BigDecimal entryPrice, int quantity,
-            BigDecimal entryFee) implements java.io.Serializable {
+    public record OpenTradeState(Instant entryTimestamp, int targetLots, BigDecimal remainingEntryBasis,
+            int remainingQuantity, BigDecimal remainingEntryFee, boolean exitStarted) implements java.io.Serializable {
         public OpenTradeState {
-            if (entryTimestamp == null || entryPrice == null || entryFee == null || quantity < 1
-                    || entryPrice.signum() <= 0 || entryFee.signum() < 0) {
+            if (entryTimestamp == null || targetLots < 1 || remainingEntryBasis == null
+                    || remainingEntryBasis.signum() <= 0 || remainingQuantity < 1
+                    || remainingEntryFee == null || remainingEntryFee.signum() < 0) {
                 throw new IllegalArgumentException("invalid open-trade checkpoint state");
             }
         }
