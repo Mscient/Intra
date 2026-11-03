@@ -78,11 +78,14 @@ public final class BacktestEngine {
             Instant barEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
                     ? bar.timestamp() : bar.timestamp().plus(interval);
             boolean sameSessionNextBar = i + 1 < bars.size() && bars.get(i + 1).sessionDate().equals(bar.sessionDate());
+            boolean nextBarIsLastSessionBar = sameSessionNextBar
+                    && (i + 2 >= bars.size() || !bars.get(i + 2).sessionDate().equals(bar.sessionDate()));
             boolean nextBarEligible = i + 1 < bars.size() && (sameSessionNextBar || config.allowNextSessionOrders());
 
             if (activeSession == null || !activeSession.equals(bar.sessionDate())) {
-                if (activeSession != null && config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.REQUIRE_FLAT && positionLots != 0) {
-                    throw new IllegalStateException("Open position crossed session boundary under REQUIRE_FLAT: " + activeSession);
+                if (activeSession != null && config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
+                    throw new IllegalStateException("Open position crossed session boundary under "
+                            + config.crossSessionPositionPolicy() + ": " + activeSession);
                 }
                 if (pending != null && !config.allowNextSessionOrders()) {
                     expire(orders, events, pending, barStart, "SESSION_BOUNDARY");
@@ -155,6 +158,12 @@ public final class BacktestEngine {
                 pending = null;
             }
 
+            if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
+                    && !sameSessionNextBar && positionLots != 0) {
+                throw new IllegalStateException("AUTO_FLATTEN_SESSION_END could not close the position by the final session bar: "
+                        + bar.sessionDate());
+            }
+
             BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO
                     : bar.close().subtract(averageEntry).multiply(BigDecimal.valueOf(positionLots * bar.lotSize()));
             BigDecimal net = realized.add(unrealized).subtract(fees);
@@ -190,6 +199,16 @@ public final class BacktestEngine {
                 reason = signal.status().equals("ACTIVE") ? "SMA_CROSSOVER_TARGET" : "STRATEGY_WARMING_UP";
             }
 
+            if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
+                    && nextBarIsLastSessionBar) {
+                if (positionLots > 0 || targetLots > 0) {
+                    targetLots = 0;
+                    reason = positionLots > 0 ? "SESSION_END_FLATTEN" : "SESSION_END_ENTRY_BLOCKED";
+                    events.add(new SimOrderEvent(barEnd, "", reason,
+                            "exit or entry block scheduled for final session bar open"));
+                }
+            }
+
             curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionLots * bar.lotSize(),
                     realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
 
@@ -205,8 +224,9 @@ public final class BacktestEngine {
             netAtPriorClose = net;
         }
 
-        if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.REQUIRE_FLAT && positionLots != 0) {
-            throw new IllegalStateException("Open position remains at end of replay under REQUIRE_FLAT");
+        if (config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
+            throw new IllegalStateException("Open position remains at end of replay under "
+                    + config.crossSessionPositionPolicy());
         }
         Bar last = bars.getLast();
         BigDecimal unrealized = averageEntry.signum() == 0 ? BigDecimal.ZERO

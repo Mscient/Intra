@@ -108,12 +108,12 @@ public record RunConfig(
             throw new IllegalArgumentException("orders.allow_next_session must be true or false");
         }
         String crossSessionPolicyText = required(p, "position.cross_session_policy");
-        if (!Set.of("ALLOW_OVERNIGHT", "REQUIRE_FLAT").contains(crossSessionPolicyText)) {
-            throw new IllegalArgumentException("position.cross_session_policy must be ALLOW_OVERNIGHT or REQUIRE_FLAT");
+        if (!Set.of("ALLOW_OVERNIGHT", "REQUIRE_FLAT", "AUTO_FLATTEN_SESSION_END").contains(crossSessionPolicyText)) {
+            throw new IllegalArgumentException("position.cross_session_policy must be ALLOW_OVERNIGHT, REQUIRE_FLAT, or AUTO_FLATTEN_SESSION_END");
         }
         CrossSessionPositionPolicy crossSessionPositionPolicy = CrossSessionPositionPolicy.valueOf(crossSessionPolicyText);
-        if (crossSessionPositionPolicy == CrossSessionPositionPolicy.REQUIRE_FLAT && Boolean.parseBoolean(allowCrossSessionText)) {
-            throw new IllegalArgumentException("position.cross_session_policy=REQUIRE_FLAT cannot be combined with orders.allow_next_session=true");
+        if (crossSessionPositionPolicy.requiresFlatAtSessionEnd() && Boolean.parseBoolean(allowCrossSessionText)) {
+            throw new IllegalArgumentException("A flat-at-session-end position policy cannot be combined with orders.allow_next_session=true");
         }
 
         String allowGapsText = required(p, "quality.allow_intrasession_gaps").toLowerCase(java.util.Locale.ROOT);
