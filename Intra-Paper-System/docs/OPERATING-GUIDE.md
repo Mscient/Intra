@@ -32,7 +32,7 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 & $java -jar $jar verify $runFolder
 ```
 
-`verify` recomputes the SHA-256 hashes for the eight output ledgers in `run-manifest.json` and checks the folder ID. It does not re-open or re-authorize source inputs.
+`verify` recomputes the SHA-256 hashes for the nine output ledgers in `run-manifest.json` and checks the folder ID. It does not re-open or re-authorize source inputs.
 
 ## Verify a quote journal
 
@@ -58,7 +58,7 @@ The command checks coverage and ordering, then prints the split-file SHA-256. It
 & $java -jar $jar replay-verify .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties $runFolder
 ```
 
-`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all eight output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
+`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all nine output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
@@ -82,7 +82,17 @@ The UTF-8 CSV has columns:
 
 `instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through`
 
-Every bar resolves by exchange, segment, source token, and session date. Its contract identity, expiry, strike/right where applicable, lot size, tick size, and symbol must match the resolved row. Each run must contain exactly one dated `FUTURE` or `OPTION` contract. Bars on or after expiry are rejected; option exercise and settlement are not modeled.
+Every bar resolves by exchange, segment, source token, and session date. Its contract identity, expiry, strike/right where applicable, lot size, tick size, and symbol must match the resolved row. Each run must contain exactly one dated `FUTURE` or `OPTION` contract. Bars after expiry are rejected. If the dataset includes an expiry-date session, an explicit settlement input is required.
+
+### Expiry settlement input
+
+Set optional `settlement.file` in the properties file when the dataset reaches the contract's actual last trading/settlement session. The UTF-8 CSV must contain exactly one row and these exact headers:
+
+`instrument_id,expiry,settlement_date,settlement_timestamp,settlement_kind,settlement_value,source_reference`
+
+`settlement_kind` must be `FUTURES_FINAL_PRICE` for a future or `UNDERLYING_FINAL_CLOSE` for an option. The value is the supplied futures final settlement price or the option's underlying final close, respectively. For a long option, the simulator computes intrinsic settlement value from the row, strike, and call/put right. The source reference is a logical identifier for the source record; it is not independently verified. The settlement timestamp must be offset-bearing, fall on the settlement date in `dataset.timezone`, and be no earlier than the final bar end. The settlement date must be the final dataset session, have complete bars, and not be after the instrument expiry. This allows a source-specified prior trading day without hardcoding an expiry weekday.
+
+The settlement input hash participates in the run identity and manifest. `settlements.csv` records the input value, derived per-unit exit value, settled units, P&L, and source reference. Settlement charges and taxes are not modeled; `fees_paid_inr` covers simulated order fills only. Results remain diagnostic and ineligible for performance claims.
 
 ## Open-session calendar
 
@@ -113,7 +123,7 @@ Before artifacts are written, an independent reconciliation pass checks realized
 
 The strategy reads a completed bar's close and may create a local market order. It can fill only at the next bar's open. BUY fills add the applicable configured/scheduled slippage ticks; SELL fills subtract them. Each fill fee includes the applicable per-order charge, per-unit charge, and notional basis-point component. A candle's high/low touching a price never creates a passive fill because passive orders are not supported.
 
-The simulator is long-only and uses full fills. For options it treats the supplied premium bars as marks and fills; it does not calculate theoretical option values or Greeks. It checks maximum lots, notional, and the fixed user-supplied margin proxy before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, exchange margin formula, exercise, settlement, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
+The simulator is long-only and uses full fills. For options it treats the supplied premium bars as marks and fills; it does not calculate theoretical option values or Greeks. It checks maximum lots, notional, and the fixed user-supplied margin proxy before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, exchange margin formula, settlement charges, or broker state are modeled. If an expiry settlement row is provided, a long position is cash-settled from that explicit input. A position may otherwise remain open after the last bar or across a session boundary.
 
 ## Run artifacts
 

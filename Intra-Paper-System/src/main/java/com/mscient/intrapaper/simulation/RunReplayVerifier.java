@@ -16,7 +16,7 @@ public final class RunReplayVerifier {
 
     private static final List<String> ARTIFACTS = List.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv",
-            "equity.csv", "sessions.csv", "summary.json", "run-manifest.json");
+            "equity.csv", "sessions.csv", "settlements.csv", "summary.json", "run-manifest.json");
 
     private RunReplayVerifier() { }
 

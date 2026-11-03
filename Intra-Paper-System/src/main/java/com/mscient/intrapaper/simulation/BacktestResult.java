@@ -12,6 +12,7 @@ public record BacktestResult(
         List<SimOrderEvent> orderEvents,
         List<SimFill> fills,
         List<SimTrade> trades,
+        List<SimSettlement> settlements,
         List<SessionAudit> sessionAudits,
         List<EquityPoint> equityCurve,
         BigDecimal realizedPnlInr,
@@ -31,6 +32,7 @@ public record BacktestResult(
         orderEvents = List.copyOf(orderEvents);
         fills = List.copyOf(fills);
         trades = List.copyOf(trades);
+        settlements = List.copyOf(settlements);
         sessionAudits = List.copyOf(sessionAudits);
         equityCurve = List.copyOf(equityCurve);
         strategyParameters = Collections.unmodifiableMap(new TreeMap<>(strategyParameters));

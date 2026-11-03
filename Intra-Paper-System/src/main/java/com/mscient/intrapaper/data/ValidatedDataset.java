@@ -2,6 +2,7 @@ package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.provenance.DatasetManifest;
 import com.mscient.intrapaper.provenance.CostSchedule;
+import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
@@ -9,6 +10,7 @@ import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ public record ValidatedDataset(
         String configSha256,
         String calendarSha256,
         Optional<CostSchedule> costSchedule,
+        Optional<ExpirySettlement> expirySettlement,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
         long expectedBarCount,
@@ -40,6 +43,8 @@ public record ValidatedDataset(
         Map<LocalDate, SessionCalendarEntry> calendar = SessionCalendarCsvReader.read(config.sessionCalendarPath());
         Optional<CostSchedule> costSchedule = config.costSchedulePath().isPresent()
                 ? Optional.of(CostSchedule.load(config.costSchedulePath().orElseThrow())) : Optional.empty();
+        Optional<ExpirySettlement> expirySettlement = config.expirySettlementPath().isPresent()
+                ? Optional.of(ExpirySettlement.load(config.expirySettlementPath().orElseThrow())) : Optional.empty();
         Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
         Bar first = bars.getFirst();
         Bar last = bars.getLast();
@@ -68,7 +73,7 @@ public record ValidatedDataset(
             if (bar.contractKind() != ContractKind.FUTURE && bar.contractKind() != ContractKind.OPTION) {
                 throw new IllegalArgumentException("This build supports dated futures and single-option premium bars only; found " + bar.contractKind());
             }
-            if (!bar.expiry().isAfter(bar.sessionDate())) {
+            if (bar.sessionDate().isAfter(bar.expiry())) {
                 throw new IllegalArgumentException("Expired contract bar is not eligible: " + bar.instrumentId() + " on " + bar.sessionDate());
             }
             var reference = master.requireContract(bar.exchange(), bar.segment(), bar.sourceToken(), bar.sessionDate());
@@ -102,6 +107,7 @@ public record ValidatedDataset(
         long expectedBarCount = 0;
         long openSessionCount = 0;
         long completeSessions = 0;
+        boolean finalSessionComplete = false;
         for (LocalDate date = first.sessionDate(); !date.isAfter(last.sessionDate()); date = date.plusDays(1)) {
             SessionCalendarEntry entry = calendar.get(date);
             if (entry == null) {
@@ -158,7 +164,38 @@ public record ValidatedDataset(
                     }
                 }
             }
-            if (sessionBars.size() == expectedForSession && !sessionHasSpacingAnomaly) completeSessions++;
+            boolean sessionComplete = sessionBars.size() == expectedForSession && !sessionHasSpacingAnomaly;
+            if (sessionComplete) completeSessions++;
+            if (date.equals(last.sessionDate())) finalSessionComplete = sessionComplete;
+        }
+
+        if (expirySettlement.isPresent()) {
+            ExpirySettlement settlement = expirySettlement.orElseThrow();
+            if (!settlement.instrumentId().equals(onlyInstrument) || !settlement.expiry().equals(onlyExpiry)) {
+                throw new IllegalArgumentException("Expiry settlement instrument/expiry does not match the bars");
+            }
+            var expectedSettlementKind = onlyKind == ContractKind.FUTURE
+                    ? ExpirySettlement.Kind.FUTURES_FINAL_PRICE : ExpirySettlement.Kind.UNDERLYING_FINAL_CLOSE;
+            if (settlement.kind() != expectedSettlementKind) {
+                throw new IllegalArgumentException("Settlement kind " + settlement.kind()
+                        + " does not match contract kind " + onlyKind + "; expected " + expectedSettlementKind);
+            }
+            if (!settlement.settlementDate().equals(last.sessionDate())) {
+                throw new IllegalArgumentException("Settlement date must equal the final dataset session date");
+            }
+            if (!finalSessionComplete) {
+                throw new IllegalArgumentException("Expiry settlement requires a complete final session");
+            }
+            if (!settlement.settlementTimestamp().atZone(timezone).toLocalDate().equals(settlement.settlementDate())) {
+                throw new IllegalArgumentException("Settlement timestamp does not resolve to settlement_date in dataset.timezone");
+            }
+            Instant lastBarEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
+                    ? last.timestamp() : last.timestamp().plus(expectedSpacing);
+            if (settlement.settlementTimestamp().isBefore(lastBarEnd)) {
+                throw new IllegalArgumentException("Settlement timestamp precedes the final bar end");
+            }
+        } else if (last.sessionDate().equals(onlyExpiry)) {
+            throw new IllegalArgumentException("A settlement input is required when the dataset includes a contract expiry-date session");
         }
 
         String barsHash = RunConfig.sha256(Files.readAllBytes(barsPath));
@@ -168,6 +205,7 @@ public record ValidatedDataset(
                 "instrument-master", master.rawFileSha256(),
                 "session-calendar", calendarHash));
         costSchedule.ifPresent(schedule -> inputs.put("cost-schedule", schedule.sha256()));
+        expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),
@@ -182,7 +220,7 @@ public record ValidatedDataset(
                 Optional.of(calendarHash),
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
-                barsHash, config.configSha256(), calendarHash, costSchedule, anomalies,
+                barsHash, config.configSha256(), calendarHash, costSchedule, expirySettlement, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 

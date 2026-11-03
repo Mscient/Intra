@@ -4,6 +4,7 @@ import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.provenance.CostSchedule;
+import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 
@@ -55,6 +56,7 @@ public final class BacktestEngine {
         List<SimOrderEvent> events = new ArrayList<>();
         List<SimFill> fills = new ArrayList<>();
         List<SimTrade> trades = new ArrayList<>();
+        List<SimSettlement> settlements = new ArrayList<>();
         List<EquityPoint> curve = new ArrayList<>();
         BigDecimal realized = BigDecimal.ZERO;
         BigDecimal fees = BigDecimal.ZERO;
@@ -224,6 +226,47 @@ public final class BacktestEngine {
             netAtPriorClose = net;
         }
 
+        if (dataset.expirySettlement().isPresent()) {
+            ExpirySettlement settlement = dataset.expirySettlement().orElseThrow();
+            Bar lastBar = bars.getLast();
+            BigDecimal exitValuePerUnit = settlementExitValue(settlement, lastBar);
+            int settledUnits = positionLots * lastBar.lotSize();
+            BigDecimal settlementGross = BigDecimal.ZERO;
+            if (positionLots > 0) {
+                if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
+                settlementGross = exitValuePerUnit.subtract(openTrade.entryPrice)
+                        .multiply(BigDecimal.valueOf(settledUnits));
+                realized = realized.add(settlementGross);
+                BigDecimal tradeFees = openTrade.entryFee;
+                String tradeId = String.format("T%07d", trades.size() + 1);
+                trades.add(new SimTrade(tradeId, lastBar.instrumentId(), openTrade.entryTimestamp,
+                        settlement.settlementTimestamp(), settledUnits, openTrade.entryPrice,
+                        exitValuePerUnit, settlementGross, tradeFees, settlementGross.subtract(tradeFees)));
+                positionLots = 0;
+                averageEntry = BigDecimal.ZERO;
+                openTrade = null;
+            }
+            settlements.add(new SimSettlement(lastBar.instrumentId(), settlement.settlementDate(),
+                    settlement.settlementTimestamp(), settlement.kind(), settlement.settlementValue(),
+                    exitValuePerUnit, settledUnits, settlementGross, settlement.sourceReference()));
+            BigDecimal settlementNet = realized.subtract(fees);
+            RiskGate.Evaluation settlementRisk = riskGate.markToMarket(settlementNet);
+            if (settlementRisk.newlyHalted()) {
+                riskHalts++;
+                events.add(new SimOrderEvent(settlement.settlementTimestamp(), "", "RISK_HALT",
+                        "EXPIRY_SETTLEMENT; session_loss_inr=" + settlementRisk.sessionLossInr().toPlainString()));
+            }
+            BigDecimal settlementHighWater = settlementNet.max(highWater);
+            BigDecimal settlementDrawdown = settlementHighWater.subtract(settlementNet);
+            if (settlementDrawdown.compareTo(maxDrawdown) > 0) maxDrawdown = settlementDrawdown;
+            highWater = settlementHighWater;
+            int lastIndex = curve.size() - 1;
+            EquityPoint priorPoint = curve.get(lastIndex);
+            curve.set(lastIndex, new EquityPoint(settlement.settlementTimestamp(), settlement.settlementDate(),
+                    priorPoint.close(), 0, realized, BigDecimal.ZERO, fees, settlementNet,
+                    riskGate.halted() ? "HALTED_SESSION" : "SETTLED"));
+        }
+
         if (config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
             throw new IllegalStateException("Open position remains at end of replay under "
                     + config.crossSessionPositionPolicy());
@@ -234,10 +277,23 @@ public final class BacktestEngine {
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
-        BacktestResult result = new BacktestResult(signals, orders, events, fills, trades, sessionAudits, curve, realized, unrealized, fees, slippage,
+        BacktestResult result = new BacktestResult(signals, orders, events, fills, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         return result;
+    }
+
+    private static BigDecimal settlementExitValue(ExpirySettlement settlement, Bar bar) {
+        return switch (settlement.kind()) {
+            case FUTURES_FINAL_PRICE -> settlement.settlementValue();
+            case UNDERLYING_FINAL_CLOSE -> {
+                BigDecimal strike = bar.strike().orElseThrow(() -> new IllegalStateException("Option settlement has no strike"));
+                BigDecimal intrinsic = bar.optionRight().orElseThrow() == com.mscient.intrapaper.reference.OptionRight.CALL
+                        ? settlement.settlementValue().subtract(strike)
+                        : strike.subtract(settlement.settlementValue());
+                yield intrinsic.max(BigDecimal.ZERO);
+            }
+        };
     }
 
     private static List<SessionAudit> reconcileSessions(ValidatedDataset dataset, RunConfig config,

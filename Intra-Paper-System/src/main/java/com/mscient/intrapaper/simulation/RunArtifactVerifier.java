@@ -21,7 +21,7 @@ public final class RunArtifactVerifier {
 
     private static final Set<String> OUTPUT_FILES = Set.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv",
-            "trades.csv", "equity.csv", "sessions.csv", "summary.json");
+            "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json");
     private static final Pattern RUN_ID = Pattern.compile(
             "\"run_id\"\\s*:\\s*\"([0-9a-f]{24})\"");
     private static final Pattern OUTPUT_SECTION = Pattern.compile(

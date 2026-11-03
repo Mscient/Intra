@@ -29,13 +29,13 @@ $java = Join-Path $env:JAVA_HOME 'bin\java.exe'
 & $java -jar $jar run .\examples\synthetic-futures-bars.csv .\examples\synthetic-run.properties
 ```
 
-Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts. The `verify` command recomputes eight output-ledger SHA-256 hashes from the manifest; it does not verify source rights or re-hash input files. `journal-verify` scans a quote journal and validates its framing, canonical encoding, sequence ordering, and SHA-256 hash chain without connecting to a data source. `replay-verify` rebuilds all run artifacts from supplied bars and configuration in a temporary folder and requires a byte-for-byte match with the saved ledgers and manifest.
+Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated identical run uses the same content ID and will fail rather than overwrite existing artifacts. The `verify` command recomputes nine output-ledger SHA-256 hashes from the manifest; it does not verify source rights or re-hash input files. `journal-verify` scans a quote journal and validates its framing, canonical encoding, sequence ordering, and SHA-256 hash chain without connecting to a data source. `replay-verify` rebuilds all run artifacts from supplied bars and configuration in a temporary folder and requires a byte-for-byte match with the saved ledgers and manifest.
 
 See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and run files.
 
 ## Scope and limitations
 
-- One dated futures or one listed option premium series per run, long-only SMA harness. Option valuation/Greeks, multi-leg strategies, expiry exercise/settlement, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
+- One dated futures or one listed option premium series per run, long-only SMA harness. Long-only expiry settlement is supported only from an explicit source-attributed input row; settlement charges are not modeled. Option valuation/Greeks, multi-leg strategies, short exposure, portfolio aggregation, passive/queue fills, partial fills, stop orders, latency, and exchange matching are not modeled.
 - No live quotes, API credentials, broker connectivity, or live order route. Simulated acknowledgements are local ledger events.
 - The configurable per-order, per-unit, notional-basis-point, and tick-slippage cost model is diagnostic, not a current exchange/broker cost schedule. The entry gate also accepts a fixed user-supplied margin-per-lot proxy; it is not an exchange margin calculation or contract-sizing advice.
 - The simulator does not implement a complete exchange-hours rule engine or exchange market-on-close behavior. `ALLOW_OVERNIGHT` permits cross-session/end-of-data positions; `REQUIRE_FLAT` fails when one remains; `AUTO_FLATTEN_SESSION_END` suppresses new entries at the penultimate bar close and schedules an open-position exit for the final bar open. The supplied calendar must be reviewed. This is a bar-model assumption, not a guaranteed real-market close.

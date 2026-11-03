@@ -69,10 +69,16 @@ public final class RunArtifactWriter {
                         session.modeledSlippageInr(), session.netPnlChangeInr(),
                         session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
                         session.endingRiskState())).toList()));
+            writeNew(stagingFolder.resolve("settlements.csv"), csv(
+                    "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,source_reference",
+                    result.settlements().stream().map(settlement -> row(settlement.instrumentId(),
+                            settlement.settlementDate(), settlement.settlementTimestamp(), settlement.kind(),
+                            settlement.settlementValue(), settlement.exitValuePerUnit(), settlement.positionUnitsSettled(),
+                            settlement.grossPnlInr(), settlement.sourceReference())).toList()));
 
             writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
             Map<String, String> outputHashes = new TreeMap<>();
-            for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "summary.json")) {
+            for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
                 outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
             }
             writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -113,6 +119,7 @@ public final class RunArtifactWriter {
                 + "  \"orders\": " + result.orders().size() + ",\n"
                 + "  \"fills\": " + result.fills().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
+                + "  \"expiry_settlements\": " + result.settlements().size() + ",\n"
                 + "  \"filled_units\": " + metrics.filledUnits() + ",\n"
                 + "  \"filled_turnover_inr\": " + q(num(metrics.filledTurnoverInr())) + ",\n"
                 + "  \"completed_trade_diagnostics\": {\"wins\": " + metrics.winningTrades()
@@ -148,8 +155,9 @@ public final class RunArtifactWriter {
         inputHashes.put("instrument_master", data.instrumentMaster().rawFileSha256());
         inputHashes.put("session_calendar", data.calendarSha256());
         data.costSchedule().ifPresent(schedule -> inputHashes.put("cost_schedule", schedule.sha256()));
+        data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         return "{\n"
-                + "  \"schema_version\": 2,\n"
+                + "  \"schema_version\": 3,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -203,6 +211,14 @@ public final class RunArtifactWriter {
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
                 + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders()
                 + ", \"cross_session_position_policy\": " + q(config.crossSessionPositionPolicy().name()) + "},\n"
+                + "  \"expiry_settlement\": " + data.expirySettlement().map(settlement ->
+                        "{\"date\": " + q(settlement.settlementDate().toString())
+                        + ", \"timestamp\": " + q(settlement.settlementTimestamp().toString())
+                        + ", \"kind\": " + q(settlement.kind().name())
+                        + ", \"value\": " + q(num(settlement.settlementValue()))
+                        + ", \"source_reference\": " + q(settlement.sourceReference())
+                        + ", \"sha256\": " + q(settlement.sha256()) + "}").orElse("null") + ",\n"
+                + "  \"settlement_charges_modeled\": false,\n"
                 + "  \"margin_model\": \"FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN\",\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"

@@ -15,6 +15,22 @@ public final class RunLedgerReconciler {
         for (SimTrade trade : result.trades()) tradeGross = tradeGross.add(trade.grossPnlInr());
         requireEqual("trade gross P&L vs realized P&L", tradeGross, result.realizedPnlInr());
 
+        if (result.settlements().size() > 1) fail("single-contract run has more than one expiry settlement");
+        for (SimSettlement settlement : result.settlements()) {
+            if (settlement.positionUnitsSettled() < 0) fail("negative settled position units");
+            if (settlement.positionUnitsSettled() == 0) {
+                requireEqual("flat settlement gross P&L", BigDecimal.ZERO, settlement.grossPnlInr());
+            } else {
+                long matchingTrades = result.trades().stream()
+                        .filter(trade -> trade.exitTimestamp().equals(settlement.settlementTimestamp()))
+                        .filter(trade -> trade.quantityUnits() == settlement.positionUnitsSettled())
+                        .filter(trade -> trade.exitPrice().compareTo(settlement.exitValuePerUnit()) == 0)
+                        .filter(trade -> trade.grossPnlInr().compareTo(settlement.grossPnlInr()) == 0)
+                        .count();
+                if (matchingTrades != 1) fail("settlement does not reconcile to exactly one completed trade");
+            }
+        }
+
         BigDecimal fillFees = BigDecimal.ZERO;
         BigDecimal fillSlippage = BigDecimal.ZERO;
         Map<String, Integer> fillsByOrder = new HashMap<>();
