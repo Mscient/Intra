@@ -54,7 +54,6 @@ public final class BarsCsvReader {
                 if (role != config.timestampRole() || role == TimestampRole.UNKNOWN || role == TimestampRole.EVENT_TIME) {
                     throw new IllegalArgumentException("row timestamp_role must match configured BAR_START or BAR_END role");
                 }
-                long oi = optionalLong(row.get("open_interest"), "open_interest");
                 bars.add(new Bar(
                         timestamp,
                         timestamp.atZone(timezone).toLocalDate(),
@@ -76,8 +75,8 @@ public final class BarsCsvReader {
                         new BigDecimal(required(row, "high")),
                         new BigDecimal(required(row, "low")),
                         new BigDecimal(required(row, "close")),
-                        Long.parseLong(required(row, "volume")),
-                        oi < 0 ? null : oi,
+                        optionalLong(row.get("volume"), "volume"),
+                        optionalLong(row.get("open_interest"), "open_interest"),
                         required(row, "source"),
                         required(row, "raw_record_hash")));
             } catch (RuntimeException invalidRow) {
@@ -98,8 +97,9 @@ public final class BarsCsvReader {
         return value;
     }
 
-    private static long optionalLong(String value, String name) {
-        if (value == null || value.isBlank()) return -1;
+    private static Long optionalLong(String value, String name) {
+        if (value == null || value.isBlank()) return null;
+        if (!value.equals(value.strip())) throw new IllegalArgumentException(name + " must be trimmed");
         long parsed = Long.parseLong(value);
         if (parsed < 0) throw new IllegalArgumentException(name + " must be non-negative or blank");
         return parsed;

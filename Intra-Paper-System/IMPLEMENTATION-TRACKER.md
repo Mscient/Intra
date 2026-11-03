@@ -31,6 +31,7 @@
 - [x] Quote-journal verification reports sequence jumps and total skipped sequence integers between records without assuming a starting sequence or equating jumps with packet loss.
 - [x] Effective-dated instrument references and immutable master-snapshot model.
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
+- [x] Bar volume and open interest preserve absent values as null and retain numeric zero distinctly.
 - [x] User-supplied session calendar and as-of dated instrument-master CSV resolution; one dated futures or option contract per run; no expiry stitching.
 - [x] Session completeness checks against supplied first/last bar labels and expected interval grid; missing open sessions fail closed.
 - [x] Diagnostic gap overrides have an explicit maximum estimated missing-bar deficit per session; the default remains zero.

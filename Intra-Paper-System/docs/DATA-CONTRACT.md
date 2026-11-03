@@ -4,6 +4,8 @@ This contract now has an offline derivatives-bar validator and replay path. It s
 
 The command-line CSV schemas and running instructions are documented in [OPERATING-GUIDE.md](OPERATING-GUIDE.md). The implementation accepts one dated futures contract or one listed-option premium series per run. For options, the supplied bars are premiums; valuation, Greeks, multi-leg positions, exercise, and settlement are not modeled.
 
+Volume and open interest may be blank when the source does not provide them. The parser preserves missing values as null and preserves numeric zero; downstream strategies must not interpret null as zero.
+
 ## Instrument master
 
 `InstrumentReference` retains source token, exchange, segment, trading symbol, contract kind, underlying, expiry, strike/right where applicable, lot size, tick size, and an inclusive effective-date range. `InstrumentMasterSnapshot` binds those records to a retrieval time, effective-from date, and raw source-file SHA-256.

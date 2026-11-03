@@ -32,7 +32,7 @@ public record Bar(
         BigDecimal high,
         BigDecimal low,
         BigDecimal close,
-        long volume,
+        Long volume,
         Long openInterest,
         String source,
         String rawRecordHash) {
@@ -57,8 +57,8 @@ public record Bar(
         high = positive(high, "high");
         low = positive(low, "low");
         close = positive(close, "close");
-        if (lotSize < 1 || volume < 0 || (openInterest != null && openInterest < 0)) {
-            throw new IllegalArgumentException("lot size must be positive; volume/open interest must be non-negative");
+        if (lotSize < 1 || (volume != null && volume < 0) || (openInterest != null && openInterest < 0)) {
+            throw new IllegalArgumentException("lot size must be positive; present volume/open interest must be non-negative");
         }
         if (contractKind == ContractKind.FUTURE && (strike.isPresent() || optionRight.isPresent())) {
             throw new IllegalArgumentException("Future bars must not have strike or option right");
