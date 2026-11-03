@@ -50,6 +50,8 @@ Java callers may use `QuoteJournalWriter.resume(path)` to continue an existing j
 
 Java callers may apply `QuoteQualityPolicy(maximumAge, maximumFutureSkew)` to get stale/future exchange-timestamp flags in addition to the quote's structural quality flags. Both durations are explicit inputs; the assessor retains the snapshot and does not choose an exchange or broker tolerance. Missing exchange time remains flagged by the base quote assessment.
 
+`QuoteExecutionGate.assess(...)` evaluates a normalized quote at the caller's decision time. It rejects a contract mismatch, a receive timestamp later than the decision, any structural/freshness flag, insufficient displayed size, integer price overflow, or a non-positive adverse-slippage price. BUY uses the ask and SELL the bid, then applies caller-supplied adverse ticks. It accepts only full displayed-size top-of-book snapshots; it does not model queue priority, partial fills, latency, or a broker/exchange execution guarantee, and the current CLI/backtest engine does not call this helper.
+
 Journal creation uses create-new semantics. If initialization fails, the writer closes the handle and removes the file it just created so an incomplete header cannot masquerade as a valid empty journal.
 
 ## Validate a chronological evaluation split

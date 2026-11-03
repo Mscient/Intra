@@ -27,6 +27,7 @@
 - [x] Generic raw-capture import replays through a caller-supplied decoder, assigns local quote-journal sequence numbers, verifies the normalized output, and publishes it atomically without overwriting an existing destination.
 - [x] Added Git ignore patterns for local raw-capture and quote-journal extensions to reduce accidental staging; these patterns are not an access-control mechanism.
 - [x] Configurable event-time quote freshness assessment flags stale and future-dated snapshots while retaining the original quote; thresholds remain caller-supplied and no feed-specific tolerance is presumed.
+- [x] Quote execution eligibility helper assesses freshness at the decision clock and requires matching instrument, clean quote quality, full displayed size, and positive adverse-slippage price; it does not model partial fills or queue position and is not wired to a feed.
 - [x] Quote-journal verification reports sequence jumps and total skipped sequence integers between records without assuming a starting sequence or equating jumps with packet loss.
 - [x] Effective-dated instrument references and immutable master-snapshot model.
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
