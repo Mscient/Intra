@@ -3,6 +3,7 @@ package com.mscient.intrapaper.cli;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
+import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
@@ -35,6 +36,12 @@ public final class IntraPaperCli {
                 System.out.printf("VERIFIED JOURNAL: events=%d; last_sequence=%d; sequence_gaps=%d; missing_sequence_numbers=%d; bytes=%d; final_hash=%s%n",
                         summary.eventCount(), summary.lastSequenceNumber(), summary.sequenceGapCount(),
                         summary.missingSequenceNumbers(), summary.bytesRead(), summary.finalHashHex());
+                return;
+            }
+            if (args.length == 2 && args[0].equals("raw-capture-verify")) {
+                var summary = RawCaptureJournalReader.replay(Path.of(args[1]), message -> { });
+                System.out.printf("VERIFIED RAW CAPTURE: events=%d; bytes=%d; final_hash=%s%n",
+                        summary.eventCount(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
             if (args.length == 4 && args[0].equals("replay-verify")) {
@@ -94,11 +101,13 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
+                + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
+                + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
