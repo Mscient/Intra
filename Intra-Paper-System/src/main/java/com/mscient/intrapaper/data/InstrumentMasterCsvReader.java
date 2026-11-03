@@ -8,7 +8,6 @@ import com.mscient.intrapaper.reference.OptionRight;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,7 @@ public final class InstrumentMasterCsvReader {
             }
         }
         if (instruments.isEmpty()) throw new IllegalArgumentException("Instrument master CSV contains no records");
-        String masterHash = RunConfig.sha256(Files.readAllBytes(config.instrumentMasterPath()));
+        String masterHash = table.sha256();
         return new InstrumentMasterSnapshot(1, config.snapshotId(), config.snapshotSourceName(),
                 config.snapshotRetrievedAt(), config.snapshotEffectiveFrom(), masterHash, instruments);
     }

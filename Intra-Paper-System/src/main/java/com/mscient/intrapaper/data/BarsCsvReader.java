@@ -16,6 +16,12 @@ import java.util.List;
 import java.util.Optional;
 
 public final class BarsCsvReader {
+    public record ReadResult(List<Bar> bars, String sha256) {
+        public ReadResult {
+            bars = List.copyOf(bars);
+        }
+    }
+
     private static final String[] REQUIRED = {
             "timestamp", "instrument_id", "exchange", "segment", "source_token", "trading_symbol",
             "contract_kind", "underlying", "expiry", "strike", "option_right", "lot_size", "tick_size", "interval",
@@ -26,6 +32,10 @@ public final class BarsCsvReader {
     private BarsCsvReader() { }
 
     public static List<Bar> read(java.nio.file.Path path, RunConfig config) throws IOException {
+        return readWithHash(path, config).bars();
+    }
+
+    public static ReadResult readWithHash(java.nio.file.Path path, RunConfig config) throws IOException {
         CsvTable table = CsvTable.read(path);
         table.requireHeaders(REQUIRED);
         List<Bar> bars = new ArrayList<>();
@@ -77,7 +87,7 @@ public final class BarsCsvReader {
         if (bars.isEmpty()) {
             throw new IllegalArgumentException("Bars CSV contains no data rows");
         }
-        return List.copyOf(bars);
+        return new ReadResult(bars, table.sha256());
     }
 
     private static String required(java.util.Map<String, String> row, String name) {

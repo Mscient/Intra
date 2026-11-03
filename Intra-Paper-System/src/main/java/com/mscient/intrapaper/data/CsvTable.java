@@ -2,23 +2,38 @@ package com.mscient.intrapaper.data;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** Small strict UTF-8 CSV reader for the versioned local input contracts. */
-public record CsvTable(List<String> headers, List<Map<String, String>> rows) {
+public record CsvTable(List<String> headers, List<Map<String, String>> rows, String sha256) {
     public CsvTable {
         headers = List.copyOf(headers);
         rows = List.copyOf(rows);
+        if (sha256 == null || !sha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("Invalid CSV input SHA-256");
+        }
     }
 
     public static CsvTable read(Path path) throws IOException {
-        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new DigestInputStream(Files.newInputStream(path), digest), StandardCharsets.UTF_8))) {
             String headerLine = reader.readLine();
             if (headerLine == null) {
                 throw new IllegalArgumentException("CSV is empty: " + path);
@@ -49,7 +64,7 @@ public record CsvTable(List<String> headers, List<Map<String, String>> rows) {
                 }
                 rows.add(Map.copyOf(row));
             }
-            return new CsvTable(headers, rows);
+            return new CsvTable(headers, rows, HexFormat.of().formatHex(digest.digest()));
         }
     }
 

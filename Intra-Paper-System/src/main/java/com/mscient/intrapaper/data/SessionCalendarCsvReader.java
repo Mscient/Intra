@@ -9,9 +9,19 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class SessionCalendarCsvReader {
+    public record ReadResult(Map<LocalDate, SessionCalendarEntry> sessions, String sha256) {
+        public ReadResult {
+            sessions = Map.copyOf(sessions);
+        }
+    }
+
     private SessionCalendarCsvReader() { }
 
     public static Map<LocalDate, SessionCalendarEntry> read(java.nio.file.Path path) throws IOException {
+        return readWithHash(path).sessions();
+    }
+
+    public static ReadResult readWithHash(java.nio.file.Path path) throws IOException {
         CsvTable table = CsvTable.read(path);
         table.requireHeaders("session_date", "session_status", "first_bar_timestamp", "last_bar_timestamp");
         Map<LocalDate, SessionCalendarEntry> sessions = new HashMap<>();
@@ -33,7 +43,7 @@ public final class SessionCalendarCsvReader {
         if (sessions.isEmpty() || sessions.values().stream().noneMatch(SessionCalendarEntry::open)) {
             throw new IllegalArgumentException("Session calendar has no OPEN sessions");
         }
-        return Map.copyOf(sessions);
+        return new ReadResult(sessions, table.sha256());
     }
 
     private static String required(Map<String, String> row, String name) {

@@ -2,10 +2,8 @@ package com.mscient.intrapaper.evaluation;
 
 import com.mscient.intrapaper.data.CsvTable;
 import com.mscient.intrapaper.data.ValidatedDataset;
-import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -72,8 +70,7 @@ public record EvaluationSplitPlan(Map<Partition, List<LocalDate>> sessions, Stri
                 throw new IllegalArgumentException("Evaluation split must contain at least one " + partition + " session");
             }
         }
-        String hash = RunConfig.sha256(Files.readAllBytes(splitPath));
-        return new EvaluationSplitPlan(splitSessions, hash);
+        return new EvaluationSplitPlan(splitSessions, table.sha256());
     }
 
     public Summary summary(Partition partition) {

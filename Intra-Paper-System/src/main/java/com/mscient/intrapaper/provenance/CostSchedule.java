@@ -4,7 +4,6 @@ import com.mscient.intrapaper.data.CsvTable;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -70,7 +69,7 @@ public record CostSchedule(List<Entry> entries, String sha256) {
             }
             prior.put(entry.side(), entry);
         }
-        return new CostSchedule(entries, RunConfig.sha256(Files.readAllBytes(path)));
+        return new CostSchedule(entries, table.sha256());
     }
 
     public Terms require(LocalDate date, Side side) {

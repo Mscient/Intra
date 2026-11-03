@@ -4,7 +4,6 @@ import com.mscient.intrapaper.data.CsvTable;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -53,7 +52,7 @@ public record ExpirySettlement(
             BigDecimal value = new BigDecimal(required(row, "settlement_value"));
             String source = required(row, "source_reference");
             return new ExpirySettlement(instrumentId, expiry, date, timestamp, kind, value, source,
-                    RunConfig.sha256(Files.readAllBytes(path)));
+                    table.sha256());
         } catch (RuntimeException invalid) {
             throw new IllegalArgumentException("Invalid expiry settlement row 2: " + invalid.getMessage(), invalid);
         }

@@ -8,7 +8,6 @@ import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,10 +36,12 @@ public record ValidatedDataset(
         long completeSessionCount) {
 
     public static ValidatedDataset load(java.nio.file.Path barsPath, RunConfig config) throws IOException {
-        List<Bar> bars = BarsCsvReader.read(barsPath, config);
+        BarsCsvReader.ReadResult barsRead = BarsCsvReader.readWithHash(barsPath, config);
+        List<Bar> bars = barsRead.bars();
         Duration expectedSpacing = IntervalSupport.duration(config.interval());
         InstrumentMasterSnapshot master = InstrumentMasterCsvReader.read(config);
-        Map<LocalDate, SessionCalendarEntry> calendar = SessionCalendarCsvReader.read(config.sessionCalendarPath());
+        SessionCalendarCsvReader.ReadResult calendarRead = SessionCalendarCsvReader.readWithHash(config.sessionCalendarPath());
+        Map<LocalDate, SessionCalendarEntry> calendar = calendarRead.sessions();
         Optional<CostSchedule> costSchedule = config.costSchedulePath().isPresent()
                 ? Optional.of(CostSchedule.load(config.costSchedulePath().orElseThrow())) : Optional.empty();
         Optional<ExpirySettlement> expirySettlement = config.expirySettlementPath().isPresent()
@@ -198,8 +199,8 @@ public record ValidatedDataset(
             throw new IllegalArgumentException("A settlement input is required when the dataset includes a contract expiry-date session");
         }
 
-        String barsHash = RunConfig.sha256(Files.readAllBytes(barsPath));
-        String calendarHash = RunConfig.sha256(Files.readAllBytes(config.sessionCalendarPath()));
+        String barsHash = barsRead.sha256();
+        String calendarHash = calendarRead.sha256();
         Map<String, String> inputs = new java.util.TreeMap<>(Map.of(
                 "bars", barsHash,
                 "instrument-master", master.rawFileSha256(),

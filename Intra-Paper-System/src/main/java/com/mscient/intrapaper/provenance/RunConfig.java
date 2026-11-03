@@ -73,7 +73,8 @@ public record RunConfig(
     public static RunConfig load(Path path) throws IOException {
         Path absolute = path.toAbsolutePath().normalize();
         Properties p = new Properties();
-        String configText = Files.readString(absolute, StandardCharsets.UTF_8);
+        byte[] configBytes = Files.readAllBytes(absolute);
+        String configText = new String(configBytes, StandardCharsets.UTF_8);
         if (configText.startsWith("\uFEFF")) configText = configText.substring(1);
         p.load(new StringReader(configText));
         Set<String> unknown = new HashSet<>(p.stringPropertyNames());
@@ -150,7 +151,7 @@ public record RunConfig(
         Path base = absolute.getParent();
         return new RunConfig(
                 absolute,
-                sha256(Files.readAllBytes(absolute)),
+                sha256(configBytes),
                 logicalId(required(p, "dataset.id"), "dataset.id"),
                 required(p, "dataset.source_name"),
                 Instant.parse(required(p, "dataset.acquired_at_utc")),
