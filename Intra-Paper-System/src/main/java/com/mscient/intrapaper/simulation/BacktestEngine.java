@@ -280,6 +280,7 @@ public final class BacktestEngine {
         BacktestResult result = new BacktestResult(signals, orders, events, fills, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionLots * last.lotSize(), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
+        RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
         return result;
     }
 

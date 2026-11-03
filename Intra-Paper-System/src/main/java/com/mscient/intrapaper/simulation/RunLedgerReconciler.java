@@ -1,8 +1,16 @@
 package com.mscient.intrapaper.simulation;
 
+import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.provenance.RunConfig;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -87,6 +95,63 @@ public final class RunLedgerReconciler {
         requireEqual("final equity unrealized P&L", last.unrealizedPnlInr(), result.unrealizedPnlInr());
         requireEqual("final equity fees", last.feesPaidInr(), result.feesPaidInr());
         if (last.positionUnits() != result.finalPositionUnits()) fail("final equity position does not match run position");
+    }
+
+    /** Independently rechecks simulated entry limits and daily-loss halt behavior from saved ledgers. */
+    public static void requireRiskLimitsConsistent(BacktestResult result, RunConfig config, ValidatedDataset dataset) {
+        int lotSize = dataset.bars().getFirst().lotSize();
+        Map<String, SimOrder> orders = new HashMap<>();
+        result.orders().forEach(order -> orders.put(order.orderId(), order));
+        for (SimFill fill : result.fills()) {
+            if (!fill.side().equals("BUY")) continue;
+            SimOrder order = orders.get(fill.orderId());
+            if (order == null) fail("risk audit fill has no order: " + fill.fillId());
+            int lots = order.requestedUnits() / lotSize;
+            if (order.requestedUnits() % lotSize != 0 || lots < 1 || lots > config.maxPositionLots()) {
+                fail("entry fill exceeds configured lot limit: " + fill.fillId());
+            }
+            BigDecimal notional = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
+            if (notional.compareTo(config.maxNotionalInr()) > 0) fail("entry fill exceeds configured notional limit: " + fill.fillId());
+            if (config.marginPerLotInr().multiply(BigDecimal.valueOf(lots)).compareTo(config.maxMarginInr()) > 0) {
+                fail("entry fill exceeds configured margin proxy: " + fill.fillId());
+            }
+        }
+
+        ZoneId zone = ZoneId.of(config.timezone());
+        Map<LocalDate, List<SimOrderEvent>> haltsByDate = new HashMap<>();
+        for (SimOrderEvent event : result.orderEvents()) {
+            if (event.event().equals("RISK_HALT")) {
+                haltsByDate.computeIfAbsent(event.timestamp().atZone(zone).toLocalDate(), ignored -> new ArrayList<>()).add(event);
+            }
+        }
+        Map<LocalDate, List<EquityPoint>> pointsByDate = new java.util.TreeMap<>();
+        for (EquityPoint point : result.equityCurve()) {
+            pointsByDate.computeIfAbsent(point.sessionDate(), ignored -> new ArrayList<>()).add(point);
+        }
+        BigDecimal priorSessionNet = BigDecimal.ZERO;
+        for (Map.Entry<LocalDate, List<EquityPoint>> entry : pointsByDate.entrySet()) {
+            List<EquityPoint> points = entry.getValue();
+            points.sort(Comparator.comparing(EquityPoint::timestamp));
+            boolean breached = false;
+            for (EquityPoint point : points) {
+                if (priorSessionNet.subtract(point.netPnlInr()).compareTo(config.maxDailyLossInr()) >= 0) {
+                    breached = true;
+                    boolean hasHalt = haltsByDate.getOrDefault(entry.getKey(), List.of()).stream()
+                            .anyMatch(event -> !event.timestamp().isBefore(point.timestamp()));
+                    if (!hasHalt) fail("daily loss limit breached without a recorded risk halt on " + entry.getKey());
+                    break;
+                }
+            }
+            if (breached) {
+                for (SimFill fill : result.fills()) {
+                    if (!fill.side().equals("BUY") || !fill.timestamp().atZone(zone).toLocalDate().equals(entry.getKey())) continue;
+                    boolean afterHalt = haltsByDate.getOrDefault(entry.getKey(), List.of()).stream()
+                            .anyMatch(event -> !fill.timestamp().isBefore(event.timestamp()));
+                    if (afterHalt) fail("new entry fill occurred at/after a session risk halt: " + fill.fillId());
+                }
+            }
+            if (!points.isEmpty()) priorSessionNet = points.getLast().netPnlInr();
+        }
     }
 
     private static void requireEqual(String label, BigDecimal left, BigDecimal right) {

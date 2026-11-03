@@ -127,7 +127,7 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 
 ## Fill, risk, and accounting behavior
 
-Before artifacts are written, an independent reconciliation pass checks realized trade P&L, fill fees and slippage, final order events, per-session totals, and the last equity mark. Any mismatch fails the run.
+Before artifacts are written, independent reconciliation passes check realized trade P&L, fill fees and slippage, final order events, per-session totals, and the last equity mark. A separate risk audit rechecks each BUY fill against configured lot, notional, and margin-proxy limits, verifies a halt is recorded whenever marked session loss reaches its configured limit, and rejects any later same-session entry. Any mismatch fails the run.
 
 The strategy reads a completed bar's close and may create a local market order. It can fill only at the next bar's open. BUY fills add the applicable configured/scheduled slippage ticks; SELL fills subtract them. Each fill fee includes the applicable per-order charge, per-unit charge, and notional basis-point component. A candle's high/low touching a price never creates a passive fill because passive orders are not supported.
 
