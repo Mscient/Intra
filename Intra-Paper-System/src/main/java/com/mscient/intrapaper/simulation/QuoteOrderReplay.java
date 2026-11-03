@@ -137,6 +137,7 @@ public final class QuoteOrderReplay {
         for (Intent intent : stableIntents) {
             if (!orderIds.add(intent.orderId())) throw new IllegalArgumentException("Batch order IDs must be unique");
         }
+        QuoteHistoryIndex quoteIndex = new QuoteHistoryIndex(quoteHistory);
         List<Integer> arrivalOrder = new ArrayList<>(stableIntents.size());
         for (int index = 0; index < stableIntents.size(); index++) arrivalOrder.add(index);
         arrivalOrder.sort(Comparator.comparing((Integer index) -> arrivalTime(stableIntents.get(index)))
@@ -147,16 +148,16 @@ public final class QuoteOrderReplay {
         for (int index : arrivalOrder) {
             Intent intent = stableIntents.get(index);
             Instant arrival = arrivalTime(intent);
-            MarketQuote quote = latestAsOf(quoteHistory, intent, arrival);
+            MarketQuote quote = quoteIndex.latestAsOf(intent, arrival);
             Outcome outcome;
             if (quote == null) {
-                outcome = execute(quoteHistory, intent, qualityPolicy, null);
+                outcome = executeSelected(null, intent, qualityPolicy, arrival, null);
             } else {
                 QuoteConsumptionKey key = new QuoteConsumptionKey(quote.source(), quote.instrumentId(),
                         quote.sequenceNumber(), intent.side());
                 long available = remainingByQuote.computeIfAbsent(key, ignored -> intent.side() == ExecutionEvent.Side.BUY
                         ? quote.askQuantity() : quote.bidQuantity());
-                outcome = execute(quoteHistory, intent, qualityPolicy, available);
+                outcome = executeSelected(quote, intent, qualityPolicy, arrival, available);
                 remainingByQuote.put(key, available - outcome.filledUnits());
             }
             outcomes[index] = withModelId(outcome, BATCH_MODEL_ID);
@@ -173,26 +174,19 @@ public final class QuoteOrderReplay {
      * quote depletion, so it is not a portfolio-capacity or conservative fill lower-bound model.
      */
     public static Outcome execute(List<MarketQuote> quoteHistory, Intent intent, QuoteQualityPolicy qualityPolicy) {
-        return execute(quoteHistory, intent, qualityPolicy, null);
-    }
-
-    private static Outcome execute(List<MarketQuote> quoteHistory, Intent intent,
-            QuoteQualityPolicy qualityPolicy, Long displayedUnitsLimit) {
         Objects.requireNonNull(quoteHistory, "quoteHistory");
         Objects.requireNonNull(intent, "intent");
         Objects.requireNonNull(qualityPolicy, "qualityPolicy");
-        Instant arrival;
-        try {
-            arrival = intent.decisionTimestamp().plus(intent.decisionToArrivalLatency());
-        } catch (RuntimeException invalidLatency) {
-            throw new IllegalArgumentException("decision-to-arrival time is outside the supported Instant range", invalidLatency);
-        }
+        Instant arrival = arrivalTime(intent);
+        return executeSelected(latestAsOf(quoteHistory, intent, arrival), intent, qualityPolicy, arrival, null);
+    }
 
+    private static Outcome executeSelected(MarketQuote quote, Intent intent, QuoteQualityPolicy qualityPolicy,
+            Instant arrival, Long displayedUnitsLimit) {
         List<StateEvent> events = new ArrayList<>();
         events.add(new StateEvent(intent.decisionTimestamp(), OmsOrderState.CREATED, "INTENT_CREATED"));
         OmsOrderState current = transition(events, OmsOrderState.CREATED, OmsOrderState.PENDING_NEW,
                 intent.decisionTimestamp(), "SIMULATED_SUBMISSION");
-        MarketQuote quote = latestAsOf(quoteHistory, intent, arrival);
         if (quote == null) {
             current = transition(events, current, OmsOrderState.WORKING, arrival, "NO_MATCHING_QUOTE_AT_ARRIVAL");
             current = transition(events, current, OmsOrderState.CANCELED, arrival, "IOC_NO_QUOTE");
@@ -329,4 +323,46 @@ public final class QuoteOrderReplay {
 
     private record QuoteConsumptionKey(String source, String instrumentId, long sequence,
             ExecutionEvent.Side side) { }
+
+    private record QuoteStreamKey(String source, String instrumentId) { }
+
+    /** Binary searchable journal-order-independent quote index used for multi-intent replay. */
+    private static final class QuoteHistoryIndex {
+        private static final Comparator<MarketQuote> RECEIVED_ORDER = Comparator
+                .comparing(MarketQuote::receivedAtUtc).thenComparingLong(MarketQuote::sequenceNumber);
+
+        private final Map<QuoteStreamKey, List<MarketQuote>> byStream;
+
+        private QuoteHistoryIndex(List<MarketQuote> history) {
+            Map<QuoteStreamKey, List<MarketQuote>> grouped = new HashMap<>();
+            for (MarketQuote quote : history) {
+                Objects.requireNonNull(quote, "quoteHistory element");
+                QuoteStreamKey key = new QuoteStreamKey(quote.source(), quote.instrumentId());
+                grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(quote);
+            }
+            grouped.values().forEach(quotes -> quotes.sort(RECEIVED_ORDER));
+            Map<QuoteStreamKey, List<MarketQuote>> stable = new HashMap<>();
+            grouped.forEach((key, quotes) -> stable.put(key, List.copyOf(quotes)));
+            byStream = Map.copyOf(stable);
+        }
+
+        private MarketQuote latestAsOf(Intent intent, Instant arrival) {
+            List<MarketQuote> quotes = byStream.get(new QuoteStreamKey(intent.source(), intent.instrumentId()));
+            if (quotes == null) return null;
+            int low = 0;
+            int high = quotes.size();
+            while (low < high) {
+                int middle = (low + high) >>> 1;
+                if (!quotes.get(middle).receivedAtUtc().isAfter(arrival)) low = middle + 1;
+                else high = middle;
+            }
+            for (int index = low - 1; index >= 0; index--) {
+                MarketQuote candidate = quotes.get(index);
+                if (candidate.exchangeTimestampUtc().filter(time -> time.isAfter(arrival)).isEmpty()) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+    }
 }
