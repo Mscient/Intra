@@ -62,6 +62,12 @@ public final class RunArtifactWriter {
                         result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
                             fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
                             fill.feeInr(), fill.positionUnitsAfter())).toList()));
+                writeNew(stagingFolder.resolve("fee-breakdowns.csv"), csv(
+                        "fill_id,cost_model,contract_kind,traded_value_inr,legacy_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr",
+                        result.feeBreakdowns().stream().map(fee -> row(fee.fillId(), fee.costModel(), fee.contractKind(),
+                                fee.tradedValueInr(), fee.legacyFeeInr(), fee.brokerageInr(), fee.exchangeTransactionInr(),
+                                fee.ipftContributionInr(), fee.sebiTurnoverInr(), fee.sttInr(), fee.stampDutyInr(),
+                                fee.gstTaxableBaseInr(), fee.gstInr(), fee.totalInr())).toList()));
                 writeNew(stagingFolder.resolve("trades.csv"), csv(
                         "trade_id,instrument_id,entry_timestamp,exit_timestamp,quantity_units,entry_price,exit_price,gross_pnl_inr,fees_inr,net_pnl_inr",
                         result.trades().stream().map(trade -> row(trade.tradeId(), trade.instrumentId(), trade.entryTimestamp(),
@@ -89,7 +95,8 @@ public final class RunArtifactWriter {
 
                 writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
                 Map<String, String> outputHashes = new TreeMap<>();
-                for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
+                for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
+                        "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
                 writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
@@ -190,6 +197,7 @@ public final class RunArtifactWriter {
                 + "  \"incomplete_open_sessions\": " + (data.openSessionCount() - data.completeSessionCount()) + ",\n"
                 + "  \"orders\": " + result.orders().size() + ",\n"
                 + "  \"fills\": " + result.fills().size() + ",\n"
+                + "  \"fee_breakdowns\": " + result.feeBreakdowns().size() + ",\n"
                 + "  \"completed_trades\": " + result.trades().size() + ",\n"
                 + "  \"expiry_settlements\": " + result.settlements().size() + ",\n"
                 + "  \"filled_units\": " + metrics.filledUnits() + ",\n"
@@ -227,9 +235,10 @@ public final class RunArtifactWriter {
         inputHashes.put("instrument_master", data.instrumentMaster().rawFileSha256());
         inputHashes.put("session_calendar", data.calendarSha256());
         data.costSchedule().ifPresent(schedule -> inputHashes.put("cost_schedule", schedule.sha256()));
+        data.componentCostSchedule().ifPresent(schedule -> inputHashes.put("component_cost_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         return "{\n"
-                + "  \"schema_version\": 3,\n"
+                + "  \"schema_version\": 4,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -270,12 +279,18 @@ public final class RunArtifactWriter {
                 + "  \"partial_fills_supported\": false,\n"
                 + "  \"cost_model\": {\"status\": " + q(config.costStatus()) + ", \"evidence_reference\": "
                 + optionalJson(config.costEvidenceReference()) + ", \"slippage_ticks\": " + config.slippageTicks()
+                + ", \"slippage_ticks_source\": " + q(data.componentCostSchedule().isPresent()
+                        ? "component_cost_schedule" : "legacy_inputs_or_schedule")
                 + ", \"fee_per_order_inr\": " + q(num(config.feePerOrderInr()))
                 + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr()))
                 + ", \"notional_fee_bps\": " + q(num(config.notionalFeeBps()))
                 + ", \"notional_fee_rounding\": \"HALF_UP_TO_PAISE_PER_FILL\""
                 + (data.costSchedule().isPresent() ? ", \"dated_schedule_sha256\": "
-                        + q(data.costSchedule().orElseThrow().sha256()) : "") + "},\n"
+                        + q(data.costSchedule().orElseThrow().sha256()) : "")
+                + (data.componentCostSchedule().isPresent() ? ", \"component_schedule_sha256\": "
+                        + q(data.componentCostSchedule().orElseThrow().sha256())
+                        + ", \"fee_breakdown_file\": \"fee-breakdowns.csv\", \"component_rounding\": \"HALF_UP_TO_PAISE_PER_COMPONENT_PER_FILL\"" : "")
+                + "},\n"
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))

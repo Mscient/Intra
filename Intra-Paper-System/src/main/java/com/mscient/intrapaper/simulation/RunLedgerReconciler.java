@@ -241,6 +241,11 @@ public final class RunLedgerReconciler {
 
     /** Recomputes adverse tick fills and all configured per-fill charges from frozen inputs. */
     public static void requireFillCostsConsistent(BacktestResult result, RunConfig config, ValidatedDataset dataset) {
+        Map<String, SimFeeBreakdown> feeAudits = new HashMap<>();
+        for (SimFeeBreakdown audit : result.feeBreakdowns()) {
+            if (feeAudits.putIfAbsent(audit.fillId(), audit) != null) fail("duplicate fee breakdown for fill " + audit.fillId());
+        }
+        if (feeAudits.size() != result.fills().size()) fail("fee breakdown count differs from fill count");
         Map<Instant, Bar> barsByFillTime = new HashMap<>();
         var interval = IntervalSupport.duration(config.interval());
         for (Bar bar : dataset.bars()) {
@@ -254,23 +259,51 @@ public final class RunLedgerReconciler {
             Bar bar = barsByFillTime.get(fill.timestamp());
             if (bar == null) fail("fill has no matching dataset bar: " + fill.fillId());
             if (fill.referenceOpenPrice().compareTo(bar.open()) != 0) fail("fill reference price differs from dataset open: " + fill.fillId());
-            CostSchedule.Terms terms = dataset.costSchedule()
-                    .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(fill.side())))
-                    .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
-                            config.notionalFeeBps(), config.slippageTicks()));
-            BigDecimal adverseTicks = bar.tickSize().multiply(BigDecimal.valueOf(terms.slippageTicks()));
+            SimFeeBreakdown feeAudit = feeAudits.get(fill.fillId());
+            if (feeAudit == null) fail("missing fee breakdown for fill " + fill.fillId());
+            if (feeAudit.contractKind() != bar.contractKind()) fail("fee contract kind differs from fill instrument: " + fill.fillId());
+            BigDecimal tradedValue = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
+            requireEqual("fee turnover for " + fill.fillId(), tradedValue, feeAudit.tradedValueInr());
+            CostSchedule.Terms terms = null;
+            com.mscient.intrapaper.provenance.ComponentCostSchedule.Terms componentTerms = null;
+            int slippageTicks;
+            if (dataset.componentCostSchedule().isPresent()) {
+                if (!feeAudit.costModel().equals("COMPONENTIZED")) fail("wrong cost model in fee audit for " + fill.fillId());
+                componentTerms = dataset.componentCostSchedule().orElseThrow().require(
+                        bar.sessionDate(), bar.contractKind(), CostSchedule.Side.valueOf(fill.side()));
+                slippageTicks = componentTerms.slippageTicks();
+                var charges = componentTerms.calculate(tradedValue, fill.quantityUnits());
+                requireEqual("brokerage for " + fill.fillId(), charges.brokerageInr(), feeAudit.brokerageInr());
+                requireEqual("exchange transaction charge for " + fill.fillId(), charges.exchangeInr(), feeAudit.exchangeTransactionInr());
+                requireEqual("IPFT contribution for " + fill.fillId(), charges.ipftInr(), feeAudit.ipftContributionInr());
+                requireEqual("SEBI turnover fee for " + fill.fillId(), charges.sebiInr(), feeAudit.sebiTurnoverInr());
+                requireEqual("STT for " + fill.fillId(), charges.sttInr(), feeAudit.sttInr());
+                requireEqual("stamp duty for " + fill.fillId(), charges.stampDutyInr(), feeAudit.stampDutyInr());
+                requireEqual("GST taxable base for " + fill.fillId(), charges.gstTaxableBaseInr(), feeAudit.gstTaxableBaseInr());
+                requireEqual("GST for " + fill.fillId(), charges.gstInr(), feeAudit.gstInr());
+                requireEqual("total fee for " + fill.fillId(), charges.totalInr(), fill.feeInr());
+            } else {
+                if (!feeAudit.costModel().equals("LEGACY_ALL_IN")) fail("wrong cost model in fee audit for " + fill.fillId());
+                terms = dataset.costSchedule()
+                        .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(fill.side())))
+                        .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
+                                config.notionalFeeBps(), config.slippageTicks()));
+                slippageTicks = terms.slippageTicks();
+                BigDecimal notionalFee = tradedValue.multiply(terms.notionalFeeBps())
+                        .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
+                BigDecimal expectedFee = terms.feePerOrderInr()
+                        .add(terms.feePerUnitInr().multiply(BigDecimal.valueOf(fill.quantityUnits())))
+                        .add(notionalFee);
+                requireEqual("legacy fee for " + fill.fillId(), expectedFee, feeAudit.legacyFeeInr());
+                requireEqual("fill fee for " + fill.fillId(), expectedFee, fill.feeInr());
+            }
+            if (feeAudit.totalInr().compareTo(fill.feeInr()) != 0) fail("fee breakdown does not sum to fill fee: " + fill.fillId());
+            BigDecimal adverseTicks = bar.tickSize().multiply(BigDecimal.valueOf(slippageTicks));
             BigDecimal expectedFill = fill.side().equals("BUY")
                     ? bar.open().add(adverseTicks) : bar.open().subtract(adverseTicks);
             requireEqual("modeled adverse fill price for " + fill.fillId(), expectedFill, fill.fillPrice());
             BigDecimal expectedSlippage = adverseTicks.multiply(BigDecimal.valueOf(fill.quantityUnits()));
             requireEqual("modeled slippage for " + fill.fillId(), expectedSlippage, fill.slippageCostInr());
-            BigDecimal notional = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
-            BigDecimal notionalFee = notional.multiply(terms.notionalFeeBps())
-                    .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
-            BigDecimal expectedFee = terms.feePerOrderInr()
-                    .add(terms.feePerUnitInr().multiply(BigDecimal.valueOf(fill.quantityUnits())))
-                    .add(notionalFee);
-            requireEqual("fill fee for " + fill.fillId(), expectedFee, fill.feeInr());
         }
     }
 

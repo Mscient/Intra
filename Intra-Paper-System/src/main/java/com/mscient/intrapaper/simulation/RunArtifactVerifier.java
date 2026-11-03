@@ -19,9 +19,13 @@ import java.util.regex.Pattern;
 public final class RunArtifactVerifier {
     public record Verification(String runId, int verifiedFiles) { }
 
-    private static final Set<String> OUTPUT_FILES = Set.of(
-            "signals.csv", "orders.csv", "order-events.csv", "fills.csv",
+    private static final Set<String> LEGACY_OUTPUT_FILES = Set.of(
+            "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv",
+            "equity.csv", "sessions.csv", "settlements.csv", "summary.json");
+    private static final Set<String> CURRENT_OUTPUT_FILES = Set.of(
+            "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json");
+    private static final Set<String> OUTPUT_FILES = CURRENT_OUTPUT_FILES;
     private static final Pattern RUN_ID = Pattern.compile(
             "\"run_id\"\\s*:\\s*\"([0-9a-f]{24})\"");
     private static final Pattern OUTPUT_SECTION = Pattern.compile(
@@ -63,11 +67,12 @@ public final class RunArtifactVerifier {
                 throw new IOException("Duplicate output hash entry: " + name);
             }
         }
-        if (!expectedHashes.keySet().equals(OUTPUT_FILES)) {
+        if (!expectedHashes.keySet().equals(LEGACY_OUTPUT_FILES)
+                && !expectedHashes.keySet().equals(CURRENT_OUTPUT_FILES)) {
             throw new IOException("Run manifest output hash list is incomplete");
         }
 
-        for (String name : OUTPUT_FILES) {
+        for (String name : expectedHashes.keySet()) {
             Path output = runFolder.resolve(name);
             if (!output.getParent().equals(runFolder)
                     || !Files.isRegularFile(output, LinkOption.NOFOLLOW_LINKS)) {
@@ -78,7 +83,7 @@ public final class RunArtifactVerifier {
                 throw new IOException("Output checksum mismatch: " + name);
             }
         }
-        return new Verification(runId, OUTPUT_FILES.size());
+        return new Verification(runId, expectedHashes.size());
     }
 
     private static String sha256(Path path) throws IOException {

@@ -11,6 +11,7 @@ public record BacktestResult(
         List<SimOrder> orders,
         List<SimOrderEvent> orderEvents,
         List<SimFill> fills,
+        List<SimFeeBreakdown> feeBreakdowns,
         List<SimTrade> trades,
         List<SimSettlement> settlements,
         List<SessionAudit> sessionAudits,
@@ -31,6 +32,7 @@ public record BacktestResult(
         orders = List.copyOf(orders);
         orderEvents = List.copyOf(orderEvents);
         fills = List.copyOf(fills);
+        feeBreakdowns = List.copyOf(feeBreakdowns);
         trades = List.copyOf(trades);
         settlements = List.copyOf(settlements);
         sessionAudits = List.copyOf(sessionAudits);

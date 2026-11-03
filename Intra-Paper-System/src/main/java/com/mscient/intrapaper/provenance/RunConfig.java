@@ -36,6 +36,7 @@ public record RunConfig(
         Path instrumentMasterPath,
         Path sessionCalendarPath,
         Optional<Path> costSchedulePath,
+        Optional<Path> componentCostSchedulePath,
         Optional<Path> expirySettlementPath,
         int fastBars,
         int slowBars,
@@ -67,7 +68,7 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "cost.notional_fee_bps", "cost.schedule_file",
+            "cost.notional_fee_bps", "cost.schedule_file", "cost.components_file",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
             "quality.max_missing_intervals_per_session", "run.commit_id");
 
@@ -145,12 +146,26 @@ public record RunConfig(
         int requestedLots = positiveInt(p, "strategy.lots");
         int maxPosition = positiveInt(p, "risk.max_position_lots");
         if (requestedLots > maxPosition) throw new IllegalArgumentException("strategy.lots exceeds risk.max_position_lots");
-        int slippage = Integer.parseInt(required(p, "cost.slippage_ticks"));
-        if (slippage < 0) throw new IllegalArgumentException("cost.slippage_ticks must be non-negative");
-        BigDecimal feeOrder = nonNegative(p, "cost.fee_per_order_inr");
-        BigDecimal feeUnit = nonNegative(p, "cost.fee_per_unit_inr");
-        BigDecimal notionalFeeBps = nonNegative(p, "cost.notional_fee_bps");
         Path base = absolute.getParent();
+        Optional<Path> legacyCostSchedule = optional(p, "cost.schedule_file").map(value -> resolve(base, value));
+        Optional<Path> componentCostSchedule = optional(p, "cost.components_file").map(value -> resolve(base, value));
+        if (legacyCostSchedule.isPresent() && componentCostSchedule.isPresent()) {
+            throw new IllegalArgumentException("cost.schedule_file and cost.components_file are mutually exclusive");
+        }
+        boolean componentCosts = componentCostSchedule.isPresent();
+        int slippage = componentCosts ? optionalNonNegativeInt(p, "cost.slippage_ticks", 0)
+                : Integer.parseInt(required(p, "cost.slippage_ticks"));
+        if (slippage < 0) throw new IllegalArgumentException("cost.slippage_ticks must be non-negative");
+        BigDecimal feeOrder = componentCosts ? optionalNonNegative(p, "cost.fee_per_order_inr", BigDecimal.ZERO)
+                : nonNegative(p, "cost.fee_per_order_inr");
+        BigDecimal feeUnit = componentCosts ? optionalNonNegative(p, "cost.fee_per_unit_inr", BigDecimal.ZERO)
+                : nonNegative(p, "cost.fee_per_unit_inr");
+        BigDecimal notionalFeeBps = componentCosts ? optionalNonNegative(p, "cost.notional_fee_bps", BigDecimal.ZERO)
+                : nonNegative(p, "cost.notional_fee_bps");
+        if (componentCosts && (slippage != 0 || feeOrder.signum() != 0 || feeUnit.signum() != 0
+                || notionalFeeBps.signum() != 0)) {
+            throw new IllegalArgumentException("When cost.components_file is set, legacy cost fee/slippage inputs must be omitted or zero");
+        }
         return new RunConfig(
                 absolute,
                 sha256(configBytes),
@@ -168,7 +183,8 @@ public record RunConfig(
                 LocalDate.parse(required(p, "reference.effective_from")),
                 resolve(base, required(p, "reference.file")),
                 resolve(base, required(p, "calendar.file")),
-                optional(p, "cost.schedule_file").map(value -> resolve(base, value)),
+                legacyCostSchedule,
+                componentCostSchedule,
                 optional(p, "settlement.file").map(value -> resolve(base, value)),
                 fast,
                 slow,
@@ -229,6 +245,22 @@ public record RunConfig(
         BigDecimal value = new BigDecimal(required(p, key));
         if (value.signum() < 0) throw new IllegalArgumentException(key + " must be non-negative");
         return value.stripTrailingZeros();
+    }
+
+    private static BigDecimal optionalNonNegative(Properties p, String key, BigDecimal defaultValue) {
+        Optional<String> text = optional(p, key);
+        if (text.isEmpty()) return defaultValue;
+        BigDecimal value = new BigDecimal(text.orElseThrow());
+        if (value.signum() < 0) throw new IllegalArgumentException(key + " must be non-negative");
+        return value.stripTrailingZeros();
+    }
+
+    private static int optionalNonNegativeInt(Properties p, String key, int defaultValue) {
+        Optional<String> text = optional(p, key);
+        if (text.isEmpty()) return defaultValue;
+        int value = Integer.parseInt(text.orElseThrow());
+        if (value < 0) throw new IllegalArgumentException(key + " must be non-negative");
+        return value;
     }
 
     private static long nonNegativeLong(Properties p, String key) {

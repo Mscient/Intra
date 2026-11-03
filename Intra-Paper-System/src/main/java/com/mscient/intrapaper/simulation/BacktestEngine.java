@@ -4,6 +4,7 @@ import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.provenance.CostSchedule;
+import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
@@ -55,6 +56,7 @@ public final class BacktestEngine {
         List<SimOrder> orders = new ArrayList<>();
         List<SimOrderEvent> events = new ArrayList<>();
         List<SimFill> fills = new ArrayList<>();
+        List<SimFeeBreakdown> feeBreakdowns = new ArrayList<>();
         List<SimTrade> trades = new ArrayList<>();
         List<SimSettlement> settlements = new ArrayList<>();
         List<EquityPoint> curve = new ArrayList<>();
@@ -110,11 +112,21 @@ public final class BacktestEngine {
                 } else {
                     String side = deltaLots > 0 ? "BUY" : "SELL";
                     int quantity = positionUnits(Math.abs(deltaLots), bar.lotSize());
-                    CostSchedule.Terms costTerms = dataset.costSchedule()
-                            .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(side)))
-                            .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
-                                    config.notionalFeeBps(), config.slippageTicks()));
-                    BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(costTerms.slippageTicks()));
+                    CostSchedule.Terms costTerms = null;
+                    ComponentCostSchedule.Terms componentTerms = null;
+                    int slippageTicks;
+                    if (dataset.componentCostSchedule().isPresent()) {
+                        componentTerms = dataset.componentCostSchedule().orElseThrow().require(
+                                bar.sessionDate(), bar.contractKind(), CostSchedule.Side.valueOf(side));
+                        slippageTicks = componentTerms.slippageTicks();
+                    } else {
+                        costTerms = dataset.costSchedule()
+                                .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(side)))
+                                .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
+                                        config.notionalFeeBps(), config.slippageTicks()));
+                        slippageTicks = costTerms.slippageTicks();
+                    }
+                    BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(slippageTicks));
                     BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
                     String riskRejection = fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
                             : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice) : null;
@@ -124,11 +136,21 @@ public final class BacktestEngine {
                         events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
                     } else {
                         BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(quantity));
-                        BigDecimal notionalFee = fillNotional.multiply(costTerms.notionalFeeBps())
-                                .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
-                        BigDecimal fee = costTerms.feePerOrderInr()
-                                .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
-                                .add(notionalFee);
+                        String fillId = String.format("F%07d", fills.size() + 1);
+                        BigDecimal fee;
+                        SimFeeBreakdown feeBreakdown;
+                        if (componentTerms != null) {
+                            var charges = componentTerms.calculate(fillNotional, quantity);
+                            feeBreakdown = SimFeeBreakdown.componentized(fillId, bar.contractKind(), fillNotional, charges);
+                            fee = feeBreakdown.totalInr();
+                        } else {
+                            BigDecimal notionalFee = fillNotional.multiply(costTerms.notionalFeeBps())
+                                    .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
+                            fee = costTerms.feePerOrderInr()
+                                    .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
+                                    .add(notionalFee);
+                            feeBreakdown = SimFeeBreakdown.legacy(fillId, bar.contractKind(), fillNotional, fee);
+                        }
                         BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
                         int newUnits = positionUnits(targetLots, bar.lotSize());
                         if (side.equals("BUY")) {
@@ -149,9 +171,9 @@ public final class BacktestEngine {
                         positionLots = targetLots;
                         fees = fees.add(fee);
                         slippage = slippage.add(slippageCost);
-                        String fillId = String.format("F%07d", fills.size() + 1);
                         fills.add(new SimFill(fillId, order.orderId(), barStart, side, quantity,
                                 bar.open(), fillPrice, slippageCost, fee, newUnits));
+                        feeBreakdowns.add(feeBreakdown);
                         updateOrder(orders, pending.orderIndex(), barStart, barStart, "FILLED", "full simulated market fill");
                         events.add(new SimOrderEvent(barStart, order.orderId(), "FILLED", "fill_id=" + fillId));
                     }
@@ -288,7 +310,7 @@ public final class BacktestEngine {
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
-        BacktestResult result = new BacktestResult(signals, orders, events, fills, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
+        BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements, sessionAudits, curve, realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);

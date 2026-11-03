@@ -2,6 +2,7 @@ package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.provenance.DatasetManifest;
 import com.mscient.intrapaper.provenance.CostSchedule;
+import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.reference.ContractKind;
@@ -28,6 +29,7 @@ public record ValidatedDataset(
         String configSha256,
         String calendarSha256,
         Optional<CostSchedule> costSchedule,
+        Optional<ComponentCostSchedule> componentCostSchedule,
         Optional<ExpirySettlement> expirySettlement,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
@@ -44,6 +46,8 @@ public record ValidatedDataset(
         Map<LocalDate, SessionCalendarEntry> calendar = calendarRead.sessions();
         Optional<CostSchedule> costSchedule = config.costSchedulePath().isPresent()
                 ? Optional.of(CostSchedule.load(config.costSchedulePath().orElseThrow())) : Optional.empty();
+        Optional<ComponentCostSchedule> componentCostSchedule = config.componentCostSchedulePath().isPresent()
+                ? Optional.of(ComponentCostSchedule.load(config.componentCostSchedulePath().orElseThrow())) : Optional.empty();
         Optional<ExpirySettlement> expirySettlement = config.expirySettlementPath().isPresent()
                 ? Optional.of(ExpirySettlement.load(config.expirySettlementPath().orElseThrow())) : Optional.empty();
         Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
@@ -123,6 +127,10 @@ public record ValidatedDataset(
             if (costSchedule.isPresent()) {
                 costSchedule.orElseThrow().require(date, CostSchedule.Side.BUY);
                 costSchedule.orElseThrow().require(date, CostSchedule.Side.SELL);
+            }
+            if (componentCostSchedule.isPresent()) {
+                componentCostSchedule.orElseThrow().require(date, onlyKind, CostSchedule.Side.BUY);
+                componentCostSchedule.orElseThrow().require(date, onlyKind, CostSchedule.Side.SELL);
             }
             if (sessionBars == null || sessionBars.isEmpty()) {
                 throw new IllegalArgumentException("Entire OPEN session is missing from bars: " + date);
@@ -206,6 +214,7 @@ public record ValidatedDataset(
                 "instrument-master", master.rawFileSha256(),
                 "session-calendar", calendarHash));
         costSchedule.ifPresent(schedule -> inputs.put("cost-schedule", schedule.sha256()));
+        componentCostSchedule.ifPresent(schedule -> inputs.put("component-cost-schedule", schedule.sha256()));
         expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
         DatasetManifest manifest = new DatasetManifest(
                 1,
@@ -221,7 +230,7 @@ public record ValidatedDataset(
                 Optional.of(calendarHash),
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
-                barsHash, config.configSha256(), calendarHash, costSchedule, expirySettlement, anomalies,
+                barsHash, config.configSha256(), calendarHash, costSchedule, componentCostSchedule, expirySettlement, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 
