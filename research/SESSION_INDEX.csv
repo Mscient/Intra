@@ -40,3 +40,4 @@ a36808b9-37a2-43de-b088-16ac720b05ad,2026-11-03,756dfab9fa60142775fec498026464f7
 39304195-394a-4766-ba05-0c492e9fb424,2026-11-03,909173ebb0ca4acdb478bc2bf6c3d10693c3a2fc,"Added verified offline raw-to-quote import using caller decoder and no-overwrite atomic publication; Java 21 build succeeded; runtime fixtures not run."
 33185333-c727-4d09-adb6-0fc6fc837d92,2026-11-03,484a7ab8f1c8cdb1e4936b3f35459c3a6590ad4f,"Checked all lot-to-unit arithmetic and fail closed on overflow; Java 21 build succeeded; runtime fixtures not run."
 f35dff0a-c708-48a0-9195-f0f1b40f7f54,2026-11-03,783255a6691e1a0fb1c9b316bcfbdf635a1c5d54,"Independent reconciliation now validates all order transitions and timestamps; Java 21 build succeeded; runtime fixtures not run."
+2c2bded4-de72-4d56-bb7e-26a5ccba517b,2026-11-03,0f91c6a789ea5747566a83dbdeb88c5bf7dbd246,"Added decision-time quote eligibility and full-size adverse pricing helper; Java 21 build succeeded; runtime fixtures not run."
