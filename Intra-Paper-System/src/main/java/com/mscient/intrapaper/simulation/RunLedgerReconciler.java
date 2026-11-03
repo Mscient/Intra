@@ -25,9 +25,53 @@ import java.util.Set;
 /** Independent consistency checks across the simulated OMS, fills, trades, sessions, and equity ledgers. */
 public final class RunLedgerReconciler {
     private RunLedgerReconciler() { }
+    private record ReconciledSlice(BigDecimal entryPrice, BigDecimal grossPnl, BigDecimal fees) { }
+    private static final class ReconciledPosition {
+        private final Instant entryTimestamp;
+        private BigDecimal remainingBasis;
+        private int remainingUnits;
+        private BigDecimal remainingEntryFees;
+        private boolean exitStarted;
+
+        private ReconciledPosition(SimFill entry) {
+            entryTimestamp = entry.timestamp();
+            remainingBasis = entry.fillPrice().multiply(BigDecimal.valueOf(entry.quantityUnits()));
+            remainingUnits = entry.quantityUnits();
+            remainingEntryFees = entry.feeInr();
+        }
+
+        private void addEntry(SimFill entry) {
+            if (exitStarted) {
+                fail("entry fill occurs after the independently reconstructed position began exiting");
+            }
+            remainingBasis = remainingBasis.add(entry.fillPrice().multiply(BigDecimal.valueOf(entry.quantityUnits())));
+            remainingUnits = Math.addExact(remainingUnits, entry.quantityUnits());
+            remainingEntryFees = remainingEntryFees.add(entry.feeInr());
+        }
+
+        private ReconciledSlice close(BigDecimal exitPrice, int quantity, BigDecimal exitFee) {
+            if (quantity < 1 || quantity > remainingUnits) fail("close slice exceeds the independently reconstructed position");
+            BigDecimal basis = allocate(remainingBasis, quantity, remainingUnits, 12);
+            BigDecimal entryFees = allocate(remainingEntryFees, quantity, remainingUnits, 10);
+            BigDecimal averageEntry = basis.divide(BigDecimal.valueOf(quantity), 10, RoundingMode.HALF_UP);
+            BigDecimal gross = exitPrice.multiply(BigDecimal.valueOf(quantity)).subtract(basis);
+            remainingBasis = remainingBasis.subtract(basis);
+            remainingEntryFees = remainingEntryFees.subtract(entryFees);
+            remainingUnits -= quantity;
+            exitStarted = true;
+            return new ReconciledSlice(averageEntry, gross, entryFees.add(exitFee));
+        }
+
+        private static BigDecimal allocate(BigDecimal amount, int units, int totalUnits, int scale) {
+            if (units == totalUnits) return amount;
+            return amount.multiply(BigDecimal.valueOf(units))
+                    .divide(BigDecimal.valueOf(totalUnits), scale, RoundingMode.HALF_UP);
+        }
+    }
 
     public static void requireConsistent(BacktestResult result) {
         requirePositionFlowConsistent(result);
+        requireTradeAccountingConsistent(result);
         BigDecimal tradeGross = BigDecimal.ZERO;
         for (SimTrade trade : result.trades()) tradeGross = tradeGross.add(trade.grossPnlInr());
         requireEqual("trade gross P&L vs realized P&L", tradeGross, result.realizedPnlInr());
@@ -297,6 +341,61 @@ public final class RunLedgerReconciler {
         if (positionUnits != result.finalPositionUnits()) {
             fail("final position differs from independently reconstructed fill/settlement flow");
         }
+    }
+
+    /** Recomputes each closed trade slice from execution prices, quantities, and fees. */
+    private static void requireTradeAccountingConsistent(BacktestResult result) {
+        ReconciledPosition position = null;
+        int tradeIndex = 0;
+        String instrumentId = result.trades().isEmpty() ? null : result.trades().getFirst().instrumentId();
+        for (SimTrade trade : result.trades()) {
+            if (!trade.instrumentId().equals(instrumentId)) fail("single-contract trade ledger changes instrument");
+        }
+        for (SimFill fill : result.fills()) {
+            if (fill.side().equals("BUY")) {
+                if (position == null) position = new ReconciledPosition(fill);
+                else position.addEntry(fill);
+                continue;
+            }
+            if (position == null) fail("SELL fill has no independently reconstructed entry basis: " + fill.fillId());
+            ReconciledSlice slice = position.close(fill.fillPrice(), fill.quantityUnits(), fill.feeInr());
+            requireTradeSlice(result, tradeIndex++, position, fill.timestamp(), fill.quantityUnits(),
+                    fill.fillPrice(), slice);
+            if (position.remainingUnits == 0) position = null;
+        }
+        for (SimSettlement settlement : result.settlements()) {
+            if (position == null) {
+                if (settlement.positionUnitsSettled() != 0) {
+                    fail("settlement has position units but no independently reconstructed entry basis");
+                }
+                continue;
+            }
+            if (settlement.positionUnitsSettled() != position.remainingUnits) {
+                fail("settlement quantity differs from independently reconstructed remaining position");
+            }
+            int quantity = position.remainingUnits;
+            ReconciledSlice slice = position.close(settlement.exitValuePerUnit(), quantity,
+                    settlement.settlementFeesInr());
+            requireTradeSlice(result, tradeIndex++, position, settlement.settlementTimestamp(), quantity,
+                    settlement.exitValuePerUnit(), slice);
+            position = null;
+        }
+        if (tradeIndex != result.trades().size()) fail("trade ledger has rows without matching exit fills or settlement");
+    }
+
+    private static void requireTradeSlice(BacktestResult result, int tradeIndex, ReconciledPosition position,
+            Instant exitTimestamp, int quantity, BigDecimal exitPrice, ReconciledSlice expected) {
+        if (tradeIndex >= result.trades().size()) fail("closed position slice is missing from trade ledger");
+        SimTrade trade = result.trades().get(tradeIndex);
+        if (!trade.entryTimestamp().equals(position.entryTimestamp)
+                || !trade.exitTimestamp().equals(exitTimestamp) || trade.quantityUnits() != quantity
+                || trade.exitPrice().compareTo(exitPrice) != 0) {
+            fail("trade row does not match its independently reconstructed closed position slice: " + trade.tradeId());
+        }
+        requireEqual("trade entry average for " + trade.tradeId(), expected.entryPrice(), trade.entryPrice());
+        requireEqual("trade gross P&L for " + trade.tradeId(), expected.grossPnl(), trade.grossPnlInr());
+        requireEqual("trade fees for " + trade.tradeId(), expected.fees(), trade.feesInr());
+        requireEqual("trade net P&L for " + trade.tradeId(), expected.grossPnl().subtract(expected.fees()), trade.netPnlInr());
     }
 
     /** Recomputes adverse tick fills and all configured per-fill charges from frozen inputs. */

@@ -31,7 +31,7 @@ The regular-lot behavior is informed by the [NSE NNF protocol](https://nsearchiv
 
 Quote source, sequence, receive time, reference price, fill price, and execution model are written to `fills.csv`.
 
-Independent ledger reconciliation reselects each quote at the recorded arrival time, checks the source, sequence, receive time, requested and filled quantity, lot multiple, and modeled price, and rebuilds quote-side consumption. Checkpoint resume reconstructs consumed size from verified prior fills; the quote journal hash is part of the checkpoint content identity.
+Independent ledger reconciliation reselects each quote at the recorded arrival time, checks the source, sequence, receive time, requested and filled quantity, lot multiple, and modeled price, and rebuilds quote-side consumption. It separately rebuilds entry basis and fee allocation from fills, then checks every closed trade slice and settlement. Checkpoint resume reconstructs consumed size from verified prior fills; the quote journal hash is part of the checkpoint content identity.
 
 ## Model boundary
 
