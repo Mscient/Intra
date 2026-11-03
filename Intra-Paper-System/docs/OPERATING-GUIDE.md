@@ -36,6 +36,12 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 Run output is published by atomic directory move after all ledgers and hashes are written. An active writer holds an operating-system lock beside its temporary staging folder. On a later run write, recognized staging folders are removed only when their lock can be acquired. Legacy folders without a lock marker and currently active writes are preserved. The published run is never resumed in place; use deterministic replay verification to compare it with frozen inputs.
 
+## OMS state primitives
+
+`OmsOrderStateMachine` provides the venue-neutral Created, PendingNew, Working, PartiallyFilled, PendingCancel, PendingReplace, Filled, Canceled, Rejected, Expired, and Unknown states. Pending and Unknown states reserve the still-unconfirmed requested units after known executions; terminal states reserve zero, and Filled requires all requested units. For PendingReplace, callers supply the larger old/new quantity as `requestedWorstCaseUnits`; Unknown-state callers supply the applicable route-specific worst case. This computes units only, so a risk gateway must still value that reservation. `ExecutionIdempotencyLedger` applies each execution ID once, ignores an exact duplicate, and rejects reuse with a different order/time/side/quantity/price payload. Its restore operation rebuilds the ledger from persisted execution events and clears partial state if replay fails.
+
+The existing bar simulator uses local immediate acknowledgements and full simulated fills; the generic partial-fill and Unknown-state primitives are not connected to a feed, broker, or live risk gateway. The independent run reconciliation rejects duplicate execution IDs in the persisted simulated-fill ledger.
+
 ## Verify a quote journal
 
 ```powershell

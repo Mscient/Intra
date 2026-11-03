@@ -51,6 +51,7 @@
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Lot-to-unit conversions use checked integer multiplication; an unrepresentable quantity fails closed instead of wrapping ledger units.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
+- [x] Venue-neutral OMS state graph includes pending, partial-fill, cancel/replace, terminal, and Unknown states; residual worst-case units remain reserved through pending/Unknown states. Execution IDs replay idempotently, conflicting payload reuse fails closed, and independent reconciliation rejects duplicate simulated execution IDs. The bar runner still generates immediate local full fills; generic states are not wired to a broker/feed risk gateway.
 - [x] An independent reconciliation pass checks trade gross vs realized P&L, fill fees/slippage, every per-order state transition and event timestamp, session totals, and final equity before a run is returned.
 - [x] An additional independent risk reconciliation rechecks every BUY fill against configured max lots, notional, and margin-proxy caps; verifies loss-limit breaches have recorded risk halts and no subsequent same-session entry fills.
 - [x] Risk reconciliation requires exactly one halt event at the breach equity mark, at most one per session, and exact agreement between halt events and the run counter.

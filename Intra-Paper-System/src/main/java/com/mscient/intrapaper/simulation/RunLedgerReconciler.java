@@ -49,7 +49,18 @@ public final class RunLedgerReconciler {
         BigDecimal fillFees = BigDecimal.ZERO;
         BigDecimal fillSlippage = BigDecimal.ZERO;
         Map<String, Integer> fillsByOrder = new HashMap<>();
+        ExecutionIdempotencyLedger executionLedger = new ExecutionIdempotencyLedger();
         for (SimFill fill : result.fills()) {
+            ExecutionIdempotencyLedger.ApplyResult applyResult;
+            try {
+                applyResult = executionLedger.apply(ExecutionEvent.from(fill));
+            } catch (RuntimeException invalidExecution) {
+                fail("invalid or conflicting execution event: " + invalidExecution.getMessage());
+                return;
+            }
+            if (applyResult == ExecutionIdempotencyLedger.ApplyResult.DUPLICATE_IDENTICAL) {
+                fail("duplicate execution ID in persisted fill ledger: " + fill.fillId());
+            }
             fillFees = fillFees.add(fill.feeInr());
             fillSlippage = fillSlippage.add(fill.slippageCostInr());
             fillsByOrder.merge(fill.orderId(), 1, Integer::sum);
