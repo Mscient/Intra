@@ -12,6 +12,10 @@ data/private/
 runs/
 journals/
 *.qj
+*.qjr
+*.raw
+*.rawcap
+*.rawcapture
 *.journal
 output/
 build/

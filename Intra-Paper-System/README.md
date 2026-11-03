@@ -43,7 +43,7 @@ See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and ru
 - The sample strategy and all synthetic inputs are plumbing examples, not trading recommendations or evidence of an edge. Current data rights, costs, operating limits, and G0/G1/G2 evidence remain open.
 - No automated test suite is included. The synthetic sample replay exercises plumbing only; broader behavior remains unvalidated.
 
-Private data and run artifacts are excluded from Git. Never put broker credentials, account identifiers, private budgets, or licensed market rows in this repository.
+Private data, raw-capture journals (`.rawcap`, `.rawcapture`, `.raw`), quote journals (`.qj`, `.qjr`), and run artifacts are excluded from Git. Never put broker credentials, account identifiers, private budgets, or licensed market rows in this repository. The ignore patterns are convenience safeguards, not access controls; confirm `git status` before committing data files.
 
 ## Research references
 

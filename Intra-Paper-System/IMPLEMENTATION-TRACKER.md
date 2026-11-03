@@ -23,6 +23,7 @@
 - [x] Isolated `Intra-Paper-System/` Java 21 project and research links.
 - [x] Versioned quote record, quote quality flags, canonical encoding, SHA-256 chain, append-only journal, and integrity-checked replay.
 - [x] Local raw-message journal stores caller-provided payload bytes unchanged with source, connection/subscription IDs, optional upstream sequence, receive wall/monotonic timestamps, and a SHA-256 chain; verifier checks framing, metadata, and integrity. Verified journal resume restores hash state before appending. No feed adapter or entitlement check is included.
+- [x] Added Git ignore patterns for local raw-capture and quote-journal extensions to reduce accidental staging; these patterns are not an access-control mechanism.
 - [x] Configurable event-time quote freshness assessment flags stale and future-dated snapshots while retaining the original quote; thresholds remain caller-supplied and no feed-specific tolerance is presumed.
 - [x] Quote-journal verification reports sequence jumps and total skipped sequence integers between records without assuming a starting sequence or equating jumps with packet loss.
 - [x] Effective-dated instrument references and immutable master-snapshot model.
