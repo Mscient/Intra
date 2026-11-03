@@ -16,7 +16,7 @@ An isolated, offline-first Java 21 futures and single-option premium-bar backtes
 - Optional effective-dated BUY/SELL cost schedule CSV; schedule coverage and input hash are checked and recorded per run.
 - Local simulated order lifecycle, fills, completed trades, marked equity curve, run summary, input hashes, and output hashes.
 - Input CSV hashes are computed from the exact byte streams consumed by their parsers; the run-properties hash is computed from the same byte snapshot used to parse its settings.
-- Content-addressed run IDs include input, configuration, build, and strategy ID/parameter hashes; artifacts are written to a sibling staging directory and published with a same-volume atomic move after all files and hashes are complete. Write failures clean the staging directory. Results default outside the repository under `%LOCALAPPDATA%\Intra-Paper-System\runs`.
+- Content-addressed run IDs include input, configuration, build, and strategy ID/parameter hashes; artifacts are written to a sibling staging directory and published with a same-volume atomic move after all files and hashes are complete. Sidecar OS locks protect active staging writes, and a later write removes only recognized abandoned staging directories whose lock is available. Results default outside the repository under `%LOCALAPPDATA%\Intra-Paper-System\runs`.
 
 The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PLUMBING_ONLY` or `REPLAY_DIAGNOSTIC_ONLY`, and `performance_claim_eligible` is always `false` in this build.
 

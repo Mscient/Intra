@@ -6,17 +6,23 @@ import com.mscient.intrapaper.provenance.RunConfig;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Writes and atomically publishes a content-addressed run folder with input and output hashes. */
 public final class RunArtifactWriter {
@@ -27,79 +33,145 @@ public final class RunArtifactWriter {
         Path outputRootAbsolute = outputRoot.toAbsolutePath().normalize();
         if (!runId.matches("[0-9a-f]{24}")) throw new IllegalArgumentException("runId must be a 24-character lowercase hex content ID");
         Files.createDirectories(outputRootAbsolute);
+        cleanupAbandonedStaging(outputRootAbsolute);
         Path runFolder = outputRootAbsolute.resolve(runId);
         if (Files.exists(runFolder)) throw new FileAlreadyExistsException(runFolder.toString());
         Path stagingFolder = outputRootAbsolute.resolve("tmp-" + runId + "-" + UUID.randomUUID());
-        Files.createDirectory(stagingFolder);
-        try {
-
-            writeNew(stagingFolder.resolve("signals.csv"), csv(
-                    "bar_number,decision_timestamp,session_date,instrument_id,target_lots,status,metrics_json",
-                    result.signals().stream().map(signal -> row(signal.barNumber(), signal.decisionTimestamp(),
-                            signal.sessionDate(), signal.instrumentId(), signal.targetLots(), signal.status(),
-                            inlineMapJson(signal.metrics()))).toList()));
-            writeNew(stagingFolder.resolve("orders.csv"), csv(
-                    "order_id,decision_timestamp,submit_timestamp,fill_timestamp,side,target_lots,requested_units,order_type,status,reason",
-                    result.orders().stream().map(order -> row(order.orderId(), order.decisionTimestamp(), order.submitTimestamp(),
-                        order.fillTimestamp(), order.side(), order.targetLots(), order.requestedUnits(), order.orderType(),
-                        order.status(), order.reason())).toList()));
-            writeNew(stagingFolder.resolve("order-events.csv"), csv(
-                    "timestamp,order_id,event,detail",
-                    result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
-            writeNew(stagingFolder.resolve("fills.csv"), csv(
-                    "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,position_units_after",
-                    result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
-                        fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
-                        fill.feeInr(), fill.positionUnitsAfter())).toList()));
-            writeNew(stagingFolder.resolve("trades.csv"), csv(
-                    "trade_id,instrument_id,entry_timestamp,exit_timestamp,quantity_units,entry_price,exit_price,gross_pnl_inr,fees_inr,net_pnl_inr",
-                    result.trades().stream().map(trade -> row(trade.tradeId(), trade.instrumentId(), trade.entryTimestamp(),
-                        trade.exitTimestamp(), trade.quantityUnits(), trade.entryPrice(), trade.exitPrice(),
-                        trade.grossPnlInr(), trade.feesInr(), trade.netPnlInr())).toList()));
-            writeNew(stagingFolder.resolve("equity.csv"), csv(
-                    "timestamp,session_date,close,position_units,realized_pnl_inr,unrealized_pnl_inr,fees_paid_inr,net_pnl_inr,risk_state",
-                    result.equityCurve().stream().map(point -> row(point.timestamp(), point.sessionDate(), point.close(),
-                        point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
-                        point.netPnlInr(), point.riskState())).toList()));
-            writeNew(stagingFolder.resolve("sessions.csv"), csv(
-                    "session_date,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
-                    result.sessionAudits().stream().map(session -> row(session.sessionDate(), session.expectedBars(),
-                        session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
-                        session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
-                        session.modeledSlippageInr(), session.netPnlChangeInr(),
-                        session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
-                        session.endingRiskState())).toList()));
-            writeNew(stagingFolder.resolve("settlements.csv"), csv(
-                    "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,source_reference",
-                    result.settlements().stream().map(settlement -> row(settlement.instrumentId(),
-                            settlement.settlementDate(), settlement.settlementTimestamp(), settlement.kind(),
-                            settlement.settlementValue(), settlement.exitValuePerUnit(), settlement.positionUnitsSettled(),
-                            settlement.grossPnlInr(), settlement.sourceReference())).toList()));
-
-            writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
-            Map<String, String> outputHashes = new TreeMap<>();
-            for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
-                outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
-            }
-            writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
-            Files.move(stagingFolder, runFolder, StandardCopyOption.ATOMIC_MOVE);
-            return new WrittenRun(runId, runFolder);
-        } catch (IOException | RuntimeException failure) {
+        Path stagingLockPath = outputRootAbsolute.resolve(".staging-lock-" + stagingFolder.getFileName());
+        try (FileChannel lockChannel = FileChannel.open(stagingLockPath,
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+             FileLock stagingLock = requireStagingLock(lockChannel, stagingFolder)) {
+            Files.createDirectory(stagingFolder);
             try {
-                removeStaging(stagingFolder);
-            } catch (IOException cleanupFailure) {
-                failure.addSuppressed(cleanupFailure);
+
+                writeNew(stagingFolder.resolve("signals.csv"), csv(
+                        "bar_number,decision_timestamp,session_date,instrument_id,target_lots,status,metrics_json",
+                        result.signals().stream().map(signal -> row(signal.barNumber(), signal.decisionTimestamp(),
+                                signal.sessionDate(), signal.instrumentId(), signal.targetLots(), signal.status(),
+                                inlineMapJson(signal.metrics()))).toList()));
+                writeNew(stagingFolder.resolve("orders.csv"), csv(
+                        "order_id,decision_timestamp,submit_timestamp,fill_timestamp,side,target_lots,requested_units,order_type,status,reason",
+                        result.orders().stream().map(order -> row(order.orderId(), order.decisionTimestamp(), order.submitTimestamp(),
+                            order.fillTimestamp(), order.side(), order.targetLots(), order.requestedUnits(), order.orderType(),
+                            order.status(), order.reason())).toList()));
+                writeNew(stagingFolder.resolve("order-events.csv"), csv(
+                        "timestamp,order_id,event,detail",
+                        result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
+                writeNew(stagingFolder.resolve("fills.csv"), csv(
+                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,position_units_after",
+                        result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
+                            fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
+                            fill.feeInr(), fill.positionUnitsAfter())).toList()));
+                writeNew(stagingFolder.resolve("trades.csv"), csv(
+                        "trade_id,instrument_id,entry_timestamp,exit_timestamp,quantity_units,entry_price,exit_price,gross_pnl_inr,fees_inr,net_pnl_inr",
+                        result.trades().stream().map(trade -> row(trade.tradeId(), trade.instrumentId(), trade.entryTimestamp(),
+                            trade.exitTimestamp(), trade.quantityUnits(), trade.entryPrice(), trade.exitPrice(),
+                            trade.grossPnlInr(), trade.feesInr(), trade.netPnlInr())).toList()));
+                writeNew(stagingFolder.resolve("equity.csv"), csv(
+                        "timestamp,session_date,close,position_units,realized_pnl_inr,unrealized_pnl_inr,fees_paid_inr,net_pnl_inr,risk_state",
+                        result.equityCurve().stream().map(point -> row(point.timestamp(), point.sessionDate(), point.close(),
+                            point.positionUnits(), point.realizedPnlInr(), point.unrealizedPnlInr(), point.feesPaidInr(),
+                            point.netPnlInr(), point.riskState())).toList()));
+                writeNew(stagingFolder.resolve("sessions.csv"), csv(
+                        "session_date,expected_bars,observed_bars,complete,position_units_at_start,position_units_at_end,realized_pnl_change_inr,unrealized_pnl_change_inr,fees_paid_inr,modeled_slippage_inr,net_pnl_change_inr,orders_created,fills,completed_trades,risk_halts,ending_risk_state",
+                        result.sessionAudits().stream().map(session -> row(session.sessionDate(), session.expectedBars(),
+                            session.observedBars(), session.complete(), session.positionUnitsAtStart(), session.positionUnitsAtEnd(),
+                            session.realizedPnlChangeInr(), session.unrealizedPnlChangeInr(), session.feesPaidInr(),
+                            session.modeledSlippageInr(), session.netPnlChangeInr(),
+                            session.ordersCreated(), session.fills(), session.completedTrades(), session.riskHalts(),
+                            session.endingRiskState())).toList()));
+                writeNew(stagingFolder.resolve("settlements.csv"), csv(
+                        "instrument_id,settlement_date,settlement_timestamp,settlement_kind,settlement_value,exit_value_per_unit,position_units_settled,gross_pnl_inr,source_reference",
+                        result.settlements().stream().map(settlement -> row(settlement.instrumentId(),
+                                settlement.settlementDate(), settlement.settlementTimestamp(), settlement.kind(),
+                                settlement.settlementValue(), settlement.exitValuePerUnit(), settlement.positionUnitsSettled(),
+                                settlement.grossPnlInr(), settlement.sourceReference())).toList()));
+
+                writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
+                Map<String, String> outputHashes = new TreeMap<>();
+                for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "summary.json")) {
+                    outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
+                }
+                writeNew(stagingFolder.resolve("run-manifest.json"), manifestJson(runId, data, config, result, outputHashes));
+                Files.move(stagingFolder, runFolder, StandardCopyOption.ATOMIC_MOVE);
+                return new WrittenRun(runId, runFolder);
+            } catch (IOException | RuntimeException failure) {
+                try {
+                    removeStaging(stagingFolder);
+                } catch (IOException cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+                throw failure;
             }
-            throw failure;
+        } finally {
+            if (!Files.exists(stagingFolder, LinkOption.NOFOLLOW_LINKS)) {
+                try {
+                    Files.deleteIfExists(stagingLockPath);
+                } catch (IOException ignored) {
+                    // A leftover sidecar is harmless; any extant staging directory remains lock-checked.
+                }
+            }
         }
     }
 
-    private static void removeStaging(Path stagingFolder) throws IOException {
-        if (!Files.exists(stagingFolder)) return;
-        try (var entries = Files.list(stagingFolder)) {
-            for (Path entry : entries.toList()) Files.deleteIfExists(entry);
+    private static FileLock requireStagingLock(FileChannel channel, Path stagingFolder) throws IOException {
+        try {
+            FileLock lock = channel.tryLock();
+            if (lock == null) throw new IOException("Run staging folder is already locked: " + stagingFolder);
+            return lock;
+        } catch (OverlappingFileLockException lockedInThisProcess) {
+            throw new IOException("Run staging folder is already locked: " + stagingFolder, lockedInThisProcess);
         }
-        Files.deleteIfExists(stagingFolder);
+    }
+
+    /** Removes only recognized staging directories whose sidecar lock is available. */
+    private static void cleanupAbandonedStaging(Path outputRoot) throws IOException {
+        List<Path> candidates;
+        try (Stream<Path> entries = Files.list(outputRoot)) {
+            candidates = entries.filter(RunArtifactWriter::isRecognizedStagingFolder).toList();
+        }
+        for (Path stagingFolder : candidates) {
+            if (!stagingFolder.getParent().equals(outputRoot)
+                    || !Files.isDirectory(stagingFolder, LinkOption.NOFOLLOW_LINKS)) continue;
+            Path lockPath = outputRoot.resolve(".staging-lock-" + stagingFolder.getFileName());
+            if (!Files.isRegularFile(lockPath, LinkOption.NOFOLLOW_LINKS)) continue;
+            boolean removed = false;
+            try (FileChannel lockChannel = FileChannel.open(lockPath,
+                    StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+                FileLock stagingLock;
+                try {
+                    stagingLock = lockChannel.tryLock();
+                } catch (OverlappingFileLockException activeInThisProcess) {
+                    continue;
+                }
+                if (stagingLock == null) continue;
+                try (stagingLock) {
+                    if (Files.isDirectory(stagingFolder, LinkOption.NOFOLLOW_LINKS)) {
+                        removeStaging(stagingFolder);
+                        removed = true;
+                    }
+                }
+            }
+            if (removed) {
+                try {
+                    Files.deleteIfExists(lockPath);
+                } catch (IOException ignored) {
+                    // Keep the harmless lock marker if the filesystem cannot remove it now.
+                }
+            }
+        }
+    }
+
+    private static boolean isRecognizedStagingFolder(Path path) {
+        String name = path.getFileName().toString();
+        return name.matches("tmp-[0-9a-f]{24}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+    }
+
+    private static void removeStaging(Path stagingFolder) throws IOException {
+        if (!Files.exists(stagingFolder, LinkOption.NOFOLLOW_LINKS)) return;
+        try (Stream<Path> entries = Files.walk(stagingFolder)) {
+            for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(entry);
+        }
     }
 
     private static String summaryJson(String runId, ValidatedDataset data, RunConfig config, BacktestResult result) {

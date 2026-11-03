@@ -54,6 +54,7 @@
 - [x] Risk reconciliation requires exactly one halt event at the breach equity mark, at most one per session, and exact agreement between halt events and the run counter.
 - [x] An independent per-fill cost audit recomputes the adverse tick price, slippage amount, configured/dates schedule fee components, and notional-bps paise rounding from the matching bar and frozen inputs.
 - [x] Run artifacts are written to a sibling staging directory and published by atomic move only after ledgers and hashes are complete; ordinary write failures remove staging files.
+- [x] Run staging writes hold sidecar operating-system locks; a subsequent run removes only recognized abandoned staging directories with an available lock and preserves active or legacy staging folders. This is artifact-publication recovery, not mid-simulation OMS checkpoint recovery.
 - [x] A run-folder verifier checks the manifest ID and recomputes all nine output-ledger hashes; it does not validate original inputs or data rights.
 - [x] Run summary includes diagnostic completed-trade statistics, holding time, filled units, and filled turnover; undefined trade statistics are null and no performance-claim flag is enabled.
 - [x] Cost inputs support fixed per-order, per-unit, and configurable per-fill notional basis-point charges; verified dated cost schedules remain open.

@@ -34,6 +34,8 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 `verify` recomputes the SHA-256 hashes for the nine output ledgers in `run-manifest.json` and checks the folder ID. It does not re-open or re-authorize source inputs.
 
+Run output is published by atomic directory move after all ledgers and hashes are written. An active writer holds an operating-system lock beside its temporary staging folder. On a later run write, recognized staging folders are removed only when their lock can be acquired. Legacy folders without a lock marker and currently active writes are preserved. The published run is never resumed in place; use deterministic replay verification to compare it with frozen inputs.
+
 ## Verify a quote journal
 
 ```powershell
