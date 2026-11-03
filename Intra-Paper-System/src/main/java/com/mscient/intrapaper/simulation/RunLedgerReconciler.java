@@ -56,6 +56,7 @@ public final class RunLedgerReconciler {
         requireEqual("fill slippage vs run slippage", fillSlippage, result.modeledSlippageInr());
 
         Map<String, String> lastOrderEvent = new HashMap<>();
+        Map<String, Instant> lastOrderEventTimestamp = new HashMap<>();
         Set<String> orderIds = new HashSet<>();
         for (SimOrder order : result.orders()) {
             if (!orderIds.add(order.orderId())) fail("duplicate order ID " + order.orderId());
@@ -63,6 +64,22 @@ public final class RunLedgerReconciler {
         for (SimOrderEvent event : result.orderEvents()) {
             if (event.orderId().isBlank()) continue;
             if (!orderIds.contains(event.orderId())) fail("event refers to unknown order " + event.orderId());
+            Instant priorTimestamp = lastOrderEventTimestamp.put(event.orderId(), event.timestamp());
+            if (priorTimestamp != null && event.timestamp().isBefore(priorTimestamp)) {
+                fail("order events are time-reversed for " + event.orderId());
+            }
+            String priorState = lastOrderEvent.get(event.orderId());
+            if (event.event().equals("CREATED")) {
+                if (priorState != null) fail("order has multiple CREATED events: " + event.orderId());
+            } else {
+                if (priorState == null) fail("order event precedes CREATED: " + event.orderId());
+                try {
+                    SimOrderLifecycle.requireTransition(priorState, event.event());
+                } catch (IllegalStateException invalidTransition) {
+                    fail("invalid order event transition for " + event.orderId() + ": "
+                            + priorState + " -> " + event.event());
+                }
+            }
             lastOrderEvent.put(event.orderId(), event.event());
         }
         for (SimOrder order : result.orders()) {

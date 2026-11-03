@@ -43,7 +43,7 @@
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Lot-to-unit conversions use checked integer multiplication; an unrepresentable quantity fails closed instead of wrapping ledger units.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
-- [x] An independent reconciliation pass checks trade gross vs realized P&L, fill fees/slippage, order terminal events, session totals, and final equity before a run is returned.
+- [x] An independent reconciliation pass checks trade gross vs realized P&L, fill fees/slippage, every per-order state transition and event timestamp, session totals, and final equity before a run is returned.
 - [x] An additional independent risk reconciliation rechecks every BUY fill against configured max lots, notional, and margin-proxy caps; verifies loss-limit breaches have recorded risk halts and no subsequent same-session entry fills.
 - [x] Risk reconciliation requires exactly one halt event at the breach equity mark, at most one per session, and exact agreement between halt events and the run counter.
 - [x] An independent per-fill cost audit recomputes the adverse tick price, slippage amount, configured/dates schedule fee components, and notional-bps paise rounding from the matching bar and frozen inputs.
