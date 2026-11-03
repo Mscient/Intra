@@ -8,6 +8,10 @@ public final class SimOrderLifecycle {
         OmsOrderStateMachine.requireTransition(mapSimulatorState(from), mapSimulatorState(to));
     }
 
+    static OmsOrderState toOmsState(String state) {
+        return mapSimulatorState(state);
+    }
+
     private static OmsOrderState mapSimulatorState(String state) {
         return switch (state) {
             case "ACKNOWLEDGED_BY_SIMULATOR" -> OmsOrderState.WORKING;

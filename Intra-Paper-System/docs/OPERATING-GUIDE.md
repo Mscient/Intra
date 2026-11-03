@@ -34,6 +34,14 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 `verify` recomputes the SHA-256 hashes for the nine output ledgers in `run-manifest.json` and checks the folder ID. It does not re-open or re-authorize source inputs.
 
+Reconstruct the completed run's saved OMS state after verifying all run-artifact hashes:
+
+```powershell
+& $java -jar $jar oms-recover $runFolder
+```
+
+The command replays order events through the state machine, restores execution-ID deduplication from `fills.csv`, calculates any residual pending/unknown unit reservations, and reconciles execution plus settlement position against the final `equity.csv` row. It fails if artifact hashes, lifecycle transitions, quantities, or final position disagree. The output is a reconstruction of a complete run; the current bar engine does not save mid-simulation OMS checkpoints or continue from an interrupted bar.
+
 Run output is published by atomic directory move after all ledgers and hashes are written. An active writer holds an operating-system lock beside its temporary staging folder. On a later run write, recognized staging folders are removed only when their lock can be acquired. Legacy folders without a lock marker and currently active writes are preserved. The published run is never resumed in place; use deterministic replay verification to compare it with frozen inputs.
 
 ## OMS state primitives

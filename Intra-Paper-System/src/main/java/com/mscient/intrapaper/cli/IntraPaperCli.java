@@ -10,6 +10,7 @@ import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
+import com.mscient.intrapaper.simulation.OmsRunRecovery;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
 import com.mscient.intrapaper.simulation.RunIdentity;
@@ -33,6 +34,20 @@ public final class IntraPaperCli {
                 RunArtifactVerifier.Verification verification = RunArtifactVerifier.verify(Path.of(args[1]));
                 System.out.printf("VERIFIED: %s; output files=%d; SHA-256 hashes match%n",
                         verification.runId(), verification.verifiedFiles());
+                return;
+            }
+            if (args.length == 2 && args[0].equals("oms-recover")) {
+                var recovered = OmsRunRecovery.restore(Path.of(args[1]));
+                for (var entry : recovered.orderStates().entrySet()) {
+                    System.out.printf("ORDER %s: state=%s; reserved_units=%d%n", entry.getKey(), entry.getValue(),
+                            recovered.reservedUnitsByOrder().getOrDefault(entry.getKey(), 0));
+                }
+                System.out.printf("RECONSTRUCTED VERIFIED OMS: run=%s; orders=%d; unique_executions=%d; "
+                                + "duplicate_execution_events_ignored=%d; reserved_orders=%d; reserved_units=%d; "
+                                + "final_position_units=%d%n",
+                        recovered.runId(), recovered.orderStates().size(), recovered.uniqueExecutions().size(),
+                        recovered.duplicateExecutionEventsIgnored(), recovered.reservedUnitsByOrder().size(),
+                        recovered.totalReservedUnits(), recovered.finalPositionUnits());
                 return;
             }
             if (args.length == 2 && args[0].equals("journal-verify")) {
@@ -129,6 +144,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar validate <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
+                + "  java -jar intra-paper-system.jar oms-recover <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
@@ -136,6 +152,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
+                + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
