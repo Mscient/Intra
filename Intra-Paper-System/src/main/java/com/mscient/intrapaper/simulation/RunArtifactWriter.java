@@ -258,13 +258,14 @@ public final class RunArtifactWriter {
         inputHashes.put("configuration", data.configSha256());
         inputHashes.put("instrument_master", data.instrumentMaster().rawFileSha256());
         inputHashes.put("session_calendar", data.calendarSha256());
+        inputHashes.put("market_rule_regimes", data.marketRuleRegimeSchedule().sha256());
         data.costSchedule().ifPresent(schedule -> inputHashes.put("cost_schedule", schedule.sha256()));
         data.componentCostSchedule().ifPresent(schedule -> inputHashes.put("component_cost_schedule", schedule.sha256()));
         data.marginRequirementSchedule().ifPresent(schedule -> inputHashes.put("margin_requirement_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         return "{\n"
-                + "  \"schema_version\": 9,\n"
+                + "  \"schema_version\": 10,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -281,6 +282,7 @@ public final class RunArtifactWriter {
                 + "  \"instrument_master_snapshot_id\": " + q(data.instrumentMaster().snapshotId()) + ",\n"
                 + "  \"instrument_master_sha256\": " + q(data.instrumentMaster().rawFileSha256()) + ",\n"
                 + "  \"session_calendar_sha256\": " + q(data.calendarSha256()) + ",\n"
+                + "  \"market_rule_regime_schedule_sha256\": " + q(data.marketRuleRegimeSchedule().sha256()) + ",\n"
                 + "  \"market_rule_regimes\": " + marketRuleRegimesJson(data, first.sessionDate(), last.sessionDate()) + ",\n"
                 + "  \"timezone\": " + q(config.timezone()) + ",\n"
                 + "  \"timestamp_role\": " + q(config.timestampRole().name()) + ",\n"
@@ -388,14 +390,43 @@ public final class RunArtifactWriter {
 
     private static String marketRuleRegimesJson(ValidatedDataset data,
             java.time.LocalDate firstDate, java.time.LocalDate lastDate) {
-        List<String> entries = data.sessionCalendar().entrySet().stream()
+        Map<String, List<java.time.LocalDate>> sessionsByRegime = new TreeMap<>();
+        data.sessionCalendar().entrySet().stream()
                 .filter(entry -> entry.getValue().open()
                         && !entry.getKey().isBefore(firstDate) && !entry.getKey().isAfter(lastDate))
                 .sorted(Map.Entry.comparingByKey())
-                .map(entry -> "{\"session_date\":" + q(entry.getKey().toString())
-                        + ",\"regime_id\":" + q(entry.getValue().marketRuleRegimeId())
-                        + ",\"source_reference\":" + q(entry.getValue().regimeSourceReference()) + "}")
-                .toList();
+                .forEach(entry -> sessionsByRegime.computeIfAbsent(
+                        entry.getValue().marketRuleRegimeId(), ignored -> new ArrayList<>()).add(entry.getKey()));
+
+        List<String> entries = sessionsByRegime.entrySet().stream().map(entry -> {
+            var regime = data.marketRuleRegimeSchedule().regimes().get(entry.getKey());
+            String sessionDates = entry.getValue().stream().map(date -> q(date.toString()))
+                    .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+            return "{\"regime_id\":" + q(regime.id())
+                    + ",\"session_dates\":" + sessionDates
+                    + ",\"effective_from\":" + q(regime.effectiveFrom().toString())
+                    + ",\"effective_through\":" + regime.effectiveThrough().map(value -> q(value.toString())).orElse("null")
+                    + ",\"exchange\":" + q(regime.exchange())
+                    + ",\"segment\":" + q(regime.segment())
+                    + ",\"contract_kind\":" + q(regime.contractKind().name())
+                    + ",\"timezone\":" + q(regime.timezone())
+                    + ",\"session_open_local\":" + q(regime.sessionOpenLocal().toString())
+                    + ",\"session_close_local\":" + q(regime.sessionCloseLocal().toString())
+                    + ",\"preopen_enabled\":" + regime.preopenEnabled()
+                    + ",\"preopen_start_local\":" + regime.preopenStartLocal().map(value -> q(value.toString())).orElse("null")
+                    + ",\"preopen_end_local\":" + regime.preopenEndLocal().map(value -> q(value.toString())).orElse("null")
+                    + ",\"expiry_weekday\":" + regime.expiryWeekday().map(Enum::name).map(RunArtifactWriter::q).orElse("null")
+                    + ",\"holiday_expiry_shift\":" + optionalJson(regime.holidayExpiryShift())
+                    + ",\"lot_size\":" + regime.lotSize()
+                    + ",\"tick_size\":" + q(num(regime.tickSize()))
+                    + ",\"expiry_elm_addon_percent\":" + regime.expiryElmAddonPercent().map(value -> q(num(value))).orElse("null")
+                    + ",\"calendar_spread_expiry_eligible\":" + regime.calendarSpreadExpiryEligible()
+                            .map(String::valueOf).orElse("null")
+                    + ",\"source_reference\":" + q(regime.sourceReference())
+                    + ",\"source_published_date\":" + regime.sourcePublishedDate().map(value -> q(value.toString())).orElse("null")
+                    + ",\"source_sha256\":" + optionalJson(regime.sourceSha256())
+                    + ",\"verification_status\":" + q(regime.verificationStatus().name()) + "}";
+        }).toList();
         return "[" + String.join(",", entries) + "]";
     }
 

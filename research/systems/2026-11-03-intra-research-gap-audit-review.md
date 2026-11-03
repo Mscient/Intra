@@ -22,7 +22,7 @@
 
 The Java replay already takes first/last expected bar timestamps from a user-supplied per-date calendar and hashes the calendar into the run identity. It has no default 15:30 close to replace. The real implementation gap was that runs could not identify which exchange-rule regime the caller assigned to each date.
 
-Open calendar rows now require market_rule_regime_id and regime_source_reference. The session ledger and run manifest preserve the caller-supplied ID and reference per open date. These values are provenance labels: the software does not resolve circulars, verify source authenticity, derive dates, or establish that the calendar is correct. Official rules must still be reviewed and converted into effective-dated inputs before a run can be called source-accurate.
+Open calendar rows resolve through a hashed effective-dated registry. The validator checks the regime ID, effective date, exchange/segment/contract kind, matching source reference, timezone, regular-session window, lot size, and tick size. The run manifest preserves the applied rule fields and source metadata. Registry statuses and source hashes are still caller assertions; the software does not fetch circulars or establish source authenticity. The bundled example is deliberately synthetic, and the official NSE rule rows remain to be populated after the outstanding primary-source review.
 
 ## Source pages
 

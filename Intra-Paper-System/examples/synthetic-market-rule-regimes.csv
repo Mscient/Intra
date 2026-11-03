@@ -1,0 +1,2 @@
+market_rule_regime_id,effective_from,effective_through,exchange,segment,contract_kind,timezone,session_open_local,session_close_local,preopen_enabled,preopen_start_local,preopen_end_local,expiry_weekday,holiday_expiry_shift,lot_size,tick_size,expiry_elm_addon_percent,calendar_spread_expiry_eligible,source_reference,source_published_date,source_sha256,verification_status
+SYNTHETIC_V1,2030-01-01,,SYN,FUT,FUTURE,Asia/Kolkata,09:15,09:45,false,,,,,1,0.05,,,synthetic fixture only; not an exchange ruleset,,,SYNTHETIC_ONLY

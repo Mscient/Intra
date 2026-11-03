@@ -7,6 +7,7 @@ import com.mscient.intrapaper.provenance.ExpirySettlement;
 import com.mscient.intrapaper.provenance.MarginRequirementSchedule;
 import com.mscient.intrapaper.provenance.SettlementCostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.reference.TimestampRole;
 import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
 
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +28,7 @@ public record ValidatedDataset(
         List<Bar> bars,
         InstrumentMasterSnapshot instrumentMaster,
         Map<LocalDate, SessionCalendarEntry> sessionCalendar,
+        MarketRuleRegimeSchedule marketRuleRegimeSchedule,
         DatasetManifest manifest,
         String barsSha256,
         String configSha256,
@@ -48,6 +51,8 @@ public record ValidatedDataset(
         InstrumentMasterSnapshot master = InstrumentMasterCsvReader.read(config);
         SessionCalendarCsvReader.ReadResult calendarRead = SessionCalendarCsvReader.readWithHash(config.sessionCalendarPath());
         Map<LocalDate, SessionCalendarEntry> calendar = calendarRead.sessions();
+        MarketRuleRegimeSchedule marketRuleRegimeSchedule =
+                MarketRuleRegimeSchedule.load(config.marketRuleRegimePath());
         Optional<CostSchedule> costSchedule = config.costSchedulePath().isPresent()
                 ? Optional.of(CostSchedule.load(config.costSchedulePath().orElseThrow())) : Optional.empty();
         Optional<ComponentCostSchedule> componentCostSchedule = config.componentCostSchedulePath().isPresent()
@@ -77,7 +82,8 @@ public record ValidatedDataset(
             if (!bar.interval().equals(config.interval())) {
                 throw new IllegalArgumentException("Bar interval " + bar.interval() + " differs from configured " + config.interval());
             }
-            if (!bar.instrumentId().equals(onlyInstrument) || !bar.sourceToken().equals(onlyToken)
+            if (!bar.instrumentId().equals(onlyInstrument) || !bar.exchange().equals(first.exchange())
+                    || !bar.segment().equals(first.segment()) || !bar.sourceToken().equals(onlyToken)
                     || !bar.tradingSymbol().equals(onlySymbol) || !bar.expiry().equals(onlyExpiry)
                     || bar.contractKind() != onlyKind || !sameStrike(bar.strike(), onlyStrike)
                     || !bar.optionRight().equals(onlyRight)) {
@@ -112,6 +118,7 @@ public record ValidatedDataset(
                     || bar.timestamp().isAfter(entry.lastBarTimestamp().orElseThrow())) {
                 throw new IllegalArgumentException("Bar timestamp lies outside the supplied session window: " + bar.timestamp());
             }
+
             if (!bar.timestamp().atZone(timezone).toLocalDate().equals(entry.sessionDate())) {
                 throw new IllegalArgumentException("Session calendar timestamp does not resolve to its declared local date: " + bar.sessionDate());
             }
@@ -135,6 +142,21 @@ public record ValidatedDataset(
                 continue;
             }
             openSessionCount++;
+            MarketRuleRegimeSchedule.MarketRuleRegime regime = marketRuleRegimeSchedule.require(
+                    entry.marketRuleRegimeId(), date, first.exchange(), first.segment(), onlyKind);
+            if (!regime.timezone().equals(config.timezone())) {
+                throw new IllegalArgumentException("Market-rule regime timezone differs from dataset.timezone on " + date);
+            }
+            var datedReference = master.requireContract(first.exchange(), first.segment(), first.sourceToken(), date);
+            if (datedReference.lotSize() != regime.lotSize()
+                    || datedReference.tickSize().compareTo(regime.tickSize()) != 0) {
+                throw new IllegalArgumentException("Market-rule regime lot/tick size does not match the dated instrument master on " + date);
+            }
+            requireCalendarWindowMatchesRegime(entry, regime, config, expectedSpacing, timezone);
+            if (!entry.regimeSourceReference().equals(regime.sourceReference())) {
+                throw new IllegalArgumentException("Calendar source reference does not match market-rule regime "
+                        + regime.id() + " on " + date);
+            }
             if (costSchedule.isPresent()) {
                 costSchedule.orElseThrow().require(date, CostSchedule.Side.BUY);
                 costSchedule.orElseThrow().require(date, CostSchedule.Side.SELL);
@@ -227,7 +249,8 @@ public record ValidatedDataset(
         Map<String, String> inputs = new java.util.TreeMap<>(Map.of(
                 "bars", barsHash,
                 "instrument-master", master.rawFileSha256(),
-                "session-calendar", calendarHash));
+                "session-calendar", calendarHash,
+                "market-rule-regimes", marketRuleRegimeSchedule.sha256()));
         costSchedule.ifPresent(schedule -> inputs.put("cost-schedule", schedule.sha256()));
         componentCostSchedule.ifPresent(schedule -> inputs.put("component-cost-schedule", schedule.sha256()));
         marginRequirementSchedule.ifPresent(schedule -> inputs.put("margin-requirement-schedule", schedule.sha256()));
@@ -245,10 +268,31 @@ public record ValidatedDataset(
                 master.rawFileSha256(),
                 Optional.of(calendarHash),
                 inputs);
-        return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
+        return new ValidatedDataset(List.copyOf(bars), master, calendar, marketRuleRegimeSchedule, manifest,
                 barsHash, config.configSha256(), calendarHash, costSchedule, componentCostSchedule,
                 marginRequirementSchedule, expirySettlement, settlementCostSchedule, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
+    }
+
+    private static void requireCalendarWindowMatchesRegime(SessionCalendarEntry entry,
+            MarketRuleRegimeSchedule.MarketRuleRegime regime, RunConfig config,
+            Duration spacing, ZoneId timezone) {
+        if (config.interval().equals("ONE_DAY")) return;
+        LocalDateTime expectedFirst = entry.sessionDate().atTime(regime.sessionOpenLocal());
+        LocalDateTime expectedLast = entry.sessionDate().atTime(regime.sessionCloseLocal());
+        if (config.timestampRole() == TimestampRole.BAR_END) expectedFirst = expectedFirst.plus(spacing);
+        else expectedLast = expectedLast.minus(spacing);
+        if (expectedLast.isBefore(expectedFirst)) {
+            throw new IllegalArgumentException("Configured interval does not fit in market-rule regime session on "
+                    + entry.sessionDate());
+        }
+        Instant expectedFirstInstant = expectedFirst.atZone(timezone).toInstant();
+        Instant expectedLastInstant = expectedLast.atZone(timezone).toInstant();
+        if (!entry.firstBarTimestamp().orElseThrow().equals(expectedFirstInstant)
+                || !entry.lastBarTimestamp().orElseThrow().equals(expectedLastInstant)) {
+            throw new IllegalArgumentException("Session calendar window does not match effective market-rule regime "
+                    + regime.id() + " on " + entry.sessionDate());
+        }
     }
 
     private static boolean sameStrike(Optional<java.math.BigDecimal> left, Optional<java.math.BigDecimal> right) {
