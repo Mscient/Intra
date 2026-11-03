@@ -9,14 +9,19 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 
 /** Offline L1 quote replay for marketable IOC orders; this class has no network or broker adapter. */
 public final class QuoteOrderReplay {
     public static final String MODEL_ID = "L1_TOP_OF_BOOK_IOC_SNAPSHOT_V1";
+    public static final String BATCH_MODEL_ID = "L1_TOP_OF_BOOK_IOC_SNAPSHOT_DEPLETION_V1";
 
     public enum Type { MARKET_IOC, LIMIT_IOC }
     public enum Status { FILLED, PARTIALLY_FILLED, MISSED }
@@ -117,6 +122,49 @@ public final class QuoteOrderReplay {
     private QuoteOrderReplay() { }
 
     /**
+     * Replays a batch in arrival-time order and makes each snapshot's displayed side size available
+     * only once until another quote snapshot is selected. Input order breaks equal-arrival ties;
+     * returned outcomes retain input order. This still does not model hidden liquidity, queueing,
+     * market impact, or whether displayed size persists until arrival.
+     */
+    public static List<Outcome> executeBatch(List<MarketQuote> quoteHistory, List<Intent> intents,
+            QuoteQualityPolicy qualityPolicy) {
+        Objects.requireNonNull(quoteHistory, "quoteHistory");
+        Objects.requireNonNull(intents, "intents");
+        Objects.requireNonNull(qualityPolicy, "qualityPolicy");
+        List<Intent> stableIntents = List.copyOf(intents);
+        Set<String> orderIds = new HashSet<>();
+        for (Intent intent : stableIntents) {
+            if (!orderIds.add(intent.orderId())) throw new IllegalArgumentException("Batch order IDs must be unique");
+        }
+        List<Integer> arrivalOrder = new ArrayList<>(stableIntents.size());
+        for (int index = 0; index < stableIntents.size(); index++) arrivalOrder.add(index);
+        arrivalOrder.sort(Comparator.comparing((Integer index) -> arrivalTime(stableIntents.get(index)))
+                .thenComparingInt(Integer::intValue));
+
+        Outcome[] outcomes = new Outcome[stableIntents.size()];
+        Map<QuoteConsumptionKey, Long> remainingByQuote = new HashMap<>();
+        for (int index : arrivalOrder) {
+            Intent intent = stableIntents.get(index);
+            Instant arrival = arrivalTime(intent);
+            MarketQuote quote = latestAsOf(quoteHistory, intent, arrival);
+            Outcome outcome;
+            if (quote == null) {
+                outcome = execute(quoteHistory, intent, qualityPolicy, null);
+            } else {
+                QuoteConsumptionKey key = new QuoteConsumptionKey(quote.source(), quote.instrumentId(),
+                        quote.sequenceNumber(), intent.side());
+                long available = remainingByQuote.computeIfAbsent(key, ignored -> intent.side() == ExecutionEvent.Side.BUY
+                        ? quote.askQuantity() : quote.bidQuantity());
+                outcome = execute(quoteHistory, intent, qualityPolicy, available);
+                remainingByQuote.put(key, available - outcome.filledUnits());
+            }
+            outcomes[index] = withModelId(outcome, BATCH_MODEL_ID);
+        }
+        return List.of(outcomes);
+    }
+
+    /**
      * Evaluates a single IOC intent against the latest matching L1 snapshot observable by its
      * caller-supplied arrival time. At most the displayed top-level quantity is filled; any
      * residual is canceled. A non-marketable limit is missed because quote snapshots contain no
@@ -125,6 +173,11 @@ public final class QuoteOrderReplay {
      * quote depletion, so it is not a portfolio-capacity or conservative fill lower-bound model.
      */
     public static Outcome execute(List<MarketQuote> quoteHistory, Intent intent, QuoteQualityPolicy qualityPolicy) {
+        return execute(quoteHistory, intent, qualityPolicy, null);
+    }
+
+    private static Outcome execute(List<MarketQuote> quoteHistory, Intent intent,
+            QuoteQualityPolicy qualityPolicy, Long displayedUnitsLimit) {
         Objects.requireNonNull(quoteHistory, "quoteHistory");
         Objects.requireNonNull(intent, "intent");
         Objects.requireNonNull(qualityPolicy, "qualityPolicy");
@@ -163,6 +216,7 @@ public final class QuoteOrderReplay {
         }
 
         long displayed = gateSide == QuoteExecutionGate.Side.BUY ? quote.askQuantity() : quote.bidQuantity();
+        if (displayedUnitsLimit != null) displayed = Math.min(displayed, displayedUnitsLimit);
         if (intent.type() == Type.LIMIT_IOC && !marketable(intent, referenceTicks)) {
             current = transition(events, current, OmsOrderState.WORKING, arrival, "LIMIT_NOT_MARKETABLE_AT_ARRIVAL");
             current = transition(events, current, OmsOrderState.CANCELED, arrival, "IOC_LIMIT_REMAINDER_CANCELED");
@@ -225,6 +279,21 @@ public final class QuoteOrderReplay {
         return latest;
     }
 
+    private static Instant arrivalTime(Intent intent) {
+        try {
+            return intent.decisionTimestamp().plus(intent.decisionToArrivalLatency());
+        } catch (RuntimeException invalidLatency) {
+            throw new IllegalArgumentException("decision-to-arrival time is outside the supported Instant range", invalidLatency);
+        }
+    }
+
+    private static Outcome withModelId(Outcome outcome, String modelId) {
+        return new Outcome(modelId, outcome.intent(), outcome.arrivalTimestamp(), outcome.status(), outcome.finalState(),
+                outcome.filledUnits(), outcome.remainingUnits(), outcome.quoteSequence(), outcome.quoteReceivedAt(),
+                outcome.referencePriceTicks(), outcome.fillPriceTicks(), outcome.execution(), outcome.stateEvents(),
+                outcome.reason());
+    }
+
     private static boolean marketable(Intent intent, long referenceTicks) {
         long limit = intent.limitPriceTicks().orElseThrow();
         return intent.side() == ExecutionEvent.Side.BUY ? referenceTicks <= limit : referenceTicks >= limit;
@@ -257,4 +326,7 @@ public final class QuoteOrderReplay {
         }
         return value;
     }
+
+    private record QuoteConsumptionKey(String source, String instrumentId, long sequence,
+            ExecutionEvent.Side side) { }
 }

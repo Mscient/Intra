@@ -104,7 +104,7 @@ public final class IntraPaperCli {
                 System.out.printf("COMPLETED OFFLINE QUOTE ORDER REPLAY: model=%s; journal_events=%d; "
                                 + "intents=%d; filled=%d; partial=%d; missed=%d; quote_journal_final_hash=%s; "
                                 + "intent_csv_sha256=%s; output=%s%n",
-                        com.mscient.intrapaper.simulation.QuoteOrderReplay.MODEL_ID,
+                        com.mscient.intrapaper.simulation.QuoteOrderReplay.BATCH_MODEL_ID,
                         replay.journal().eventCount(), replay.intentCount(), replay.filledCount(),
                         replay.partialCount(), replay.missedCount(), replay.journal().finalHashHex(),
                         replay.intentFileSha256(), replay.outputPath());

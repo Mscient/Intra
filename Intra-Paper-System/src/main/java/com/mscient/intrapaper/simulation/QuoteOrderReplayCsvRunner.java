@@ -83,8 +83,8 @@ public final class QuoteOrderReplayCsvRunner {
             try (BufferedWriter writer = Files.newBufferedWriter(staging, StandardCharsets.UTF_8)) {
                 writer.write(OUTPUT_HEADER);
                 writer.write('\n');
-                for (QuoteOrderReplay.Intent intent : intents) {
-                    QuoteOrderReplay.Outcome outcome = QuoteOrderReplay.execute(quoteHistory, intent, qualityPolicy);
+                List<QuoteOrderReplay.Outcome> outcomes = QuoteOrderReplay.executeBatch(quoteHistory, intents, qualityPolicy);
+                for (QuoteOrderReplay.Outcome outcome : outcomes) {
                     switch (outcome.status()) {
                         case FILLED -> filled = Math.addExact(filled, 1);
                         case PARTIALLY_FILLED -> partial = Math.addExact(partial, 1);
