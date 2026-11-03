@@ -13,6 +13,7 @@ import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
 import com.mscient.intrapaper.simulation.BacktestCheckpointStore;
 import com.mscient.intrapaper.simulation.OmsRunRecovery;
+import com.mscient.intrapaper.simulation.QuoteOrderReplayArtifactVerifier;
 import com.mscient.intrapaper.simulation.QuoteOrderReplayCsvRunner;
 import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
@@ -101,13 +102,21 @@ public final class IntraPaperCli {
                         Duration.ofMillis(Long.parseLong(args[4])));
                 var replay = QuoteOrderReplayCsvRunner.replay(
                         Path.of(args[1]), Path.of(args[2]), policy, Path.of(args[5]));
-                System.out.printf("COMPLETED OFFLINE QUOTE ORDER REPLAY: model=%s; journal_events=%d; "
+                System.out.printf("COMPLETED OFFLINE QUOTE ORDER REPLAY: run=%s; model=%s; journal_events=%d; "
                                 + "intents=%d; filled=%d; partial=%d; missed=%d; quote_journal_final_hash=%s; "
                                 + "intent_csv_sha256=%s; output=%s%n",
+                        replay.runId(),
                         com.mscient.intrapaper.simulation.QuoteOrderReplay.BATCH_MODEL_ID,
                         replay.journal().eventCount(), replay.intentCount(), replay.filledCount(),
                         replay.partialCount(), replay.missedCount(), replay.journal().finalHashHex(),
                         replay.intentFileSha256(), replay.outputPath());
+                return;
+            }
+            if (args.length == 2 && args[0].equals("quote-order-replay-verify")) {
+                var verification = QuoteOrderReplayArtifactVerifier.verify(Path.of(args[1]));
+                System.out.printf("VERIFIED QUOTE REPLAY ARTIFACT: run=%s; intents=%d; filled=%d; partial=%d; missed=%d; build=%s%n",
+                        verification.runId(), verification.intentCount(), verification.filledCount(),
+                        verification.partialCount(), verification.missedCount(), verification.buildCommit());
                 return;
             }
             if (args.length == 2 && args[0].equals("raw-capture-verify")) {
@@ -200,7 +209,8 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar quote-feature-export <quote-journal> <instrument-id> <maximum-age-ms> <maximum-future-skew-ms> <output.csv>\n"
-                + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output.csv>\n"
+                + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output-root>\n"
+                + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
@@ -211,7 +221,8 @@ public final class IntraPaperCli {
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
                 + "quote-feature-export verifies a quote journal and atomically writes sequence-aware L1 features without overwriting output.\n"
-                + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes source-hashed outcomes.\n"
+                + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes a content-addressed run folder.\n"
+                + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"

@@ -10,6 +10,7 @@ data/raw/
 data/staged/
 data/private/
 runs/
+quote-replay-runs/
 .checkpoints/
 journals/
 *.qj

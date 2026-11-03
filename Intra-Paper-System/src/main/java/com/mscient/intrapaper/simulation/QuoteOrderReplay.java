@@ -315,8 +315,9 @@ public final class QuoteOrderReplay {
     }
 
     private static String requireTrimmed(String value, String name) {
-        if (value == null || value.isBlank() || !value.equals(value.strip())) {
-            throw new IllegalArgumentException(name + " must be non-empty and trimmed");
+        if (value == null || value.isBlank() || !value.equals(value.strip())
+                || value.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException(name + " must be non-empty, trimmed, and free of control characters");
         }
         return value;
     }

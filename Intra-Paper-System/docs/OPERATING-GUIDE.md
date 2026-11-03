@@ -93,10 +93,17 @@ Set the instrument ID and freshness limits explicitly. Replay uses each record's
 Run batches from a verified journal with a UTF-8 CSV that has exactly these columns in this order: `order_id,source,instrument_id,decision_time_utc,latency_ms,side,type,requested_units,limit_price_ticks,adverse_slippage_ticks,tick_size`. Timestamps use ISO-8601 UTC instants. `side` is `BUY` or `SELL`; `type` is `MARKET_IOC` or `LIMIT_IOC`; leave `limit_price_ticks` empty for market IOC and provide a positive integer tick price for limit IOC. Order IDs must be unique. Example:
 
 ```powershell
-& $java -jar $jar quote-order-replay .\quotes.qj .\intents.csv 2000 250 .\quote-replay.csv
+$replayRoot = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\quote-replay-runs'
+& $java -jar $jar quote-order-replay .\quotes.qj .\intents.csv 2000 250 $replayRoot
 ```
 
-The command verifies the full quote journal before writing, then builds a per-source/instrument index ordered by receive time for batch lookup. Each output row records the journal final hash, exact intent CSV hash, model ID, selected quote, outcome, OMS events, and execution identity. Output is atomically created without overwriting an existing file. The batch sorts intents by arrival time and uses input row order to break ties. For each selected quote and side, it consumes displayed quantity once until another snapshot is selected. The command holds the complete quote history and its index in memory because event timestamps are not required to be monotonic in journal order; select journals that fit available memory. This snapshot-depletion rule does not model hidden liquidity, market impact, quote withdrawal before arrival, or passive queue fills, so results are not an aggregate capacity estimate or conservative fill lower bound. The replay is not integrated into the bar strategy runner and does not model fees, route distributions, or broker state.
+The command verifies the full quote journal before writing, then builds a per-source/instrument index ordered by receive time for batch lookup. It atomically creates a content-addressed run folder under the output root with `outcomes.csv` and `run-manifest.properties`. The manifest records the exact quote-journal and intent-file hashes, hash-chain summary, build commit, quote-quality thresholds, outcome counts, and output CSV hash. Existing run folders are never overwritten. Verify a saved folder with:
+
+```powershell
+& $java -jar $jar quote-order-replay-verify (Join-Path $replayRoot '<run-id>')
+```
+
+The verifier checks the folder layout, content ID, count reconciliation, and output hash. It does not include or re-open source files, so it cannot verify their availability or licensing. The batch sorts intents by arrival time and uses input row order to break ties. For each selected quote and side, it consumes displayed quantity once until another snapshot is selected. The command holds the complete quote history and its index in memory because event timestamps are not required to be monotonic in journal order; select journals that fit available memory. This snapshot-depletion rule does not model hidden liquidity, market impact, quote withdrawal before arrival, or passive queue fills, so results are not an aggregate capacity estimate or conservative fill lower bound. The replay is not integrated into the bar strategy runner and does not model fees, route distributions, or broker state.
 
 Journal creation uses create-new semantics. If initialization fails, the writer closes the handle and removes the file it just created so an incomplete header cannot masquerade as a valid empty journal.
 
