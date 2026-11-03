@@ -1,0 +1,3 @@
+effective_from,effective_through,side,fee_per_order_inr,fee_per_unit_inr,notional_fee_bps,slippage_ticks
+2030-01-01,,BUY,1.00,0.01,0,1
+2030-01-01,,SELL,1.00,0.01,0,1

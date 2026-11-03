@@ -147,6 +147,7 @@ public final class RunArtifactWriter {
         inputHashes.put("configuration", data.configSha256());
         inputHashes.put("instrument_master", data.instrumentMaster().rawFileSha256());
         inputHashes.put("session_calendar", data.calendarSha256());
+        data.costSchedule().ifPresent(schedule -> inputHashes.put("cost_schedule", schedule.sha256()));
         return "{\n"
                 + "  \"schema_version\": 2,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
@@ -192,7 +193,9 @@ public final class RunArtifactWriter {
                 + ", \"fee_per_order_inr\": " + q(num(config.feePerOrderInr()))
                 + ", \"fee_per_unit_inr\": " + q(num(config.feePerUnitInr()))
                 + ", \"notional_fee_bps\": " + q(num(config.notionalFeeBps()))
-                + ", \"notional_fee_rounding\": \"HALF_UP_TO_PAISE_PER_FILL\"},\n"
+                + ", \"notional_fee_rounding\": \"HALF_UP_TO_PAISE_PER_FILL\""
+                + (data.costSchedule().isPresent() ? ", \"dated_schedule_sha256\": "
+                        + q(data.costSchedule().orElseThrow().sha256()) : "") + "},\n"
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))

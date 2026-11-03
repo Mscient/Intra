@@ -23,6 +23,7 @@ public final class RunIdentity {
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());
                 write(output, dataset.calendarSha256());
+                write(output, dataset.costSchedule().map(com.mscient.intrapaper.provenance.CostSchedule::sha256).orElse("NO_COST_SCHEDULE"));
                 write(output, config.commitId());
                 write(output, strategy.id());
                 Map<String, String> parameters = new TreeMap<>(strategy.parameters());

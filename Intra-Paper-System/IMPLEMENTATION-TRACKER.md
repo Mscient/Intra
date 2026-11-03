@@ -40,6 +40,7 @@
 - [x] A run-folder verifier checks the manifest ID and recomputes all eight output-ledger hashes; it does not validate original inputs or data rights.
 - [x] Run summary includes diagnostic completed-trade statistics, holding time, filled units, and filled turnover; undefined trade statistics are null and no performance-claim flag is enabled.
 - [x] Cost inputs support fixed per-order, per-unit, and configurable per-fill notional basis-point charges; verified dated cost schedules remain open.
+- [x] Optional dated BUY/SELL cost schedules are validated for range overlap and complete session coverage; their hash participates in run identity and the manifest.
 - [x] CLI quote-journal verification replays the full local journal and checks framing, canonical records, sequence order, and the SHA-256 chain; it performs no network access.
 - [x] Replay verification reruns the simulator from supplied bars/configuration in an isolated temporary folder and compares all ledgers plus the manifest byte-for-byte with the content-addressed saved run.
 - [x] Explicit cross-session position policy: `REQUIRE_FLAT` fails closed on an overnight or end-of-data position; it does not synthesize a forced close.

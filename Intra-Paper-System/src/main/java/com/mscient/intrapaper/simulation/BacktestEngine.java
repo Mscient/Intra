@@ -3,6 +3,7 @@ package com.mscient.intrapaper.simulation;
 import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 
@@ -104,7 +105,11 @@ public final class BacktestEngine {
                 } else {
                     String side = deltaLots > 0 ? "BUY" : "SELL";
                     int quantity = Math.abs(deltaLots) * bar.lotSize();
-                    BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(config.slippageTicks()));
+                    CostSchedule.Terms costTerms = dataset.costSchedule()
+                            .map(schedule -> schedule.require(bar.sessionDate(), CostSchedule.Side.valueOf(side)))
+                            .orElseGet(() -> new CostSchedule.Terms(config.feePerOrderInr(), config.feePerUnitInr(),
+                                    config.notionalFeeBps(), config.slippageTicks()));
+                    BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(costTerms.slippageTicks()));
                     BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
                     String riskRejection = fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
                             : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice) : null;
@@ -114,10 +119,10 @@ public final class BacktestEngine {
                         events.add(new SimOrderEvent(barStart, order.orderId(), "REJECTED_RISK", reason));
                     } else {
                         BigDecimal fillNotional = fillPrice.multiply(BigDecimal.valueOf(quantity));
-                        BigDecimal notionalFee = fillNotional.multiply(config.notionalFeeBps())
+                        BigDecimal notionalFee = fillNotional.multiply(costTerms.notionalFeeBps())
                                 .divide(BigDecimal.valueOf(10_000), 2, RoundingMode.HALF_UP);
-                        BigDecimal fee = config.feePerOrderInr()
-                                .add(config.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
+                        BigDecimal fee = costTerms.feePerOrderInr()
+                                .add(costTerms.feePerUnitInr().multiply(BigDecimal.valueOf(quantity)))
                                 .add(notionalFee);
                         BigDecimal slippageCost = tickSlippage.multiply(BigDecimal.valueOf(quantity));
                         int oldUnits = positionLots * bar.lotSize();

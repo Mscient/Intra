@@ -35,6 +35,7 @@ public record RunConfig(
         LocalDate snapshotEffectiveFrom,
         Path instrumentMasterPath,
         Path sessionCalendarPath,
+        Optional<Path> costSchedulePath,
         int fastBars,
         int slowBars,
         int requestedLots,
@@ -64,7 +65,7 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.max_daily_loss_inr", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
-            "cost.notional_fee_bps",
+            "cost.notional_fee_bps", "cost.schedule_file",
             "orders.allow_next_session", "position.cross_session_policy", "quality.allow_intrasession_gaps",
             "quality.max_missing_intervals_per_session", "run.commit_id");
 
@@ -163,6 +164,7 @@ public record RunConfig(
                 LocalDate.parse(required(p, "reference.effective_from")),
                 resolve(base, required(p, "reference.file")),
                 resolve(base, required(p, "calendar.file")),
+                optional(p, "cost.schedule_file").map(value -> resolve(base, value)),
                 fast,
                 slow,
                 requestedLots,

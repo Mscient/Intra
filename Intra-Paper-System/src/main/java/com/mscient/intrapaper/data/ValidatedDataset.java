@@ -1,6 +1,7 @@
 package com.mscient.intrapaper.data;
 
 import com.mscient.intrapaper.provenance.DatasetManifest;
+import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.RunConfig;
 import com.mscient.intrapaper.reference.ContractKind;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
@@ -25,6 +26,7 @@ public record ValidatedDataset(
         String barsSha256,
         String configSha256,
         String calendarSha256,
+        Optional<CostSchedule> costSchedule,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
         long expectedBarCount,
@@ -36,6 +38,8 @@ public record ValidatedDataset(
         Duration expectedSpacing = IntervalSupport.duration(config.interval());
         InstrumentMasterSnapshot master = InstrumentMasterCsvReader.read(config);
         Map<LocalDate, SessionCalendarEntry> calendar = SessionCalendarCsvReader.read(config.sessionCalendarPath());
+        Optional<CostSchedule> costSchedule = config.costSchedulePath().isPresent()
+                ? Optional.of(CostSchedule.load(config.costSchedulePath().orElseThrow())) : Optional.empty();
         Map<LocalDate, List<Bar>> barsByDate = new HashMap<>();
         Bar first = bars.getFirst();
         Bar last = bars.getLast();
@@ -109,6 +113,10 @@ public record ValidatedDataset(
                 continue;
             }
             openSessionCount++;
+            if (costSchedule.isPresent()) {
+                costSchedule.orElseThrow().require(date, CostSchedule.Side.BUY);
+                costSchedule.orElseThrow().require(date, CostSchedule.Side.SELL);
+            }
             if (sessionBars == null || sessionBars.isEmpty()) {
                 throw new IllegalArgumentException("Entire OPEN session is missing from bars: " + date);
             }
@@ -155,10 +163,11 @@ public record ValidatedDataset(
 
         String barsHash = RunConfig.sha256(Files.readAllBytes(barsPath));
         String calendarHash = RunConfig.sha256(Files.readAllBytes(config.sessionCalendarPath()));
-        Map<String, String> inputs = Map.of(
+        Map<String, String> inputs = new java.util.TreeMap<>(Map.of(
                 "bars", barsHash,
                 "instrument-master", master.rawFileSha256(),
-                "session-calendar", calendarHash);
+                "session-calendar", calendarHash));
+        costSchedule.ifPresent(schedule -> inputs.put("cost-schedule", schedule.sha256()));
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),
@@ -173,7 +182,7 @@ public record ValidatedDataset(
                 Optional.of(calendarHash),
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, manifest,
-                barsHash, config.configSha256(), calendarHash, anomalies,
+                barsHash, config.configSha256(), calendarHash, costSchedule, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 
