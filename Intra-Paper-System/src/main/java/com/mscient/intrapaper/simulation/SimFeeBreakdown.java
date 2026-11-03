@@ -5,7 +5,7 @@ import com.mscient.intrapaper.reference.ContractKind;
 
 import java.math.BigDecimal;
 
-/** Auditable per-fill charge detail; settlement charges are recorded separately when implemented. */
+/** Auditable executed-fill charge detail; settlement charges are recorded separately. */
 public record SimFeeBreakdown(
         String fillId,
         String costModel,

@@ -58,10 +58,11 @@ public final class RunArtifactWriter {
                         "timestamp,order_id,event,detail",
                         result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
                 writeNew(stagingFolder.resolve("fills.csv"), csv(
-                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,position_units_after",
+                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,margin_per_lot_inr,margin_source_reference,position_units_after",
                         result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
                             fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
-                            fill.feeInr(), fill.positionUnitsAfter())).toList()));
+                            fill.feeInr(), fill.marginPerLotInr(), fill.marginSourceReference(),
+                            fill.positionUnitsAfter())).toList()));
                 writeNew(stagingFolder.resolve("fee-breakdowns.csv"), csv(
                         "fill_id,cost_model,contract_kind,traded_value_inr,legacy_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr",
                         result.feeBreakdowns().stream().map(fee -> row(fee.fillId(), fee.costModel(), fee.contractKind(),
@@ -247,9 +248,10 @@ public final class RunArtifactWriter {
         inputHashes.put("session_calendar", data.calendarSha256());
         data.costSchedule().ifPresent(schedule -> inputHashes.put("cost_schedule", schedule.sha256()));
         data.componentCostSchedule().ifPresent(schedule -> inputHashes.put("component_cost_schedule", schedule.sha256()));
+        data.marginRequirementSchedule().ifPresent(schedule -> inputHashes.put("margin_requirement_schedule", schedule.sha256()));
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         return "{\n"
-                + "  \"schema_version\": 5,\n"
+                + "  \"schema_version\": 6,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -305,6 +307,10 @@ public final class RunArtifactWriter {
                 + "  \"risk_limits\": {\"max_position_lots\": " + config.maxPositionLots()
                 + ", \"max_notional_inr\": " + q(num(config.maxNotionalInr()))
                 + ", \"margin_per_lot_inr\": " + q(num(config.marginPerLotInr()))
+                + ", \"margin_requirement_source\": " + q(data.marginRequirementSchedule().isPresent()
+                        ? "CALLER_SUPPLIED_DATED_SCHEDULE" : "FIXED_USER_SUPPLIED_PROXY")
+                + (data.marginRequirementSchedule().isPresent() ? ", \"margin_requirement_schedule_sha256\": "
+                        + q(data.marginRequirementSchedule().orElseThrow().sha256()) : "")
                 + ", \"max_margin_inr\": " + q(num(config.maxMarginInr()))
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
                 + ", \"min_seconds_between_entry_orders\": " + config.minSecondsBetweenEntryOrders()
@@ -324,7 +330,9 @@ public final class RunArtifactWriter {
                 + "  \"option_exercise_stt_sebi_modeled\": "
                 + (data.componentCostSchedule().isPresent() && first.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
                         && data.expirySettlement().isPresent()) + ",\n"
-                + "  \"margin_model\": \"FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN\",\n"
+                + "  \"margin_model\": " + q(data.marginRequirementSchedule().isPresent()
+                        ? "CALLER_SUPPLIED_DATED_REQUIREMENT_NOT_SPAN_RECOMPUTATION"
+                        : "FIXED_USER_SUPPLIED_PROXY_NOT_EXCHANGE_MARGIN") + ",\n"
                 + "  \"synthetic_fixture\": " + config.syntheticFixture() + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"

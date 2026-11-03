@@ -37,6 +37,7 @@ public record RunConfig(
         Path sessionCalendarPath,
         Optional<Path> costSchedulePath,
         Optional<Path> componentCostSchedulePath,
+        Optional<Path> marginRequirementSchedulePath,
         Optional<Path> expirySettlementPath,
         int fastBars,
         int slowBars,
@@ -66,6 +67,7 @@ public record RunConfig(
             "reference.snapshot_id", "reference.source_name", "reference.retrieved_at_utc", "reference.effective_from",
             "reference.file", "calendar.file", "settlement.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
+            "risk.margin_schedule_file",
             "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
             "cost.notional_fee_bps", "cost.schedule_file", "cost.components_file",
@@ -136,7 +138,16 @@ public record RunConfig(
         String timezone = required(p, "dataset.timezone");
         ZoneId.of(timezone);
         BigDecimal notional = positive(p, "risk.max_notional_inr");
-        BigDecimal marginPerLot = positive(p, "risk.margin_per_lot_inr");
+        Optional<Path> marginSchedule = optional(p, "risk.margin_schedule_file").map(value -> resolve(absolute.getParent(), value));
+        BigDecimal marginPerLot;
+        if (marginSchedule.isPresent()) {
+            marginPerLot = optionalNonNegative(p, "risk.margin_per_lot_inr", BigDecimal.ZERO);
+            if (marginPerLot.signum() != 0) {
+                throw new IllegalArgumentException("risk.margin_per_lot_inr must be omitted or zero when risk.margin_schedule_file is set");
+            }
+        } else {
+            marginPerLot = positive(p, "risk.margin_per_lot_inr");
+        }
         BigDecimal maxMargin = positive(p, "risk.max_margin_inr");
         BigDecimal dailyLoss = positive(p, "risk.max_daily_loss_inr");
         long minSecondsBetweenEntryOrders = nonNegativeLong(p, "risk.min_seconds_between_entry_orders");
@@ -185,6 +196,7 @@ public record RunConfig(
                 resolve(base, required(p, "calendar.file")),
                 legacyCostSchedule,
                 componentCostSchedule,
+                marginSchedule,
                 optional(p, "settlement.file").map(value -> resolve(base, value)),
                 fast,
                 slow,

@@ -143,8 +143,14 @@ public final class OmsRunRecovery {
     private static ExecutionRestore readExecutions(Path path, Map<String, OrderInfo> orders,
             Map<String, OmsOrderState> orderStates) throws IOException {
         CsvTable table = CsvTable.read(path);
-        requireExactHeaders(table, "fill_id", "order_id", "timestamp", "side", "quantity_units",
+        List<String> priorHeaders = List.of("fill_id", "order_id", "timestamp", "side", "quantity_units",
                 "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "position_units_after");
+        List<String> currentHeaders = List.of("fill_id", "order_id", "timestamp", "side", "quantity_units",
+                "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "margin_per_lot_inr",
+                "margin_source_reference", "position_units_after");
+        if (!table.headers().equals(priorHeaders) && !table.headers().equals(currentHeaders)) {
+            throw new IOException("Unexpected CSV schema in recovered execution ledger");
+        }
         List<ExecutionEvent> events = new ArrayList<>();
         Map<String, Integer> positionAfterByExecutionId = new HashMap<>();
         for (Map<String, String> row : table.rows()) {

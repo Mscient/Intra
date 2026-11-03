@@ -39,6 +39,12 @@ public final class RiskGate {
     }
 
     public String entryRejectionReason(int targetLots, Bar bar, BigDecimal modeledFillPrice) {
+        return entryRejectionReason(targetLots, bar, modeledFillPrice, marginPerLotInr);
+    }
+
+    public String entryRejectionReason(int targetLots, Bar bar, BigDecimal modeledFillPrice,
+            BigDecimal effectiveMarginPerLotInr) {
+        if (effectiveMarginPerLotInr.signum() < 0) throw new IllegalArgumentException("margin requirement must be non-negative");
         if (halted) return "SESSION_LOSS_GATE_HALTED";
         if (targetLots < 1 || targetLots > maxPositionLots) return "MAX_POSITION_LOTS";
         if (modeledFillPrice.signum() <= 0) return "NON_POSITIVE_MODELED_FILL_PRICE";
@@ -46,8 +52,8 @@ public final class RiskGate {
                 .multiply(BigDecimal.valueOf(targetLots))
                 .multiply(BigDecimal.valueOf(bar.lotSize()));
         if (exposure.compareTo(maxNotionalInr) > 0) return "MAX_NOTIONAL_INR";
-        if (marginPerLotInr.multiply(BigDecimal.valueOf(targetLots)).compareTo(maxMarginInr) > 0) {
-            return "MAX_MARGIN_PROXY_INR";
+        if (effectiveMarginPerLotInr.multiply(BigDecimal.valueOf(targetLots)).compareTo(maxMarginInr) > 0) {
+            return "MAX_MARGIN_REQUIREMENT_INR";
         }
         return null;
     }

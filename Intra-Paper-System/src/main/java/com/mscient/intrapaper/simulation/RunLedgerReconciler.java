@@ -152,6 +152,13 @@ public final class RunLedgerReconciler {
     /** Independently rechecks simulated entry limits and daily-loss halt behavior from saved ledgers. */
     public static void requireRiskLimitsConsistent(BacktestResult result, RunConfig config, ValidatedDataset dataset) {
         int lotSize = dataset.bars().getFirst().lotSize();
+        var interval = IntervalSupport.duration(config.interval());
+        Map<Instant, Bar> barsByFillTime = new HashMap<>();
+        for (Bar bar : dataset.bars()) {
+            Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? bar.timestamp() : bar.timestamp().minus(interval);
+            barsByFillTime.put(barStart, bar);
+        }
         Map<String, SimOrder> orders = new HashMap<>();
         result.orders().forEach(order -> orders.put(order.orderId(), order));
         Instant priorEntryDecision = null;
@@ -167,6 +174,16 @@ public final class RunLedgerReconciler {
             priorEntryDecision = currentEntryDecision;
         }
         for (SimFill fill : result.fills()) {
+            Bar bar = barsByFillTime.get(fill.timestamp());
+            if (bar == null) fail("risk audit fill has no matching bar: " + fill.fillId());
+            var marginEntry = dataset.marginRequirementSchedule().map(schedule ->
+                    schedule.require(bar.sessionDate(), bar.instrumentId(), bar.contractKind()));
+            BigDecimal marginPerLot = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::marginPerLotInr)
+                    .orElse(config.marginPerLotInr());
+            String marginSource = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::sourceReference)
+                    .orElse("FIXED_CONFIG_PROXY");
+            requireEqual("recorded margin per lot for " + fill.fillId(), marginPerLot, fill.marginPerLotInr());
+            if (!marginSource.equals(fill.marginSourceReference())) fail("recorded margin source differs from frozen input for " + fill.fillId());
             if (!fill.side().equals("BUY")) continue;
             SimOrder order = orders.get(fill.orderId());
             if (order == null) fail("risk audit fill has no order: " + fill.fillId());
@@ -176,8 +193,8 @@ public final class RunLedgerReconciler {
             }
             BigDecimal notional = fill.fillPrice().multiply(BigDecimal.valueOf(fill.quantityUnits()));
             if (notional.compareTo(config.maxNotionalInr()) > 0) fail("entry fill exceeds configured notional limit: " + fill.fillId());
-            if (config.marginPerLotInr().multiply(BigDecimal.valueOf(lots)).compareTo(config.maxMarginInr()) > 0) {
-                fail("entry fill exceeds configured margin proxy: " + fill.fillId());
+            if (marginPerLot.multiply(BigDecimal.valueOf(lots)).compareTo(config.maxMarginInr()) > 0) {
+                fail("entry fill exceeds effective margin requirement cap: " + fill.fillId());
             }
         }
 

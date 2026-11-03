@@ -129,8 +129,14 @@ public final class BacktestEngine {
                     }
                     BigDecimal tickSlippage = bar.tickSize().multiply(BigDecimal.valueOf(slippageTicks));
                     BigDecimal fillPrice = side.equals("BUY") ? bar.open().add(tickSlippage) : bar.open().subtract(tickSlippage);
+                    var marginEntry = dataset.marginRequirementSchedule().map(schedule ->
+                            schedule.require(bar.sessionDate(), bar.instrumentId(), bar.contractKind()));
+                    BigDecimal marginPerLot = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::marginPerLotInr)
+                            .orElse(config.marginPerLotInr());
+                    String marginSource = marginEntry.map(com.mscient.intrapaper.provenance.MarginRequirementSchedule.Entry::sourceReference)
+                            .orElse("FIXED_CONFIG_PROXY");
                     String riskRejection = fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
-                            : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice) : null;
+                            : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice, marginPerLot) : null;
                     if (riskRejection != null) {
                         String reason = riskRejection;
                         updateOrder(orders, pending.orderIndex(), barStart, null, "REJECTED_RISK", reason);
@@ -173,7 +179,7 @@ public final class BacktestEngine {
                         fees = fees.add(fee);
                         slippage = slippage.add(slippageCost);
                         fills.add(new SimFill(fillId, order.orderId(), barStart, side, quantity,
-                                bar.open(), fillPrice, slippageCost, fee, newUnits));
+                                bar.open(), fillPrice, slippageCost, fee, marginPerLot, marginSource, newUnits));
                         feeBreakdowns.add(feeBreakdown);
                         updateOrder(orders, pending.orderIndex(), barStart, barStart, "FILLED", "full simulated market fill");
                         events.add(new SimOrderEvent(barStart, order.orderId(), "FILLED", "fill_id=" + fillId));

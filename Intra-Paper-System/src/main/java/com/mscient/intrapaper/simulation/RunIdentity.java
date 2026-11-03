@@ -18,7 +18,7 @@ public final class RunIdentity {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, "INTRA_RUN_ID_V5");
+                write(output, "INTRA_RUN_ID_V6");
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());
@@ -26,6 +26,8 @@ public final class RunIdentity {
                 write(output, dataset.costSchedule().map(com.mscient.intrapaper.provenance.CostSchedule::sha256).orElse("NO_COST_SCHEDULE"));
                 write(output, dataset.componentCostSchedule().map(com.mscient.intrapaper.provenance.ComponentCostSchedule::sha256)
                         .orElse("NO_COMPONENT_COST_SCHEDULE"));
+                write(output, dataset.marginRequirementSchedule().map(com.mscient.intrapaper.provenance.MarginRequirementSchedule::sha256)
+                        .orElse("NO_MARGIN_REQUIREMENT_SCHEDULE"));
                 write(output, dataset.expirySettlement().map(com.mscient.intrapaper.provenance.ExpirySettlement::sha256).orElse("NO_EXPIRY_SETTLEMENT"));
                 write(output, config.commitId());
                 write(output, strategy.id());
