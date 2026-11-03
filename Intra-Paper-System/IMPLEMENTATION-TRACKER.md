@@ -35,6 +35,7 @@
 - [x] Independent position/notional and per-session loss `RiskGate`.
 - [x] Fixed user-supplied margin-proxy cap, explicitly distinguished from exchange margin calculations.
 - [x] Local simulated order state transitions, order events, fills, completed trades, per-session reconciliations, equity marks, summary, and content-addressed run folders.
+- [x] An independent reconciliation pass checks trade gross vs realized P&L, fill fees/slippage, order terminal events, session totals, and final equity before a run is returned.
 - [x] Run artifacts are written to a sibling staging directory and published by atomic move only after ledgers and hashes are complete; ordinary write failures remove staging files.
 - [x] A run-folder verifier checks the manifest ID and recomputes all eight output-ledger hashes; it does not validate original inputs or data rights.
 - [x] Run summary includes diagnostic completed-trade statistics, holding time, filled units, and filled turnover; undefined trade statistics are null and no performance-claim flag is enabled.

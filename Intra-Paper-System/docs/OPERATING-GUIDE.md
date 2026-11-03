@@ -106,6 +106,8 @@ The complete working example is `examples/synthetic-run.properties`. Important r
 
 ## Fill, risk, and accounting behavior
 
+Before artifacts are written, an independent reconciliation pass checks realized trade P&L, fill fees and slippage, final order events, per-session totals, and the last equity mark. Any mismatch fails the run.
+
 The strategy reads a completed bar's close and may create a local market order. It can fill only at the next bar's open. BUY fills add the configured slippage ticks; SELL fills subtract them. Fees are charged per order and per unit. A candle's high/low touching a price never creates a passive fill because passive orders are not supported.
 
 The simulator is long-only and uses full fills. For options it treats the supplied premium bars as marks and fills; it does not calculate theoretical option values or Greeks. It checks maximum lots, notional, and the fixed user-supplied margin proxy before a new entry. Session P&L is marked at each close; when configured maximum daily loss is reached, the session is halted and an exit is scheduled for the next eligible bar. Cross-session pending fills are disabled unless `orders.allow_next_session=true`. No partial fills, latency, exchange priority, exchange margin formula, exercise, settlement, or broker state is modeled. A position may remain open after the last bar or across a session boundary.
