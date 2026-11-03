@@ -21,6 +21,7 @@
 - Added a generic single-price call-auction clearing/allocation API with explicit unresolved handling when no equilibrium price is found. It has no session calendar or exchange-regime selection and remains outside historical replay pending rule-date evidence.
 - Integrated verified L1 quote history into strategy replay through opt-in full-size and whole-lot partial top-of-book IOC models. Quote source, sequence, receive time, reference price, and model are persisted per fill; quote-side size consumption resumes from verified checkpoint fills. Passive queues, depth, aggregate capacity, and market impact remain open. See [L1 strategy execution](../../Intra-Paper-System/docs/L1-STRATEGY-EXECUTION.md).
 - Added `feed-capture-reconcile` to verify raw and lifecycle journals independently and compare raw message receive times with acknowledged subscription windows using source/connection/subscription IDs and explicit wall-clock tolerance. It reports unmatched messages, empty acknowledged intervals, transition/timestamp anomalies, and both chain hashes. It does not map decoded instruments, establish completeness or data rights, or connect to a vendor feed.
+- Added `raw-capture-clock-report` to compare captured wall-clock and monotonic elapsed-time deltas per source/connection using an explicit diagnostic tolerance. It reports wall regressions and clock divergence but does not verify UTC offset/accuracy, feed time, completeness, or order-path latency.
 
 ## Gate tracker
 

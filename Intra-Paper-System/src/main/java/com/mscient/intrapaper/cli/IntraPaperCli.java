@@ -6,6 +6,7 @@ import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
+import com.mscient.intrapaper.marketdata.RawCaptureClockAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
 import com.mscient.intrapaper.marketdata.FeedLifecycleAnalyzer;
@@ -133,6 +134,22 @@ public final class IntraPaperCli {
                         summary.nonIncreasingUpstreamSequenceTransitions(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
+            if (args.length == 3 && args[0].equals("raw-capture-clock-report")) {
+                var report = RawCaptureClockAnalyzer.analyze(Path.of(args[1]),
+                        Duration.ofMillis(Long.parseLong(args[2])));
+                System.out.printf("RAW CAPTURE CLOCK REPORT (DIAGNOSTIC ONLY; NOT UTC ACCURACY): messages=%d; "
+                                + "connection_streams=%d; intervals_compared=%d; "
+                                + "non_increasing_monotonic=%d; wall_clock_regressions=%d; "
+                                + "intervals_over_limit=%d; arithmetic_overflow_intervals=%d; "
+                                + "maximum_allowed_divergence=%s; maximum_absolute_divergence=%s; "
+                                + "raw_final_hash=%s%n",
+                        report.rawCapture().eventCount(), report.connectionStreams(), report.intervalsCompared(),
+                        report.nonIncreasingMonotonicIntervals(), report.wallClockRegressions(),
+                        report.intervalsOverDivergenceLimit(), report.arithmeticOverflowIntervals(),
+                        report.maximumAllowedDivergence(), report.maximumAbsoluteDivergence(),
+                        report.rawCapture().finalHashHex());
+                return;
+            }
             if (args.length == 2 && args[0].equals("feed-lifecycle-report")) {
                 var analysis = FeedLifecycleAnalyzer.analyze(Path.of(args[1]));
                 var journal = analysis.journal();
@@ -257,6 +274,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output-root>\n"
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
+                + "  java -jar intra-paper-system.jar raw-capture-clock-report <raw-capture-journal> <maximum-wall-monotonic-divergence-ms>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
@@ -271,6 +289,7 @@ public final class IntraPaperCli {
                 + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes a content-addressed run folder.\n"
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
+                + "raw-capture-clock-report compares wall and monotonic elapsed time per connection using a caller threshold; it does not verify UTC offset or feed completeness.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
