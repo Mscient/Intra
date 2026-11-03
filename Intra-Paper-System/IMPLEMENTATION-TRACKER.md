@@ -4,7 +4,7 @@
 
 **Updated:** 2026-11-03 (Asia/Kolkata)
 **Current gate:** S0 / G0 remains open. Offline implementation is active; downstream evidence gates are not closed.
-**Build:** Java 21 core and CLI compile successfully after option-exercise fees, dated margin inputs, deterministic replay checkpointing, caller-sourced additional settlement costs, the offline L1 IOC quote-replay artifact/verifier, and the separate feed-lifecycle journal/report, raw-to-lifecycle reconciliation, and standalone caller-input European BSM pricer. Synthetic replay `e9c5e0585cbf2dba6c24d632` previously validated 30 bars and one complete supplied session; it is `SYNTHETIC_PLUMBING_ONLY`, records `REQUIRE_FLAT`, ends flat, and has diagnostic net P&L `-1.36 INR`. It has not been rerun after the new output and input schemas. The Java 21 build compiled after adding the effective-dated market-rule registry, session/scope/source checks, lot/tick/session-window validation, and rule details in run outputs. The synthetic example was not rerun after that schema change. No tests or real-data strategy evaluation were performed.
+**Build:** Java 21 core and CLI compile successfully after option-exercise fees, dated margin inputs, deterministic replay checkpointing, caller-sourced additional settlement costs, the offline L1 IOC quote-replay artifact/verifier, the feed-lifecycle journal/report and raw-to-lifecycle reconciliation, the standalone caller-input European BSM pricer, and the Black-76 futures-option pricer. Synthetic replay `e9c5e0585cbf2dba6c24d632` previously validated 30 bars and one complete supplied session; it is `SYNTHETIC_PLUMBING_ONLY`, records `REQUIRE_FLAT`, ends flat, and has diagnostic net P&L `-1.36 INR`. It has not been rerun after the new output and input schemas. The Java 21 build compiled after adding the effective-dated market-rule registry, session/scope/source checks, lot/tick/session-window validation, and rule details in run outputs. The synthetic example was not rerun after that schema change. No tests or real-data strategy evaluation were performed.
 
 ## Gate and work-package tracker
 
@@ -87,6 +87,7 @@
 - [ ] Review session-end fills and expiry settlement values/fees against authorized data and an approved operational policy; add full risk reconciliation and exchange margin.
 - [ ] Populate the settlement schedule from the applicable broker tariff/contract note and invoice, independently confirm each charge basis and invoice GST treatment, and keep costs unverified until that evidence is available.
 - [ ] Add separately reviewed strategy card and chronological evaluation/holdout workflow.
+- [x] Added a standalone caller-input Black-76 European futures-option pricer for value and first/second-order Greeks, including explicit per-unit, per-vol-point, per-rate-point, and per-calendar-day output conventions. It is not independently validated or integrated into replay/accounting.
 - [x] Added a blank strategy research-card template; no candidate or assumptions are approved by the template.
 
 ## Source-derived backtesting decisions
