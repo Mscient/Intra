@@ -99,8 +99,8 @@
 
 ## Source-derived backtesting decisions
 
-- The existing offline MVP is a signal-research runner for NIFTY 50 index candles. Its markouts are not futures/options fills or executable P&L.
-- Keep session-level chronological splits and a sealed holdout for later strategy research. This increment does not implement statistical selection or a performance-evaluation pipeline.
+- The offline MVP is a dated single-contract futures/option-premium replay simulator. Its statistical evaluator is diagnostic-only; it does not establish a strategy edge or performance eligibility.
+- Keep session-level chronological splits and a sealed holdout for strategy research. A DSR approximation and CSCV diagnostic now operate on development/validation sessions; the holdout is excluded from those calculations but is not sealed by the software.
 - For bar-only decisions, the earliest simulated fill is the next eligible bar. A candle touching a passive limit does not prove a fill.
 - Dated contracts, contract-master snapshots, costs, margin, expiries, session calendars, and licensed data coverage must be explicit inputs. Never stitch expiries or map an index candle to a contract fill.
 - Historical F&O coverage, local retention terms, exact dated costs/margins, and complete exchange calendar evidence remain open. Synthetic fixtures may exercise plumbing only.
