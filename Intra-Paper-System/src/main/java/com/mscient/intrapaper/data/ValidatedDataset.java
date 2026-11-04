@@ -40,6 +40,7 @@ public record ValidatedDataset(
         Optional<ExpirySettlement> expirySettlement,
         Optional<SettlementCostSchedule> settlementCostSchedule,
         Optional<VerifiedQuoteHistory> quoteHistory,
+        Optional<OptionValuationInputSchedule> optionValuationInputs,
         long timestampSpacingAnomalies,
         long estimatedMissingIntervals,
         long expectedBarCount,
@@ -67,6 +68,9 @@ public record ValidatedDataset(
                 ? Optional.of(SettlementCostSchedule.load(config.settlementCostSchedulePath().orElseThrow())) : Optional.empty();
         Optional<VerifiedQuoteHistory> quoteHistory = config.quoteJournalPath().isPresent()
                 ? Optional.of(VerifiedQuoteHistory.load(config.quoteJournalPath().orElseThrow())) : Optional.empty();
+        Optional<OptionValuationInputSchedule> optionValuationInputs = config.optionValuationInputPath().isPresent()
+                ? Optional.of(OptionValuationInputSchedule.load(
+                        config.optionValuationInputPath().orElseThrow(), bars)) : Optional.empty();
         if (settlementCostSchedule.isPresent() && expirySettlement.isEmpty()) {
             throw new IllegalArgumentException("settlement.cost_schedule_file requires settlement.file");
         }
@@ -269,6 +273,7 @@ public record ValidatedDataset(
         marginRequirementSchedule.ifPresent(schedule -> inputs.put("margin-requirement-schedule", schedule.sha256()));
         expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
         quoteHistory.ifPresent(history -> inputs.put("quote-journal", history.fileSha256()));
+        optionValuationInputs.ifPresent(schedule -> inputs.put("option-valuation-inputs", schedule.sha256()));
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),
@@ -284,7 +289,8 @@ public record ValidatedDataset(
                 inputs);
         return new ValidatedDataset(List.copyOf(bars), master, calendar, marketRuleRegimeSchedule, manifest,
                 barsHash, config.configSha256(), calendarHash, costSchedule, componentCostSchedule,
-                marginRequirementSchedule, expirySettlement, settlementCostSchedule, quoteHistory, anomalies,
+                marginRequirementSchedule, expirySettlement, settlementCostSchedule, quoteHistory,
+                optionValuationInputs, anomalies,
                 estimatedMissingIntervals, expectedBarCount, openSessionCount, completeSessions);
     }
 

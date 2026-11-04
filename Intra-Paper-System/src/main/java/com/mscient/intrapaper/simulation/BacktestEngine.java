@@ -544,8 +544,10 @@ public final class BacktestEngine {
         BigDecimal net = realized.add(unrealized).subtract(fees);
         String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
         List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
+        List<OptionValuationObservation> optionValuations = OptionValuationAnalyzer.evaluate(dataset);
         BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements,
-                settlementChargeBreakdowns, settlementCostLines, sessionAudits, curve, realized, unrealized, fees, slippage,
+                settlementChargeBreakdowns, settlementCostLines, optionValuations, sessionAudits, curve,
+                realized, unrealized, fees, slippage,
                 net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
         RunLedgerReconciler.requireConsistent(result);
         RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);

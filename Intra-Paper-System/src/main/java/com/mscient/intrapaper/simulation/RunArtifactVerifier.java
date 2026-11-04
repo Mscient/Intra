@@ -34,13 +34,17 @@ public final class RunArtifactVerifier {
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
             "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json");
+    private static final Set<String> OPTION_VALUATION_OUTPUT_FILES = Set.of(
+            "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
+            "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
+            "settlement-cost-lines.csv", "evaluation-partitions.csv", "option-valuation.csv", "summary.json");
     private static final Set<String> PREVIOUS_CURRENT_OUTPUT_FILES = Set.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv", "summary.json");
     private static final Set<String> OUTPUT_FILES = Set.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
-            "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json");
+            "settlement-cost-lines.csv", "evaluation-partitions.csv", "option-valuation.csv", "summary.json");
     private static final Pattern RUN_ID = Pattern.compile(
             "\"run_id\"\\s*:\\s*\"([0-9a-f]{24})\"");
     private static final Pattern OUTPUT_SECTION = Pattern.compile(
@@ -86,7 +90,8 @@ public final class RunArtifactVerifier {
                 && !expectedHashes.keySet().equals(PREVIOUS_OUTPUT_FILES)
                 && !expectedHashes.keySet().equals(PREVIOUS_CURRENT_OUTPUT_FILES)
                 && !expectedHashes.keySet().equals(CURRENT_OUTPUT_FILES)
-                && !expectedHashes.keySet().equals(PARTITION_OUTPUT_FILES)) {
+                && !expectedHashes.keySet().equals(PARTITION_OUTPUT_FILES)
+                && !expectedHashes.keySet().equals(OPTION_VALUATION_OUTPUT_FILES)) {
             throw new IOException("Run manifest output hash list is incomplete");
         }
 

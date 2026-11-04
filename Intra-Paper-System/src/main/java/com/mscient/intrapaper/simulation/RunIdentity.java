@@ -36,6 +36,10 @@ public final class RunIdentity {
                         .orElse("NO_SETTLEMENT_COST_SCHEDULE"));
                 write(output, dataset.quoteHistory().map(com.mscient.intrapaper.marketdata.VerifiedQuoteHistory::fileSha256)
                         .orElse("NO_QUOTE_JOURNAL"));
+                if (dataset.optionValuationInputs().isPresent()) {
+                    write(output, "OPTION_VALUATION_INPUTS_V1");
+                    write(output, dataset.optionValuationInputs().orElseThrow().sha256());
+                }
                 write(output, config.commitId());
                 write(output, strategy.id());
                 Map<String, String> parameters = new TreeMap<>(strategy.parameters());

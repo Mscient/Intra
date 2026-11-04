@@ -118,13 +118,26 @@ public final class RunArtifactWriter {
                                 line.componentCode(), line.basis(), line.calculationBase(), line.rate(),
                                 line.chargeInr(), line.gstBps(), line.gstTaxableBaseInr(), line.gstInr(),
                                 line.totalInr(), line.sourceReference())).toList()));
+                if (!result.optionValuations().isEmpty()) {
+                    writeNew(stagingFolder.resolve("option-valuation.csv"), csv(
+                            "timestamp,instrument_id,model,source_reference,underlying_price,time_to_expiry_years,risk_free_rate,dividend_yield,annualized_volatility,market_premium_close,theoretical_value,market_minus_model_premium,delta,gamma,vega_per_volatility_point,theta_per_calendar_day,rho_per_rate_point",
+                            result.optionValuations().stream().map(value -> row(value.timestamp(), value.instrumentId(),
+                                    value.model(), value.sourceReference(), value.underlyingPrice(),
+                                    value.timeToExpiryYears(), value.riskFreeRate(), value.dividendYield(),
+                                    value.annualizedVolatility(), value.marketPremiumClose(), value.theoreticalValue(),
+                                    value.marketMinusModelPremium(), value.delta(), value.gamma(),
+                                    value.vegaPerVolatilityPoint(), value.thetaPerCalendarDay(),
+                                    value.rhoPerRatePoint())).toList()));
+                }
                 writeNew(stagingFolder.resolve("evaluation-partitions.csv"), evaluationPartitionsCsv(evaluationPartitions));
 
                 writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result, evaluationPartitions));
                 Map<String, String> outputHashes = new TreeMap<>();
-                for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
+                List<String> outputNames = new ArrayList<>(List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
                         "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
-                        "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json")) {
+                        "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json"));
+                if (!result.optionValuations().isEmpty()) outputNames.add("option-valuation.csv");
+                for (String name : outputNames) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
                 writeNew(stagingFolder.resolve("run-manifest.json"),
@@ -216,6 +229,10 @@ public final class RunArtifactWriter {
         return "{\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
+                + "  \"option_valuation\": " + data.optionValuationInputs().map(schedule ->
+                        "{\"input_sha256\": " + q(schedule.sha256())
+                                + ", \"output_file\": \"option-valuation.csv\", \"used_in_execution_or_pnl\": false}")
+                        .orElse("null") + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"
                 + "  \"bars\": " + data.bars().size() + ",\n"
                 + "  \"signals\": " + result.signals().size() + ",\n"
@@ -278,9 +295,10 @@ public final class RunArtifactWriter {
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
+        data.optionValuationInputs().ifPresent(schedule -> inputHashes.put("option_valuation_inputs", schedule.sha256()));
         evaluationPartitions.ifPresent(report -> inputHashes.put("evaluation_split_plan", report.splitPlanSha256()));
         return "{\n"
-                + "  \"schema_version\": 13,\n"
+                + "  \"schema_version\": 14,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"

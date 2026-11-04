@@ -6,6 +6,7 @@ import com.mscient.intrapaper.provenance.RunConfig;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -14,7 +15,7 @@ import java.util.stream.Stream;
 public final class RunReplayVerifier {
     public record Verification(String runId, int comparedFiles) { }
 
-    private static final List<String> ARTIFACTS = List.of(
+    private static final List<String> BASE_ARTIFACTS = List.of(
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv", "trades.csv",
             "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
             "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json", "run-manifest.json");
@@ -41,19 +42,21 @@ public final class RunReplayVerifier {
         }
 
         BacktestResult result = new BacktestEngine().run(dataset, config, strategy);
+        List<String> artifacts = new ArrayList<>(BASE_ARTIFACTS);
+        if (dataset.optionValuationInputs().isPresent()) artifacts.add(artifacts.size() - 1, "option-valuation.csv");
         Path temporaryRoot = Files.createTempDirectory("intra-paper-replay-verify-");
         Verification verification;
         try {
             RunArtifactWriter.WrittenRun replay = new RunArtifactWriter()
                     .write(temporaryRoot, runId, dataset, config, result);
-            for (String name : ARTIFACTS) {
+            for (String name : artifacts) {
                 Path saved = runFolder.resolve(name);
                 Path reproduced = replay.path().resolve(name);
                 if (Files.mismatch(saved, reproduced) != -1L) {
                     throw new IOException("Replay artifact differs from the saved run: " + name);
                 }
             }
-            verification = new Verification(runId, ARTIFACTS.size());
+            verification = new Verification(runId, artifacts.size());
         } catch (IOException | RuntimeException | Error failure) {
             try {
                 deleteTree(temporaryRoot);
