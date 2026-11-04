@@ -40,6 +40,14 @@ public final class RiskGateway {
         this.configuration = Objects.requireNonNull(configuration, "configuration");
     }
 
+    /** Rebuilds in-memory risk state by replaying an already verified ordered event list. */
+    public static RiskGateway restore(RiskConfiguration configuration, List<RiskEvent> verifiedEvents) {
+        Objects.requireNonNull(verifiedEvents, "verifiedEvents");
+        RiskGateway gateway = new RiskGateway(configuration);
+        for (RiskEvent event : verifiedEvents) gateway.applyEvent(Objects.requireNonNull(event, "event"));
+        return gateway;
+    }
+
     public synchronized RiskState state() {
         return snapshot();
     }
