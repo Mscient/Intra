@@ -3,6 +3,7 @@ package com.mscient.intrapaper.simulation;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
+import com.mscient.intrapaper.data.OptionValuationInputSchedule;
 import com.mscient.intrapaper.provenance.ComponentCostSchedule;
 import com.mscient.intrapaper.provenance.CostSchedule;
 import com.mscient.intrapaper.provenance.ExecutionModel;
@@ -268,6 +269,7 @@ public final class RunLedgerReconciler {
                 fail("entry fill exceeds effective margin requirement cap: " + fill.fillId());
             }
         }
+        requireOptionStressChecks(result, config, dataset);
 
         ZoneId zone = ZoneId.of(config.timezone());
         Map<LocalDate, List<SimOrderEvent>> haltsByDate = new HashMap<>();
@@ -308,6 +310,75 @@ public final class RunLedgerReconciler {
                 }
             }
             if (!points.isEmpty()) priorSessionNet = points.getLast().netPnlInr();
+        }
+    }
+
+    private static void requireOptionStressChecks(BacktestResult result, RunConfig config, ValidatedDataset dataset) {
+        List<SimOrderEvent> stressEvents = result.orderEvents().stream()
+                .filter(event -> event.event().startsWith("OPTION_STRESS_CHECK_"))
+                .toList();
+        if (config.optionStressRiskLimits().isEmpty()) {
+            if (!stressEvents.isEmpty()) fail("option stress check events exist without configured option stress limits");
+            return;
+        }
+        if (dataset.optionValuationInputs().isEmpty()) fail("option stress limits have no valuation input schedule");
+        Map<String, SimOrderEvent> eventsByOrder = new HashMap<>();
+        for (SimOrderEvent event : stressEvents) {
+            if (eventsByOrder.putIfAbsent(event.orderId(), event) != null) {
+                fail("multiple option stress check events for order " + event.orderId());
+            }
+        }
+        Map<String, SimOrder> ordersById = new HashMap<>();
+        result.orders().forEach(order -> ordersById.put(order.orderId(), order));
+        Map<Instant, Bar> barsByClose = new HashMap<>();
+        for (Bar bar : dataset.bars()) {
+            barsByClose.put(OptionValuationInputSchedule.closeTimestamp(bar), bar);
+        }
+        Map<Instant, EquityPoint> equityByTimestamp = new HashMap<>();
+        Map<LocalDate, List<EquityPoint>> equityBySession = new java.util.TreeMap<>();
+        for (EquityPoint point : result.equityCurve()) {
+            equityByTimestamp.put(point.timestamp(), point);
+            equityBySession.computeIfAbsent(point.sessionDate(), ignored -> new ArrayList<>()).add(point);
+        }
+        Map<LocalDate, BigDecimal> sessionStartNetByDate = new HashMap<>();
+        BigDecimal priorSessionNet = BigDecimal.ZERO;
+        for (Map.Entry<LocalDate, List<EquityPoint>> entry : equityBySession.entrySet()) {
+            List<EquityPoint> points = entry.getValue();
+            points.sort(Comparator.comparing(EquityPoint::timestamp));
+            sessionStartNetByDate.put(entry.getKey(), priorSessionNet);
+            if (!points.isEmpty()) priorSessionNet = points.getLast().netPnlInr();
+        }
+        for (SimOrderEvent event : stressEvents) {
+            SimOrder order = ordersById.get(event.orderId());
+            if (order == null || !order.side().equals("BUY")) fail("option stress check has no BUY order");
+            Bar decisionBar = barsByClose.get(order.decisionTimestamp());
+            if (decisionBar == null) fail("option stress check has no decision bar");
+            EquityPoint decisionEquity = equityByTimestamp.get(order.decisionTimestamp());
+            BigDecimal sessionStartNet = sessionStartNetByDate.get(decisionBar.sessionDate());
+            if (decisionEquity == null || sessionStartNet == null) {
+                fail("option stress check has no decision-time equity mark or session baseline");
+            }
+            BigDecimal bookedSessionLoss = sessionStartNet.subtract(decisionEquity.netPnlInr()).max(BigDecimal.ZERO);
+            OptionValuationInputSchedule.Input input = dataset.optionValuationInputs().orElseThrow()
+                    .inputs().get(order.decisionTimestamp());
+            OptionStressRiskGate.Check expected = OptionStressRiskGate.evaluate(decisionBar, input,
+                    order.targetLots(), decisionBar.lotSize(), bookedSessionLoss, config.maxDailyLossInr(),
+                    config.optionStressRiskLimits().orElseThrow());
+            String expectedType = expected.rejected()
+                    ? "OPTION_STRESS_CHECK_REJECTED" : "OPTION_STRESS_CHECK_PASSED";
+            if (!event.event().equals(expectedType) || !event.detail().equals(expected.detail())) {
+                fail("option stress check event differs from independent recomputation for order " + order.orderId());
+            }
+            boolean hasFill = result.fills().stream().anyMatch(fill -> fill.orderId().equals(order.orderId())
+                    && fill.side().equals("BUY"));
+            if (expected.rejected() && hasFill) fail("risk-rejected option order has a BUY fill: " + order.orderId());
+        }
+        for (SimFill fill : result.fills()) {
+            if (!fill.side().equals("BUY")) continue;
+            SimOrderEvent event = eventsByOrder.get(fill.orderId());
+            if (event == null || !event.event().equals("OPTION_STRESS_CHECK_PASSED")) {
+                fail("option BUY fill lacks a passing stress check: " + fill.fillId());
+            }
         }
     }
 

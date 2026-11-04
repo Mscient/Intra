@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -56,6 +57,7 @@ public record RunConfig(
         BigDecimal marginPerLotInr,
         BigDecimal maxMarginInr,
         BigDecimal maxDailyLossInr,
+        Optional<OptionStressRiskLimits> optionStressRiskLimits,
         long minSecondsBetweenEntryOrders,
         boolean allowNextSessionOrders,
         CrossSessionPositionPolicy crossSessionPositionPolicy,
@@ -83,6 +85,23 @@ public record RunConfig(
         Optional<Path> evaluationSplitPlanPath,
         String trialParameterConfigSha256) {
 
+    public record OptionStressRiskLimits(BigDecimal maxLossInr, BigDecimal underlyingShockPercent,
+            BigDecimal volatilityShockPoints, BigDecimal exitHaircutPerUnitInr) {
+        public OptionStressRiskLimits {
+            if (maxLossInr == null || maxLossInr.signum() <= 0
+                    || underlyingShockPercent == null || underlyingShockPercent.signum() <= 0
+                    || underlyingShockPercent.compareTo(BigDecimal.valueOf(100)) >= 0
+                    || volatilityShockPoints == null || volatilityShockPoints.signum() <= 0
+                    || exitHaircutPerUnitInr == null || exitHaircutPerUnitInr.signum() < 0) {
+                throw new IllegalArgumentException("Option stress risk limits require positive loss/shocks, underlying shock below 100%, and non-negative exit haircut");
+            }
+            maxLossInr = maxLossInr.stripTrailingZeros();
+            underlyingShockPercent = underlyingShockPercent.stripTrailingZeros();
+            volatilityShockPoints = volatilityShockPoints.stripTrailingZeros();
+            exitHaircutPerUnitInr = exitHaircutPerUnitInr.stripTrailingZeros();
+        }
+    }
+
     private static final Set<String> ALLOWED = Set.of(
             "dataset.id", "dataset.source_name", "dataset.acquired_at_utc", "dataset.timezone", "dataset.timestamp_role",
             "dataset.interval", "dataset.rights_status", "dataset.rights_reference", "dataset.synthetic_fixture",
@@ -91,6 +110,8 @@ public record RunConfig(
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.margin_schedule_file",
             "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
+            "risk.option_stress_max_loss_inr", "risk.option_stress_underlying_shock_percent",
+            "risk.option_stress_volatility_shock_points", "risk.option_stress_exit_haircut_per_unit_inr",
             "settlement.cost_schedule_file", "valuation.option_inputs_file",
             "recovery.checkpoint_interval_bars",
             "cost.evidence_reference", "cost.slippage_ticks", "cost.fee_per_order_inr", "cost.fee_per_unit_inr",
@@ -178,6 +199,24 @@ public record RunConfig(
         }
         BigDecimal maxMargin = positive(p, "risk.max_margin_inr");
         BigDecimal dailyLoss = positive(p, "risk.max_daily_loss_inr");
+        Optional<Path> optionValuationInputPath = optional(p, "valuation.option_inputs_file")
+                .map(value -> resolve(absolute.getParent(), value));
+        List<String> optionStressKeys = List.of("risk.option_stress_max_loss_inr",
+                "risk.option_stress_underlying_shock_percent", "risk.option_stress_volatility_shock_points",
+                "risk.option_stress_exit_haircut_per_unit_inr");
+        long optionStressKeyCount = optionStressKeys.stream().filter(key -> optional(p, key).isPresent()).count();
+        if (optionStressKeyCount != 0 && optionStressKeyCount != optionStressKeys.size()) {
+            throw new IllegalArgumentException("Option stress risk requires all four risk.option_stress_* settings together");
+        }
+        Optional<OptionStressRiskLimits> optionStressRiskLimits = Optional.empty();
+        if (optionStressKeyCount != 0) {
+            if (optionValuationInputPath.isEmpty()) {
+                throw new IllegalArgumentException("Option stress risk requires valuation.option_inputs_file");
+            }
+            optionStressRiskLimits = Optional.of(new OptionStressRiskLimits(
+                    positive(p, optionStressKeys.get(0)), positive(p, optionStressKeys.get(1)),
+                    positive(p, optionStressKeys.get(2)), nonNegative(p, optionStressKeys.get(3))));
+        }
         long minSecondsBetweenEntryOrders = nonNegativeLong(p, "risk.min_seconds_between_entry_orders");
         int fast = positiveInt(p, "strategy.fast_bars");
         int slow = positiveInt(p, "strategy.slow_bars");
@@ -281,7 +320,7 @@ public record RunConfig(
                 marginSchedule,
                 optional(p, "settlement.file").map(value -> resolve(base, value)),
                 optional(p, "settlement.cost_schedule_file").map(value -> resolve(base, value)),
-                optional(p, "valuation.option_inputs_file").map(value -> resolve(base, value)),
+                optionValuationInputPath,
                 fast,
                 slow,
                 requestedLots,
@@ -291,6 +330,7 @@ public record RunConfig(
                 marginPerLot,
                 maxMargin,
                 dailyLoss,
+                optionStressRiskLimits,
                 minSecondsBetweenEntryOrders,
                 Boolean.parseBoolean(allowCrossSessionText),
                 crossSessionPositionPolicy,

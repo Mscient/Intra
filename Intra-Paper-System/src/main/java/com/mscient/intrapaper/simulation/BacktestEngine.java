@@ -299,8 +299,26 @@ public final class BacktestEngine {
                             && fillQuantity != quantity) {
                         throw new IllegalStateException("Full-size L1 IOC produced a partial fill");
                     }
+                    OptionStressRiskGate.Check optionStressCheck = null;
+                    if (!quoteMiss && side.equals("BUY") && config.optionStressRiskLimits().isPresent()) {
+                        Bar decisionBar = i > 0 ? bars.get(i - 1) : null;
+                        var valuationInput = decisionBar == null || dataset.optionValuationInputs().isEmpty()
+                                ? null : dataset.optionValuationInputs().orElseThrow().inputs().get(
+                                        com.mscient.intrapaper.data.OptionValuationInputSchedule.closeTimestamp(decisionBar));
+                        BigDecimal bookedSessionLoss = riskGate.snapshot().sessionStartNetPnl()
+                                .subtract(netAtPriorClose).max(BigDecimal.ZERO);
+                        optionStressCheck = OptionStressRiskGate.evaluate(decisionBar, valuationInput,
+                                targetLots, bar.lotSize(), bookedSessionLoss, config.maxDailyLossInr(),
+                                config.optionStressRiskLimits().orElseThrow());
+                        events.add(new SimOrderEvent(executionTimestamp, order.orderId(),
+                                optionStressCheck.rejected() ? "OPTION_STRESS_CHECK_REJECTED" : "OPTION_STRESS_CHECK_PASSED",
+                                optionStressCheck.detail()));
+                    }
                     String riskRejection = quoteMiss ? null : fillPrice.signum() <= 0 ? "NON_POSITIVE_MODELED_FILL_PRICE"
                             : side.equals("BUY") ? riskGate.entryRejectionReason(targetLots, bar, fillPrice, marginPerLot) : null;
+                    if (riskRejection == null && optionStressCheck != null && optionStressCheck.rejected()) {
+                        riskRejection = optionStressCheck.reason();
+                    }
                     if (quoteMiss) {
                         // The IOC residual is canceled; position and displayed liquidity remain unchanged.
                     } else if (riskRejection != null) {

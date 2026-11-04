@@ -52,6 +52,17 @@ Use ISO-8601 instants, one consistent model (`BSM_SPOT` or `BLACK76_FUTURE`) for
 
 When supplied, `run` writes `option-valuation.csv` with the observed bar-close premium, model theoretical value, market-minus-model residual, per-unit Greeks, and the replay position's close-of-bar market/model values and signed Greek exposures. Position exposure is calculated from the replay fill and settlement flow; these valuation fields do not replace the replay's cash/P&L accounting. The input file hash participates in the dataset manifest and run identity; the output hash is recorded in the run artifact manifest and checked by `verify` and `replay-verify`. The run's `dataset.rights_status` and `dataset.rights_reference` must cover the valuation inputs as well as the bar data. This diagnostic does not change orders, simulated fills, positions, or settlement and does not make model values eligible as executable prices.
 
+An optional pre-entry four-scenario stress-loss limit is enabled only when all four settings are present in `run.properties`:
+
+```text
+risk.option_stress_max_loss_inr=<caller-set positive limit>
+risk.option_stress_underlying_shock_percent=<caller-set positive percent below 100>
+risk.option_stress_volatility_shock_points=<caller-set positive points>
+risk.option_stress_exit_haircut_per_unit_inr=<caller-set non-negative amount>
+```
+
+This check uses the prior decision bar's valuation input and the projected total long position. The order is rejected if the downward volatility shock makes IV non-positive or the worst stressed exit loss exceeds the caller's limit. `order-events.csv` records the check; the run risk reconciler recomputes it from the frozen input schedule. The limit has no default and this remains an in-process simulator control, not a separate risk service or an account risk budget. The fixed scenarios, theoretical values, and caller haircuts remain unvalidated.
+
 Example caller:
 
 ```java

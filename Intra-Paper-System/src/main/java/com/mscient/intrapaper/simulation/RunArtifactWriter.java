@@ -390,7 +390,13 @@ public final class RunArtifactWriter {
                 + ", \"max_daily_loss_inr\": " + q(num(config.maxDailyLossInr()))
                 + ", \"min_seconds_between_entry_orders\": " + config.minSecondsBetweenEntryOrders()
                 + ", \"allow_next_session_orders\": " + config.allowNextSessionOrders()
-                + ", \"cross_session_position_policy\": " + q(config.crossSessionPositionPolicy().name()) + "},\n"
+                + ", \"cross_session_position_policy\": " + q(config.crossSessionPositionPolicy().name())
+                + config.optionStressRiskLimits().map(limits -> ", \"option_stress_loss_cap\": {\"max_loss_inr\": "
+                        + q(num(limits.maxLossInr())) + ", \"underlying_shock_percent\": "
+                        + q(num(limits.underlyingShockPercent())) + ", \"volatility_shock_points\": "
+                        + q(num(limits.volatilityShockPoints())) + ", \"exit_haircut_per_unit_inr\": "
+                        + q(num(limits.exitHaircutPerUnitInr())) + ", \"gate\": \"PRE_ENTRY_DECISION_TIME_FULL_REVALUATION\"}")
+                        .orElse("") + "},\n"
                 + "  \"expiry_settlement\": " + data.expirySettlement().map(settlement ->
                         "{\"date\": " + q(settlement.settlementDate().toString())
                         + ", \"timestamp\": " + q(settlement.settlementTimestamp().toString())

@@ -22,7 +22,7 @@ public final class PortfolioStressAnalyzer {
             Objects.requireNonNull(right, "right");
             finitePositive(underlyingPrice, "underlyingPrice");
             finitePositive(strike, "strike");
-            finitePositive(timeToExpiryYears, "timeToExpiryYears");
+            finiteNonNegative(timeToExpiryYears, "timeToExpiryYears");
             finite(riskFreeRate, "riskFreeRate");
             finite(dividendYield, "dividendYield");
             finitePositive(annualizedVolatility, "annualizedVolatility");
@@ -83,8 +83,10 @@ public final class PortfolioStressAnalyzer {
                 double haircut = 0.0;
                 for (OptionLeg leg : options) {
                     double stressedUnderlying = leg.underlyingPrice() * (1.0 + underlyingShock / 100.0);
-                    double stressedVolatility = leg.annualizedVolatility() + volatilityShock / 100.0;
-                    if (stressedVolatility <= 0.0) {
+                    double stressedVolatility = leg.timeToExpiryYears() == 0.0
+                            ? leg.annualizedVolatility()
+                            : leg.annualizedVolatility() + volatilityShock / 100.0;
+                    if (leg.timeToExpiryYears() > 0.0 && stressedVolatility <= 0.0) {
                         throw new IllegalArgumentException("downward volatility shock makes option IV non-positive: "
                                 + leg.instrumentId());
                     }
