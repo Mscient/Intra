@@ -1,4 +1,5 @@
 session_id,date,commit_with_session_work,summary
+d561570a-c035-4728-90a7-3a699117aab1,2026-11-05,a3562e56ef35e76b6ccdc713092a41e89dc58a9e,"Added outsource-ready DR-00–DR-17 deep-research briefs with evidence standards, dependencies, deliverables, owner prerequisites, and acceptance checks; linked README and trackers. Documentation only; no external research or implementation changes."
 014f528f-52f8-436b-a52e-5ab7c756c91d,2026-11-01,98be876,Started research; pushed Harris note and tracking structure; full-text review pending.
 60a7268b-5d0c-4cb9-8bb8-9ea2196ece31,2026-11-01,53ad846,Started B02 Natenberg research; created a public-source synthesis and updated the tracker.
 1bb39e96-d438-4679-8628-b2e16d23da8e,2026-11-01,65f0fddc157d9e14f37a211ae5c8b44e9dfeea72,"Completed public-source research notes for B11-B15; updated the overview, tracker, and session record."
