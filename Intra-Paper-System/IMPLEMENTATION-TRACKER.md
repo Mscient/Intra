@@ -109,6 +109,7 @@
 - [x] Added a standalone deterministic toy limit book with integer tick/unit prices, price/time priority, partial fills, maker-price execution, cancel of residual quantity, and market-IOC sweeps. It is exchange-neutral, uncalibrated, and not wired into strategy replay.
 - [x] Added a separate single-price call-auction primitive with maximum-volume/minimum-imbalance/nearest-reference clearing, price/time allocation, explicit unresolved no-price market remainders, and matched-volume reconciliation. It is not assigned to historical sessions or integrated into replay pending effective-dated rule evidence.
 - [x] Added a blank strategy research-card template; no candidate or assumptions are approved by the template.
+- [x] Added `SynchronizedBarFrameBuilder`, a separate offline data-layer API that forms immutable frames only when every configured instrument has an exact timestamp/session-date match. It rejects unequal series lengths, missing/mismatched timestamps, duplicates/reordering, contract-identity changes, and incompatible exchange/segment/interval/timestamp roles; it never forward-fills or infers sessions. Focused JDK 21 checks pass. It is not connected to portfolio positions, strategy execution, valuation, risk, accounting, or the existing one-contract runner; upstream rights/completeness/reference validation is still required. See `docs/MULTI-INSTRUMENT-BAR-FRAMES.md`.
 
 ## Source-derived backtesting decisions
 
