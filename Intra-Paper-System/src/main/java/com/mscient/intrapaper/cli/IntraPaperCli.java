@@ -27,6 +27,7 @@ import com.mscient.intrapaper.simulation.RunArtifactWriter;
 import com.mscient.intrapaper.simulation.RunArtifactVerifier;
 import com.mscient.intrapaper.simulation.RunIdentity;
 import com.mscient.intrapaper.simulation.RunReplayVerifier;
+import com.mscient.intrapaper.simulation.PortfolioStressCsv;
 import com.mscient.intrapaper.simulation.SmaCrossoverStrategy;
 
 import java.nio.file.Path;
@@ -256,6 +257,22 @@ public final class IntraPaperCli {
                 if (!report.passed()) System.exit(3);
                 return;
             }
+            if (args.length == 4 && args[0].equals("portfolio-stress")) {
+                var result = PortfolioStressCsv.analyze(Path.of(args[1]),
+                        Double.parseDouble(args[2]), Double.parseDouble(args[3]));
+                System.out.printf("PORTFOLIO STRESS: legs_file_sha256=%s; worst_scenario=%s; "
+                                + "worst_stressed_exit_pnl=%.2f; short_options=%s; scope=%s%n",
+                        result.positionsSha256(), result.report().worstScenarioId(),
+                        result.report().worstStressedExitPnl(), result.report().hasShortOptions(),
+                        result.report().scope());
+                for (var scenario : result.report().scenarios()) {
+                    System.out.printf("SCENARIO %s: underlying_shock_pct=%.4f; iv_shock_points=%.4f; "
+                                    + "repriced_pnl=%.2f; exit_haircut=%.2f; stressed_exit_pnl=%.2f%n",
+                            scenario.id(), scenario.underlyingShockPercent(), scenario.volatilityShockPoints(),
+                            scenario.repricedPnl(), scenario.exitHaircut(), scenario.stressedExitPnl());
+                }
+                return;
+            }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
                 usage();
                 System.exit(2);
@@ -328,6 +345,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
+                + "  java -jar intra-paper-system.jar portfolio-stress <positions.csv> <underlying-shock-percent> <volatility-shock-points>\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
@@ -346,6 +364,7 @@ public final class IntraPaperCli {
                 + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"
                 + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
                 + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
+                + "portfolio-stress fully reprices a caller-supplied options/futures portfolio in four shock scenarios; it is not account state, exchange margin, or a trading control.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 

@@ -185,6 +185,22 @@ Use these offline diagnostics for option bounds, put-call parity, and finite-dif
 
 The command exits 3 when a numerical check fails. It checks internal formulas with numerical perturbations; it is not an independent implementation, market quote comparison, volatility-surface validation, or permission to use model values as fills.
 
+## Full-revaluation portfolio stress
+
+Create a positions CSV with this exact header:
+
+```text
+leg_type,instrument_id,model,right,underlying_price,strike,time_to_expiry_years,risk_free_rate,dividend_yield,annualized_volatility,signed_contracts,units_per_contract,option_exit_haircut_per_unit,signed_units,future_exit_haircut_percent
+```
+
+Use `OPTION` rows with model `BSM_SPOT` or `BLACK76_FUTURE`; long contracts are positive and shorts are negative. Use `FUTURE` rows with signed units. Unused columns must be blank. Supply volatility as a decimal and the CLI shock as volatility percentage points:
+
+```powershell
+& $java -jar $jar portfolio-stress .\positions.csv 2 3
+```
+
+This reports all four full-revaluation combinations and the worst stressed exit P&L. It hashes the positions file and uses only the supplied positions, pricing conventions, and exit haircuts. It is not linked to account holdings, an exchange-margin calculation, the replay risk gateway, or a loss-limit action.
+
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
 ## Normalized bars CSV
