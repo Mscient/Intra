@@ -12,7 +12,7 @@ import java.time.LocalDate;
 public final class RiskGate {
     public record Evaluation(boolean newlyHalted, boolean halted, BigDecimal sessionLossInr) { }
     public record Snapshot(LocalDate sessionDate, BigDecimal sessionStartNetPnl, boolean halted,
-            Instant lastEntryOrderTimestamp) implements java.io.Serializable { }
+            Instant lastEntryOrderTimestamp, int entryOrdersThisSession) implements java.io.Serializable { }
 
     private final int maxPositionLots;
     private final BigDecimal maxNotionalInr;
@@ -20,6 +20,7 @@ public final class RiskGate {
     private final BigDecimal maxMarginInr;
     private final BigDecimal maxDailyLossInr;
     private final long minSecondsBetweenEntryOrders;
+    private final int maxEntryOrdersPerSession;
     private LocalDate sessionDate;
     private BigDecimal sessionStartNetPnl = BigDecimal.ZERO;
     private boolean halted;
@@ -32,13 +33,17 @@ public final class RiskGate {
         this.maxMarginInr = config.maxMarginInr();
         this.maxDailyLossInr = config.maxDailyLossInr();
         this.minSecondsBetweenEntryOrders = config.minSecondsBetweenEntryOrders();
+        this.maxEntryOrdersPerSession = config.maxEntryOrdersPerSession();
     }
 
     public void startSession(LocalDate date, BigDecimal priorNetPnl) {
         this.sessionDate = date;
         this.sessionStartNetPnl = priorNetPnl;
         this.halted = false;
+        this.entryOrdersThisSession = 0;
     }
+
+    private int entryOrdersThisSession;
 
     public String entryRejectionReason(int targetLots, Bar bar, BigDecimal modeledFillPrice) {
         return entryRejectionReason(targetLots, bar, modeledFillPrice, marginPerLotInr);
@@ -70,8 +75,11 @@ public final class RiskGate {
 
     /** Returns an entry-order throttle reason or records the accepted entry intent. Exits are exempt. */
     public String registerEntryOrder(Instant decisionTimestamp) {
-        if (minSecondsBetweenEntryOrders == 0) return null;
-        if (lastEntryOrderTimestamp != null) {
+        if (sessionDate == null) throw new IllegalStateException("Risk session was not initialized");
+        if (maxEntryOrdersPerSession > 0 && entryOrdersThisSession >= maxEntryOrdersPerSession) {
+            return "MAX_ENTRY_ORDERS_PER_SESSION";
+        }
+        if (minSecondsBetweenEntryOrders > 0 && lastEntryOrderTimestamp != null) {
             Duration elapsed = Duration.between(lastEntryOrderTimestamp, decisionTimestamp);
             if (elapsed.isNegative()) return "ENTRY_ORDER_DECISION_TIME_REVERSED";
             if (elapsed.compareTo(Duration.ofSeconds(minSecondsBetweenEntryOrders)) < 0) {
@@ -79,6 +87,7 @@ public final class RiskGate {
             }
         }
         lastEntryOrderTimestamp = decisionTimestamp;
+        entryOrdersThisSession = Math.addExact(entryOrdersThisSession, 1);
         return null;
     }
 
@@ -87,7 +96,7 @@ public final class RiskGate {
     }
 
     public Snapshot snapshot() {
-        return new Snapshot(sessionDate, sessionStartNetPnl, halted, lastEntryOrderTimestamp);
+        return new Snapshot(sessionDate, sessionStartNetPnl, halted, lastEntryOrderTimestamp, entryOrdersThisSession);
     }
 
     public void restore(Snapshot snapshot) {
@@ -96,5 +105,6 @@ public final class RiskGate {
         this.sessionStartNetPnl = snapshot.sessionStartNetPnl();
         this.halted = snapshot.halted();
         this.lastEntryOrderTimestamp = snapshot.lastEntryOrderTimestamp();
+        this.entryOrdersThisSession = snapshot.entryOrdersThisSession();
     }
 }

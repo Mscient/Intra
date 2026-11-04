@@ -227,12 +227,26 @@ public final class RunLedgerReconciler {
                     ? bar.timestamp() : bar.timestamp().minus(interval);
             barsByFillTime.put(barStart, bar);
         }
+        Map<Instant, LocalDate> sessionByDecisionTime = new HashMap<>();
+        for (Bar bar : dataset.bars()) {
+            Instant close = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? bar.timestamp().plus(interval) : bar.timestamp();
+            sessionByDecisionTime.put(close, bar.sessionDate());
+        }
         Map<String, SimOrder> orders = new HashMap<>();
         result.orders().forEach(order -> orders.put(order.orderId(), order));
         Instant priorEntryDecision = null;
+        Map<LocalDate, Integer> entryOrdersPerSession = new HashMap<>();
         for (SimOrder order : result.orders()) {
             if (!order.side().equals("BUY")) continue;
             Instant currentEntryDecision = order.decisionTimestamp();
+            LocalDate orderSession = sessionByDecisionTime.get(currentEntryDecision);
+            if (orderSession == null) fail("entry order decision time has no matching dataset session: " + order.orderId());
+            int sessionEntryCount = entryOrdersPerSession.merge(orderSession, 1, Integer::sum);
+            if (config.maxEntryOrdersPerSession() > 0
+                    && sessionEntryCount > config.maxEntryOrdersPerSession()) {
+                fail("entry orders exceed configured risk.max_entry_orders_per_session on " + orderSession);
+            }
             if (priorEntryDecision != null) {
                 Duration elapsed = Duration.between(priorEntryDecision, currentEntryDecision);
                 if (elapsed.isNegative() || elapsed.compareTo(Duration.ofSeconds(config.minSecondsBetweenEntryOrders())) < 0) {

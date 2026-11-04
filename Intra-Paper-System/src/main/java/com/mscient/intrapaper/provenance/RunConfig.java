@@ -59,6 +59,7 @@ public record RunConfig(
         BigDecimal maxDailyLossInr,
         Optional<OptionStressRiskLimits> optionStressRiskLimits,
         long minSecondsBetweenEntryOrders,
+        int maxEntryOrdersPerSession,
         boolean allowNextSessionOrders,
         CrossSessionPositionPolicy crossSessionPositionPolicy,
         boolean allowIntraSessionGaps,
@@ -109,7 +110,8 @@ public record RunConfig(
             "reference.file", "calendar.file", "rules.file", "settlement.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
             "risk.margin_schedule_file",
-            "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders", "cost.status",
+            "risk.max_daily_loss_inr", "risk.min_seconds_between_entry_orders",
+            "risk.max_entry_orders_per_session", "cost.status",
             "risk.option_stress_max_loss_inr", "risk.option_stress_underlying_shock_percent",
             "risk.option_stress_volatility_shock_points", "risk.option_stress_exit_haircut_per_unit_inr",
             "settlement.cost_schedule_file", "valuation.option_inputs_file",
@@ -218,6 +220,7 @@ public record RunConfig(
                     positive(p, optionStressKeys.get(2)), nonNegative(p, optionStressKeys.get(3))));
         }
         long minSecondsBetweenEntryOrders = nonNegativeLong(p, "risk.min_seconds_between_entry_orders");
+        int maxEntryOrdersPerSession = optionalNonNegativeInt(p, "risk.max_entry_orders_per_session", 0);
         int fast = positiveInt(p, "strategy.fast_bars");
         int slow = positiveInt(p, "strategy.slow_bars");
         if (fast < 2 || slow <= fast) throw new IllegalArgumentException("Require 2 <= strategy.fast_bars < strategy.slow_bars");
@@ -332,6 +335,7 @@ public record RunConfig(
                 dailyLoss,
                 optionStressRiskLimits,
                 minSecondsBetweenEntryOrders,
+                maxEntryOrdersPerSession,
                 Boolean.parseBoolean(allowCrossSessionText),
                 crossSessionPositionPolicy,
                 Boolean.parseBoolean(allowGapsText),
