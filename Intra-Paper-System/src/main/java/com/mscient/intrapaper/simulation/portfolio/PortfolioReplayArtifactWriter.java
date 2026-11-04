@@ -1,6 +1,8 @@
 package com.mscient.intrapaper.simulation.portfolio;
 
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.data.ValidatedPortfolioDataset;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -23,14 +25,18 @@ import java.util.UUID;
 /** Atomically publishes diagnostic-only portfolio replay artifacts under the replay fingerprint. */
 public final class PortfolioReplayArtifactWriter {
     private static final List<String> OUTPUT_NAMES = List.of(
-            "decisions.csv", "orders.csv", "executions.csv", "equity.csv");
+            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "equity.csv");
 
     public record WrittenRun(String runId, Path path) { }
 
-    public WrittenRun write(Path outputRoot, PortfolioReplayEngine.Result result) throws IOException {
-        if (outputRoot == null || result == null) throw new NullPointerException("outputRoot/result");
+    public WrittenRun write(Path outputRoot, ValidatedPortfolioDataset dataset,
+            PortfolioReplayEngine.Result result) throws IOException {
+        if (outputRoot == null || dataset == null || result == null) throw new NullPointerException("outputRoot/dataset/result");
         requireHash(result.validatedDatasetsSha256(), "validated dataset fingerprint");
         requireHash(result.replayFingerprintSha256(), "replay fingerprint");
+        if (!result.validatedDatasetsSha256().equals(dataset.datasetsSha256())) {
+            throw new IllegalArgumentException("Artifact dataset does not match replay dataset fingerprint");
+        }
         if (!result.classification().equals("REPLAY_DIAGNOSTIC_ONLY") || result.performanceClaimEligible()) {
             throw new IllegalArgumentException("Only diagnostic-only, performance-ineligible portfolio replays may be published");
         }
@@ -58,16 +64,18 @@ public final class PortfolioReplayArtifactWriter {
                 if (Files.exists(destination, LinkOption.NOFOLLOW_LINKS)) {
                     throw new FileAlreadyExistsException(destination.toString());
                 }
-                return publish(root, destination, result);
+                return publish(root, destination, dataset, result);
             }
         }
     }
 
-    private static WrittenRun publish(Path root, Path destination, PortfolioReplayEngine.Result result) throws IOException {
+    private static WrittenRun publish(Path root, Path destination, ValidatedPortfolioDataset dataset,
+            PortfolioReplayEngine.Result result) throws IOException {
         Path staging = root.resolve(".portfolio-staging-" + result.replayFingerprintSha256() + "-" + UUID.randomUUID());
         Files.createDirectory(staging);
         boolean published = false;
         try {
+            writeNew(staging.resolve("datasets.csv"), datasetsCsv(dataset));
             writeNew(staging.resolve("decisions.csv"), decisionsCsv(result));
             writeNew(staging.resolve("orders.csv"), ordersCsv(result));
             writeNew(staging.resolve("executions.csv"), executionsCsv(result));
@@ -113,9 +121,30 @@ public final class PortfolioReplayArtifactWriter {
         put(out, "order_count", Integer.toString(result.orders().size()));
         put(out, "execution_count", Integer.toString(result.executions().size()));
         put(out, "snapshot_count", Integer.toString(result.snapshots().size()));
+        put(out, "position_boundary_policy", result.config().positionBoundaryPolicy().name());
+        put(out, "pending_intent_boundary_policy", result.config().pendingIntentBoundaryPolicy().name());
+        put(out, "require_contiguous_frames_within_session", Boolean.toString(result.config().requireContiguousFramesWithinSession()));
+        put(out, "max_abs_lots_by_instrument_base64", b64(canonicalMap(result.config().maxAbsLotsByInstrument())));
+        put(out, "strategy_parameters_base64", b64(canonicalMap(result.strategyParameters())));
+        put(out, "fill_model_parameters_base64", b64(canonicalMap(result.fillModelParameters())));
         put(out, "output_files", String.join(",", OUTPUT_NAMES));
         for (String name : OUTPUT_NAMES) put(out, "sha256." + name, hashes.get(name));
         return out.toString();
+    }
+
+    private static String datasetsCsv(ValidatedPortfolioDataset dataset) {
+        List<String> rows = new ArrayList<>();
+        rows.add("instrument_id,dataset_id,source_name,acquired_at_utc,timezone,data_rights_status,data_rights_reference,bars_sha256,config_sha256,calendar_sha256,instrument_master_snapshot_id,instrument_master_sha256,market_rule_sha256,input_file_hashes_base64,validated_bar_count,complete_session_count");
+        for (Map.Entry<String, ValidatedDataset> entry : new TreeMap<>(dataset.datasetsByInstrument()).entrySet()) {
+            ValidatedDataset data = entry.getValue();
+            rows.add(csv(entry.getKey(), data.manifest().datasetId(), data.manifest().sourceName(),
+                    data.manifest().acquiredAtUtc(), data.manifest().timezone(), data.manifest().dataRightsStatus(),
+                    data.manifest().dataRightsReference().orElse(""), data.barsSha256(), data.configSha256(),
+                    data.calendarSha256(), data.manifest().instrumentMasterSnapshotId(),
+                    data.manifest().instrumentMasterSha256(), data.marketRuleRegimeSchedule().sha256(),
+                    b64(canonicalMap(data.manifest().inputFileSha256())), data.bars().size(), data.completeSessionCount()));
+        }
+        return String.join("\n", rows) + "\n";
     }
 
     private static String decisionsCsv(PortfolioReplayEngine.Result result) {
@@ -189,6 +218,14 @@ public final class PortfolioReplayArtifactWriter {
 
     private static void put(StringBuilder out, String key, String value) { out.append(key).append('=').append(value).append('\n'); }
     private static String b64(String value) { return java.util.Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
+
+    private static String canonicalMap(Map<?, ?> values) {
+        StringBuilder canonical = new StringBuilder();
+        new TreeMap<>(values.entrySet().stream().collect(java.util.stream.Collectors.toMap(
+                entry -> entry.getKey().toString(), entry -> entry.getValue().toString()))).forEach((key, value) ->
+                canonical.append(key.length()).append(':').append(key).append(value.length()).append(':').append(value));
+        return canonical.toString();
+    }
 
     private static void requireHash(String value, String label) {
         if (value == null || !value.matches("[0-9a-f]{64}")) throw new IllegalArgumentException(label + " must be lowercase SHA-256");

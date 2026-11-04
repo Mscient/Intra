@@ -14,13 +14,15 @@ import java.util.TreeMap;
 /** Verifies a published portfolio artifact's fixed layout, fingerprint binding, and output hashes. */
 public final class PortfolioReplayArtifactVerifier {
     private static final List<String> OUTPUT_NAMES = List.of(
-            "decisions.csv", "orders.csv", "executions.csv", "equity.csv");
+            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "equity.csv");
     private static final List<String> BASE_KEYS = List.of(
             "schema_version", "run_id", "validated_datasets_sha256", "frame_inputs_sha256",
             "strategy_id_base64", "strategy_fingerprint_sha256", "fill_model_id_base64",
             "fill_model_fingerprint_sha256", "build_commit", "classification",
             "performance_claim_eligible", "decision_count", "order_count", "execution_count",
-            "snapshot_count", "output_files");
+            "snapshot_count", "position_boundary_policy", "pending_intent_boundary_policy",
+            "require_contiguous_frames_within_session", "max_abs_lots_by_instrument_base64",
+            "strategy_parameters_base64", "fill_model_parameters_base64", "output_files");
 
     public record Verification(String runId, String validatedDatasetsSha256,
             Map<String, String> outputSha256) {
@@ -67,9 +69,18 @@ public final class PortfolioReplayArtifactVerifier {
                 || !"false".equals(values.get("performance_claim_eligible"))) {
             throw new IOException("Portfolio artifacts must remain diagnostic-only and performance-ineligible");
         }
+        if (!List.of("ALLOW_OVERNIGHT", "REQUIRE_FLAT").contains(values.get("position_boundary_policy"))
+                || !List.of("CANCEL_AT_SESSION_BOUNDARY", "ALLOW_NEXT_SESSION_OPEN")
+                        .contains(values.get("pending_intent_boundary_policy"))
+                || !List.of("true", "false").contains(values.get("require_contiguous_frames_within_session"))) {
+            throw new IOException("Invalid portfolio boundary-policy metadata");
+        }
         try {
             java.util.Base64.getDecoder().decode(values.get("strategy_id_base64"));
             java.util.Base64.getDecoder().decode(values.get("fill_model_id_base64"));
+            java.util.Base64.getDecoder().decode(values.get("max_abs_lots_by_instrument_base64"));
+            java.util.Base64.getDecoder().decode(values.get("strategy_parameters_base64"));
+            java.util.Base64.getDecoder().decode(values.get("fill_model_parameters_base64"));
             for (String key : List.of("decision_count", "order_count", "execution_count", "snapshot_count")) {
                 if (Integer.parseInt(values.get(key)) < 0) throw new NumberFormatException("negative");
             }

@@ -24,6 +24,38 @@ Pending targets at a session transition must either be cancelled or explicitly a
 
 Results include decisions, intents/outcomes, simulated executions, opening/closing portfolio snapshots, strategy/fill parameters, caller configuration, input/fingerprint hashes, and build commit. Classification is always `REPLAY_DIAGNOSTIC_ONLY`; `performanceClaimEligible()` is always false. `PortfolioReplayArtifactWriter` requires a validated-dataset fingerprint, atomically publishes `decisions.csv`, `orders.csv`, `executions.csv`, and `equity.csv` under the replay fingerprint, and refuses overwrites. `PortfolioReplayArtifactVerifier` checks the fixed file set, manifest IDs and schema, diagnostic-only status, and each output hash. The verifier proves consistency with the local manifest; it does not authenticate the manifest or independently retrieve/revalidate source inputs.
 
-The validated loader consumes a caller-supplied map of per-contract files, but no command-line portfolio configuration or full rerun verifier is available yet. The replay does not calculate exchange costs/taxes/margin, settle expiry, enforce independent portfolio risk, or establish data rights/completeness beyond the existing caller-supplied validation checks. Strategies and fill models must be deterministic for a repeated run; their identifiers and parameters are recorded, but their behavior cannot be proven deterministic by the engine. Long/short targets are accounting/research inputs only and imply no trading authorization. No broker, network, live-feed, or order-submission capability is present.
+## CLI workflow
+
+Create a UTF-8 input manifest with exactly these columns. File paths may be absolute or relative to the manifest directory.
+
+```csv
+instrument_id,bars_csv,run_properties,max_abs_lots
+NIFTY-FUT,data/nifty-fut.csv,data/nifty-fut.properties,2
+NIFTY-CALL,data/nifty-call.csv,data/nifty-call.properties,1
+```
+
+Create a UTF-8 portfolio settings file with exactly the following keys (comments and blank lines are allowed):
+
+```properties
+portfolio.pending_intent_boundary_policy=CANCEL_AT_SESSION_BOUNDARY
+portfolio.position_boundary_policy=REQUIRE_FLAT
+portfolio.require_contiguous_frames_within_session=true
+strategy.fast_bars=5
+strategy.slow_bars=20
+strategy.long_lots=1
+fill.slippage_ticks=1
+fill.fee_per_execution_inr=20
+```
+
+Run and verify using the project JAR:
+
+```powershell
+java -jar $jar portfolio-run .\portfolio-inputs.csv .\portfolio.properties .\portfolio-runs
+java -jar $jar portfolio-replay-verify .\portfolio-inputs.csv .\portfolio.properties .\portfolio-runs\<run-id>
+```
+
+The CLI strategy independently holds `long_lots` per contract when that instrument's fast close SMA is strictly above its slow close SMA; otherwise it targets flat. It waits for the complete slow window. Its fill model fully fills the target delta at the next bar open adjusted by configured adverse ticks and charges the configured fee per execution. These are plumbing assumptions, not exchange-calibrated fills or evidence of strategy edge. Set `position_boundary_policy=REQUIRE_FLAT` to require flat positions at every session and final-data boundary; `ALLOW_OVERNIGHT` carries them. Cross-session pending target behavior is explicit. The deterministic verifier requires the same source files, settings, and build identity; it hashes the saved artifact and byte-compares regenerated CSV outputs.
+
+The replay does not calculate exchange costs/taxes/margin, settle expiry, enforce independent portfolio risk, or establish data rights/completeness beyond the existing caller-supplied validation checks. The artifact manifest is not authenticated; preserve its hash externally if a trusted anchor is needed. Strategies and fill models must be deterministic for repeated runs; their identifiers and parameters are recorded, but behavior cannot be proven deterministic by the engine. Long/short targets remain accounting/research inputs only and imply no trading authorization. No broker, network, live-feed, or order-submission capability is present.
 
 Run focused checks with `.\test-portfolio-replay-engine.ps1` in PowerShell under JDK 21.

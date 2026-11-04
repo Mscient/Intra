@@ -41,6 +41,9 @@ import com.mscient.intrapaper.simulation.RunIdentity;
 import com.mscient.intrapaper.simulation.RunReplayVerifier;
 import com.mscient.intrapaper.simulation.PortfolioStressCsv;
 import com.mscient.intrapaper.simulation.SmaCrossoverStrategy;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifier;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayCsvRunner;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayDeterminismVerifier;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -442,6 +445,21 @@ public final class IntraPaperCli {
                 }
                 return;
             }
+            if (args.length == 4 && args[0].equals("portfolio-run")) {
+                var written = PortfolioReplayCsvRunner.run(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+                var verification = PortfolioReplayArtifactVerifier.verify(written.path());
+                System.out.printf("PORTFOLIO RUN: %s%nCLASSIFICATION: REPLAY_DIAGNOSTIC_ONLY%n"
+                                + "PERFORMANCE CLAIM ELIGIBLE: false%nOUTPUT: %s%nOUTPUT FILES VERIFIED: %d%n",
+                        written.runId(), written.path(), verification.outputSha256().size());
+                return;
+            }
+            if (args.length == 4 && args[0].equals("portfolio-replay-verify")) {
+                var verification = PortfolioReplayDeterminismVerifier.verify(
+                        Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+                System.out.printf("VERIFIED PORTFOLIO REPLAY: %s; validated_datasets_sha256=%s; output_files=%d; deterministic bytes match%n",
+                        verification.runId(), verification.validatedDatasetsSha256(), verification.outputSha256().size());
+                return;
+            }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
                 usage();
                 System.exit(2);
@@ -523,6 +541,8 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
                 + "  java -jar intra-paper-system.jar portfolio-stress <positions.csv> <underlying-shock-percent> <volatility-shock-points>\n"
+                + "  java -jar intra-paper-system.jar portfolio-run <portfolio-inputs.csv> <portfolio.properties> <output-root>\n"
+                + "  java -jar intra-paper-system.jar portfolio-replay-verify <portfolio-inputs.csv> <portfolio.properties> <run-folder>\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
@@ -550,6 +570,8 @@ public final class IntraPaperCli {
                 + "statistical-evaluate verifies registered run artifacts and scores only DEVELOPMENT/VALIDATION sessions; HOLDOUT is excluded and every report remains performance_claim_eligible=false.\n"
                 + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
                 + "portfolio-stress fully reprices a caller-supplied options/futures portfolio in four shock scenarios; it is not account state, exchange margin, or a trading control.\n"
+                + "portfolio-run validates multiple dated contract datasets, runs the built-in diagnostic SMA portfolio model, and atomically publishes content-addressed outputs.\n"
+                + "portfolio-replay-verify rebuilds the portfolio outputs from the same inputs/build and compares their bytes with the published artifact.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
     }
 
