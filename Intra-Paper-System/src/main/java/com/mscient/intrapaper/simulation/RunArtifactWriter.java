@@ -120,14 +120,18 @@ public final class RunArtifactWriter {
                                 line.totalInr(), line.sourceReference())).toList()));
                 if (!result.optionValuations().isEmpty()) {
                     writeNew(stagingFolder.resolve("option-valuation.csv"), csv(
-                            "timestamp,instrument_id,model,source_reference,underlying_price,time_to_expiry_years,risk_free_rate,dividend_yield,annualized_volatility,market_premium_close,theoretical_value,market_minus_model_premium,delta,gamma,vega_per_volatility_point,theta_per_calendar_day,rho_per_rate_point",
+                            "timestamp,instrument_id,model,source_reference,underlying_price,time_to_expiry_years,risk_free_rate,dividend_yield,annualized_volatility,market_premium_close,theoretical_value,market_minus_model_premium,delta,gamma,vega_per_volatility_point,theta_per_calendar_day,rho_per_rate_point,position_units_at_close,position_market_value,position_theoretical_value,position_market_minus_model_value,position_delta_equivalent_units,position_gamma,position_vega_per_volatility_point,position_theta_per_calendar_day,position_rho_per_rate_point",
                             result.optionValuations().stream().map(value -> row(value.timestamp(), value.instrumentId(),
                                     value.model(), value.sourceReference(), value.underlyingPrice(),
                                     value.timeToExpiryYears(), value.riskFreeRate(), value.dividendYield(),
                                     value.annualizedVolatility(), value.marketPremiumClose(), value.theoreticalValue(),
                                     value.marketMinusModelPremium(), value.delta(), value.gamma(),
                                     value.vegaPerVolatilityPoint(), value.thetaPerCalendarDay(),
-                                    value.rhoPerRatePoint())).toList()));
+                                    value.rhoPerRatePoint(), value.positionUnitsAtClose(), value.positionMarketValue(),
+                                    value.positionTheoreticalValue(), value.positionMarketMinusModelValue(),
+                                    value.positionDeltaEquivalentUnits(), value.positionGamma(),
+                                    value.positionVegaPerVolatilityPoint(), value.positionThetaPerCalendarDay(),
+                                    value.positionRhoPerRatePoint())).toList()));
                 }
                 writeNew(stagingFolder.resolve("evaluation-partitions.csv"), evaluationPartitionsCsv(evaluationPartitions));
 

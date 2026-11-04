@@ -16,8 +16,17 @@ public record OptionValuationObservation(
         double marketPremiumClose,
         double theoreticalValue,
         double marketMinusModelPremium,
+        int positionUnitsAtClose,
+        double positionMarketValue,
+        double positionTheoreticalValue,
+        double positionMarketMinusModelValue,
         double delta,
         double gamma,
         double vegaPerVolatilityPoint,
         double thetaPerCalendarDay,
-        double rhoPerRatePoint) { }
+        double rhoPerRatePoint,
+        double positionDeltaEquivalentUnits,
+        double positionGamma,
+        double positionVegaPerVolatilityPoint,
+        double positionThetaPerCalendarDay,
+        double positionRhoPerRatePoint) { }

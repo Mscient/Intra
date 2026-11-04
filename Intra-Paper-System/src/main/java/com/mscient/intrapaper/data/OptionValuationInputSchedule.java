@@ -26,7 +26,7 @@ public record OptionValuationInputSchedule(Map<Instant, Input> inputs, String sh
             instrumentId = required(instrumentId, "instrument_id");
             Objects.requireNonNull(model, "model");
             finitePositive(underlyingPrice, "underlying_price");
-            finitePositive(timeToExpiryYears, "time_to_expiry_years");
+            finiteNonNegative(timeToExpiryYears, "time_to_expiry_years");
             finite(riskFreeRate, "risk_free_rate");
             finite(dividendYield, "dividend_yield");
             finitePositive(annualizedVolatility, "annualized_volatility");
@@ -60,6 +60,7 @@ public record OptionValuationInputSchedule(Map<Instant, Input> inputs, String sh
             }
         }
         Map<Instant, Input> parsed = new HashMap<>();
+        OptionPricingModel selectedModel = null;
         for (int index = 0; index < table.rows().size(); index++) {
             Map<String, String> row = table.rows().get(index);
             int line = index + 2;
@@ -71,6 +72,10 @@ public record OptionValuationInputSchedule(Map<Instant, Input> inputs, String sh
             } catch (RuntimeException failure) {
                 throw new IllegalArgumentException("Invalid timestamp or model at row " + line, failure);
             }
+            if (selectedModel != null && selectedModel != model) {
+                throw new IllegalArgumentException("Option valuation model must be consistent across the input file");
+            }
+            selectedModel = model;
             String instrumentId = required(row, "instrument_id", line);
             Bar bar = barsByCloseTimestamp.get(timestamp);
             if (bar == null || !bar.instrumentId().equals(instrumentId)) {
@@ -97,7 +102,7 @@ public record OptionValuationInputSchedule(Map<Instant, Input> inputs, String sh
             case BAR_END -> bar.timestamp();
             case BAR_START -> {
                 if (bar.interval().equals("ONE_DAY")) {
-                    throw new IllegalArgumentException("Daily BAR_START option valuation requires an explicit close-time source");
+                    throw new IllegalArgumentException("Daily BAR_START option valuation is unsupported without an explicit close instant");
                 }
                 yield bar.timestamp().plus(IntervalSupport.duration(bar.interval()));
             }
@@ -146,5 +151,10 @@ public record OptionValuationInputSchedule(Map<Instant, Input> inputs, String sh
     private static void finitePositive(double value, String field) {
         finite(value, field);
         if (value <= 0.0) throw new IllegalArgumentException(field + " must be positive");
+    }
+
+    private static void finiteNonNegative(double value, String field) {
+        finite(value, field);
+        if (value < 0.0) throw new IllegalArgumentException(field + " must be non-negative");
     }
 }
