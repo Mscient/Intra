@@ -50,7 +50,8 @@ public final class OfflineEvaluationAnalyzer {
     public record TrialSummary(ResearchTrialLedger.Entry registration, String runId, int sessionCount,
             BigDecimal totalNetPnlInr, double cumulativeSimpleReturn, double meanSessionReturn,
             double dailySharpe, double annualizedSharpe, double skewness, double kurtosis,
-            double deflatedSharpeProbability) { }
+            double deflatedSharpeProbability, double dsrProbabilityAtOneEffectiveTrial,
+            double dsrProbabilityAtRawFamilyTrialCount) { }
 
     public record PboSummary(int chronologicalBlockCount, int combinations,
             int belowMedianCount, double probabilityBacktestOverfitting) { }
@@ -61,7 +62,19 @@ public final class OfflineEvaluationAnalyzer {
             LocalDate firstEvaluationSession, LocalDate lastEvaluationSession,
             int evaluationSessionCount, int excludedHoldoutSessionCount,
             double sampleStandardDeviationAcrossTrialSharpes, double expectedMaximumSharpeThresholdDaily,
-            List<TrialSummary> trials, PboSummary pbo) {
+            List<TrialSummary> trials, PboSummary pbo, ResearchOutcomeLedger.Summary outcomeHistory) {
+        public Report(String trialLedgerFinalHash, int registeredTrialCount, int comparisonFamilyTrialCount,
+                String runIndexSha256, String datasetSha256, String splitPlanSha256,
+                BigDecimal analysisCapitalInr, LocalDate firstEvaluationSession, LocalDate lastEvaluationSession,
+                int evaluationSessionCount, int excludedHoldoutSessionCount,
+                double sampleStandardDeviationAcrossTrialSharpes, double expectedMaximumSharpeThresholdDaily,
+                List<TrialSummary> trials, PboSummary pbo) {
+            this(trialLedgerFinalHash, registeredTrialCount, comparisonFamilyTrialCount, runIndexSha256,
+                    datasetSha256, splitPlanSha256, analysisCapitalInr, firstEvaluationSession,
+                    lastEvaluationSession, evaluationSessionCount, excludedHoldoutSessionCount,
+                    sampleStandardDeviationAcrossTrialSharpes, expectedMaximumSharpeThresholdDaily,
+                    trials, pbo, null);
+        }
         public Report {
             trials = List.copyOf(trials);
         }
@@ -70,7 +83,7 @@ public final class OfflineEvaluationAnalyzer {
         public String toJson() {
             StringBuilder json = new StringBuilder(2048);
             json.append("{\n")
-                    .append("  \"schema\": \"INTRA_OFFLINE_STATISTICAL_EVALUATION_V1\",\n")
+                    .append("  \"schema\": \"INTRA_OFFLINE_STATISTICAL_EVALUATION_V2\",\n")
                     .append("  \"trial_ledger_final_sha256\": ").append(q(trialLedgerFinalHash)).append(",\n")
                     .append("  \"registered_trial_count\": ").append(registeredTrialCount).append(",\n")
                     .append("  \"comparison_family_trial_count\": ").append(comparisonFamilyTrialCount).append(",\n")
@@ -91,7 +104,39 @@ public final class OfflineEvaluationAnalyzer {
                     .append(number(sampleStandardDeviationAcrossTrialSharpes)).append(",\n")
                     .append("  \"dsr_expected_max_daily_sharpe_threshold\": ")
                     .append(number(expectedMaximumSharpeThresholdDaily)).append(",\n")
-                    .append("  \"pbo\": {\n")
+                    .append("  \"dsr_effective_trial_count_sensitivity\": {\n")
+                    .append("    \"method\": \"expected-maximum DSR approximation evaluated at N_eff=1 and the raw family count\",\n")
+                    .append("    \"effective_trial_count_min\": 1,\n")
+                    .append("    \"effective_trial_count_max\": ").append(comparisonFamilyTrialCount).append(",\n")
+                    .append("    \"raw_family_count_is_upper_scenario\": true,\n")
+                    .append("    \"trial_dependence_estimated\": false,\n")
+                    .append("    \"interpretation\": \"scenario endpoints only; not an estimated effective count or confidence interval\"\n")
+                    .append("  },\n")
+                    .append("  \"sharpe_serial_dependence_adjusted\": false,\n");
+            if (outcomeHistory != null) {
+                json.append("  \"outcome_history\": {\n")
+                        .append("    \"ledger_final_sha256\": ").append(q(outcomeHistory.finalHashSha256())).append(",\n")
+                        .append("    \"event_count\": ").append(outcomeHistory.eventCount()).append(",\n")
+                        .append("    \"event_type_counts\": {");
+                int eventTypeIndex = 0;
+                for (ResearchOutcomeLedger.EventType type : ResearchOutcomeLedger.EventType.values()) {
+                    if (eventTypeIndex++ > 0) json.append(',');
+                    json.append("\n      ").append(q(type.name())).append(": ")
+                            .append(outcomeEventCount(outcomeHistory, type));
+                }
+                json.append("\n    },\n")
+                        .append("    \"exposure_state_trial_counts\": {");
+                int stateIndex = 0;
+                for (ResearchOutcomeLedger.ExposureState state : ResearchOutcomeLedger.ExposureState.values()) {
+                    if (stateIndex++ > 0) json.append(',');
+                    long count = outcomeHistory.trials().stream()
+                            .filter(trial -> trial.exposureState() == state).count();
+                    json.append("\n      ").append(q(state.name())).append(": ").append(count);
+                }
+                json.append("\n    }\n")
+                        .append("  },\n");
+            }
+            json.append("  \"pbo\": {\n")
                     .append("    \"method\": \"combinatorially symmetric cross-validation over chronological blocks\",\n")
                     .append("    \"chronological_block_count\": ").append(pbo.chronologicalBlockCount()).append(",\n")
                     .append("    \"combinations\": ").append(pbo.combinations()).append(",\n")
@@ -123,6 +168,10 @@ public final class OfflineEvaluationAnalyzer {
                         .append("      \"return_skewness\": ").append(number(summary.skewness())).append(",\n")
                         .append("      \"return_kurtosis\": ").append(number(summary.kurtosis())).append(",\n")
                         .append("      \"deflated_sharpe_probability\": ").append(number(summary.deflatedSharpeProbability())).append(",\n")
+                        .append("      \"dsr_probability_at_one_effective_trial\": ")
+                        .append(number(summary.dsrProbabilityAtOneEffectiveTrial())).append(",\n")
+                        .append("      \"dsr_probability_at_raw_family_trial_count\": ")
+                        .append(number(summary.dsrProbabilityAtRawFamilyTrialCount())).append(",\n")
                         .append("      \"dsr_multiplicity_in_dataset_split_family\": ").append(comparisonFamilyTrialCount).append(",\n")
                         .append("      \"performance_claim_eligible\": false\n")
                         .append("    }");
@@ -152,12 +201,29 @@ public final class OfflineEvaluationAnalyzer {
 
     private OfflineEvaluationAnalyzer() { }
 
+    private static long outcomeEventCount(ResearchOutcomeLedger.Summary summary,
+            ResearchOutcomeLedger.EventType type) {
+        return switch (type) {
+            case ATTEMPT_STARTED -> summary.attemptsStarted();
+            case OUTCOME_PRODUCED -> summary.outcomesProduced();
+            case OUTCOME_VIEWED -> summary.outcomeViews();
+            case MECHANICAL_FAILURE_NO_OUTCOME -> summary.mechanicalFailuresWithoutOutcome();
+            case ABANDONED -> summary.abandonedAttempts();
+        };
+    }
+
     /**
      * Verifies each referenced run and binds it to the append-only trial ledger before computing statistics.
      * The only return observations used are DEVELOPMENT and VALIDATION session P&L values.
      */
     public static Report analyze(Path trialLedgerPath, Path runIndexPath, Path splitPlanPath,
             Path runsRoot, int chronologicalBlockCount) throws IOException {
+        return analyze(trialLedgerPath, runIndexPath, splitPlanPath, runsRoot, chronologicalBlockCount, null);
+    }
+
+    /** Optional outcome-history verification adds provenance only; it does not select trials or change scores. */
+    public static Report analyze(Path trialLedgerPath, Path runIndexPath, Path splitPlanPath,
+            Path runsRoot, int chronologicalBlockCount, Path outcomeHistoryLedgerPath) throws IOException {
         if (chronologicalBlockCount < 4 || chronologicalBlockCount > MAX_CHRONOLOGICAL_BLOCKS
                 || chronologicalBlockCount % 2 != 0) {
             throw new IllegalArgumentException("chronological block count must be even and between 4 and "
@@ -170,6 +236,14 @@ public final class OfflineEvaluationAnalyzer {
                 || (!registrations.isEmpty()
                 && !ledgerSummary.finalHashSha256().equals(registrations.getLast().recordHashSha256()))) {
             throw new IOException("Research trial ledger changed while it was being read");
+        }
+        ResearchOutcomeLedger.Summary outcomeHistory = null;
+        if (outcomeHistoryLedgerPath != null) {
+            outcomeHistory = ResearchOutcomeLedger.verify(trialLedgerPath, outcomeHistoryLedgerPath);
+            ResearchTrialLedger.Summary ledgerAfterOutcomeRead = ResearchTrialLedger.verify(trialLedgerPath);
+            if (!ledgerSummary.finalHashSha256().equals(ledgerAfterOutcomeRead.finalHashSha256())) {
+                throw new IOException("Research trial ledger changed while outcome history was being verified");
+            }
         }
         Map<String, ResearchTrialLedger.Entry> registrationById = new HashMap<>();
         for (ResearchTrialLedger.Entry registration : registrations) {
@@ -265,18 +339,21 @@ public final class OfflineEvaluationAnalyzer {
             Moments moments = trialMoments.get(runNumber);
             double dailySharpe = dailySharpes[runNumber];
             double standardError = sharpeStandardError(dailySharpe, moments, run.returns().length);
-            double dsr = normalCdf((dailySharpe - expectedMaxDailySharpe) / standardError);
+            double dsrAtOneTrial = normalCdf(dailySharpe / standardError);
+            double dsrAtRawFamilyCount = normalCdf((dailySharpe - expectedMaxDailySharpe) / standardError);
             double cumulativeReturn = run.totalNetPnlInr()
                     .divide(run.analysisCapitalInr(), MathContext.DECIMAL128).doubleValue();
             double annualizedSharpe = dailySharpe * Math.sqrt(PERIODS_PER_YEAR);
             if (!Double.isFinite(dailySharpe) || !Double.isFinite(annualizedSharpe)
-                    || !Double.isFinite(cumulativeReturn) || !Double.isFinite(dsr)) {
+                    || !Double.isFinite(cumulativeReturn) || !Double.isFinite(dsrAtOneTrial)
+                    || !Double.isFinite(dsrAtRawFamilyCount)) {
                 throw new IOException("Evaluation statistic is outside the supported numeric range for "
                         + run.registration().trial().trialId());
             }
             trialSummaries.add(new TrialSummary(run.registration(), run.runId(), run.returns().length,
                     run.totalNetPnlInr(), cumulativeReturn, moments.mean(), dailySharpe, annualizedSharpe,
-                    moments.skewness(), moments.kurtosis(), dsr));
+                    moments.skewness(), moments.kurtosis(), dsrAtRawFamilyCount, dsrAtOneTrial,
+                    dsrAtRawFamilyCount));
         }
 
         PboSummary pbo = probabilityBacktestOverfitting(runs, chronologicalBlockCount);
@@ -284,7 +361,7 @@ public final class OfflineEvaluationAnalyzer {
                 runIndex.sha256(), first.datasetSha256(), first.splitPlanSha256(), first.analysisCapitalInr(),
                 first.evaluationDates().getFirst(), first.evaluationDates().getLast(),
                 first.evaluationDates().size(), first.holdoutSessionCount(), trialSharpeSampleStdDev,
-                expectedMaxDailySharpe, trialSummaries, pbo);
+                expectedMaxDailySharpe, trialSummaries, pbo, outcomeHistory);
     }
 
     private static RunData readRun(Path runFolder, IndexRow indexRow,

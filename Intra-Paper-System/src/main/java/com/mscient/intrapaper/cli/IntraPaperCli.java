@@ -271,9 +271,10 @@ public final class IntraPaperCli {
                         result.normalizedCsvSha256(), result.timestampRole(), result.timezone(), result.outputPath());
                 return;
             }
-            if (args.length == 7 && args[0].equals("statistical-evaluate")) {
+            if ((args.length == 7 || args.length == 8) && args[0].equals("statistical-evaluate")) {
                 var report = OfflineEvaluationAnalyzer.analyze(Path.of(args[1]), Path.of(args[2]),
-                        Path.of(args[3]), Path.of(args[4]), Integer.parseInt(args[6]));
+                        Path.of(args[3]), Path.of(args[4]), Integer.parseInt(args[6]),
+                        args.length == 8 ? Path.of(args[7]) : null);
                 Path output = Path.of(args[5]).toAbsolutePath().normalize();
                 Files.writeString(output, report.toJson(), java.nio.charset.StandardCharsets.UTF_8,
                         java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
@@ -399,7 +400,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
-                + "  java -jar intra-paper-system.jar statistical-evaluate <ledger.tsv> <run-index.csv> <split-plan.csv> <runs-root> <report.json> <even-block-count>\n"
+                + "  java -jar intra-paper-system.jar statistical-evaluate <ledger.tsv> <run-index.csv> <split-plan.csv> <runs-root> <report.json> <even-block-count> [outcome-ledger.tsv]\n"
                 + "  java -jar intra-paper-system.jar trial-outcome-record <trial-ledger.tsv> <outcome-ledger.tsv> <trial-id> <attempt-id> <event-id> <event-type> <reference> <reason>\n"
                 + "  java -jar intra-paper-system.jar trial-outcome-verify <trial-ledger.tsv> <outcome-ledger.tsv>\n"
                 + "  java -jar intra-paper-system.jar smartapi-candle-import <response.json> <metadata.csv> <normalized-bars.csv>\n"
