@@ -131,6 +131,20 @@ To cross-check a raw capture against lifecycle acknowledgements, provide both ve
 
 The command matches source, connection ID, subscription ID, and raw receive timestamp to intervals opened by `SUBSCRIPTION_ACKNOWLEDGED` and closed by unsubscription acknowledgement, connection failure, or disconnect. It streams the raw journal and retains lifecycle intervals in memory. It reports matched, unacknowledged, out-of-window, and uncertain messages; acknowledged intervals with no captured messages; lifecycle state anomalies; wall-clock regressions; and both final hashes. The tolerance applies on both sides of each boundary. A non-monotonic lifecycle timeline is marked uncertain for that connection. This is an offline consistency diagnostic: it does not decode instrument IDs, validate upstream sequence semantics, infer expected quote frequency, prove source completeness or data rights, or correct clock skew. Capture lifecycle events and raw messages from the same source and use a tolerance justified for that source.
 
+To additionally reconcile caller-declared instrument expectations with those acknowledgements and decoded quotes, use:
+
+```powershell
+& $java -jar $jar instrument-feed-coverage-report .\feed-lifecycle.flj .\capture.raw .\run.properties .\dated-token-mappings.csv .\subscription-plan.csv 250
+```
+
+The UTF-8 plan CSV must have exactly this header and order:
+
+```csv
+window_id,source,connection_id,subscription_id,instrument_id,window_start_utc,window_end_utc
+```
+
+Each row declares a half-open UTC expected window and maps one stable instrument to the source/connection/subscription IDs observed in the local capture. Repeated rows may describe non-overlapping windows for the same mapping; overlapping windows for the same four-part key and duplicate IDs are rejected. The report computes acknowledged versus unacknowledged milliseconds within each expected window, decoded quote counts inside and outside the acknowledgement intervals, quotes outside the declared plan, and uncertain lifecycle timelines. Only saved NFO Snap Quote packets are decoded by this command. The wall-clock tolerance is used to classify quote timestamps near acknowledgement boundaries; it does not inflate acknowledged-duration totals. Plan, mapping-registry, instrument-master, raw-capture, and lifecycle-journal identities are printed. Empty or unacknowledged windows are evidence only relative to this caller-supplied plan; they do not establish which activity should have existed, feed completeness, data rights, or authorization. `test-instrument-sequence.ps1` exercises both instrument sequence and acknowledgement coverage diagnostics, including half-open boundaries and no-ack windows.
+
 Java callers can use `RawCaptureQuoteImporter.importJournal(rawPath, quotePath, decoder)` to replay a verified raw journal through a caller-supplied `RawQuoteDecoder`. The decoder may skip non-quote messages with `Optional.empty()` and must return normalized quote values whose source and receive clocks match the capture metadata. The importer assigns a new contiguous local quote-journal sequence, verifies the complete output journal, then atomically publishes it at a new path through same-filesystem hard-link creation; it fails closed if the filesystem lacks hard-link support. The generic importer does not create bars or connect to a feed; source decoding and contract mapping are supplied by its caller. A limited SmartAPI NFO Snap Quote decoder is described below.
 
 Saved SmartAPI WebSocket 2.0 NFO Snap Quote captures can be decoded locally into normalized L1 quote snapshots:

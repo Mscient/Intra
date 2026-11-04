@@ -16,6 +16,8 @@ import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.marketdata.RawCaptureQuoteImporter;
 import com.mscient.intrapaper.marketdata.SmartApiV2NfoSnapQuoteDecoder;
 import com.mscient.intrapaper.marketdata.InstrumentSequenceAnalyzer;
+import com.mscient.intrapaper.marketdata.InstrumentSubscriptionPlan;
+import com.mscient.intrapaper.marketdata.InstrumentFeedCoverageAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteCoveragePlan;
 import com.mscient.intrapaper.marketdata.QuoteCoverageAnalyzer;
 import com.mscient.intrapaper.marketdata.RawCaptureClockAnalyzer;
@@ -270,6 +272,44 @@ public final class IntraPaperCli {
                 }
                 return;
             }
+            if (args.length == 7 && args[0].equals("instrument-feed-coverage-report")) {
+                RunConfig config = RunConfig.load(Path.of(args[3]));
+                var instrumentMaster = InstrumentMasterCsvReader.read(config);
+                var mappingRegistry = DatedInstrumentMappingRegistry.load(Path.of(args[4]));
+                var plan = InstrumentSubscriptionPlan.load(Path.of(args[5]));
+                var decoder = new SmartApiV2NfoSnapQuoteDecoder(mappingRegistry, instrumentMaster);
+                var report = InstrumentFeedCoverageAnalyzer.analyze(Path.of(args[1]), Path.of(args[2]), plan,
+                        decoder, Duration.ofMillis(Long.parseLong(args[6])));
+                System.out.printf("INSTRUMENT FEED COVERAGE DIAGNOSTIC (CALLER PLAN; NOT COMPLETENESS): "
+                                + "planned_windows=%d; decoded_quotes=%d; non_quote_messages=%d; "
+                                + "unplanned_quotes=%d; quotes_outside_planned_windows=%d; "
+                                + "lifecycle_transition_anomalies=%d; "
+                                + "allowed_wall_clock_skew=%s; plan_sha256=%s; raw_final_hash=%s; "
+                                + "lifecycle_final_hash=%s; mapping_registry_sha256=%s; instrument_master_sha256=%s%n",
+                        report.windows().size(), report.rawCapture().eventCount() - report.nonQuoteMessages(),
+                        report.nonQuoteMessages(), report.unplannedDecodedQuotes(),
+                        report.decodedQuotesOutsidePlannedWindows(), report.lifecycle().transitionAnomalyCount(),
+                        report.allowedWallClockSkew(),
+                        report.planSha256(), report.rawCapture().finalHashHex(),
+                        report.lifecycle().journal().finalHashHex(), mappingRegistry.registrySha256(),
+                        instrumentMaster.rawFileSha256());
+                for (var window : report.windows()) {
+                    System.out.printf("WINDOW %s: source=%s; connection=%s; subscription=%s; instrument=%s; "
+                                    + "expected=[%s,%s); ack_intervals=%d; acknowledged_ms=%d; unacknowledged_ms=%d; "
+                                    + "quotes=%d; quotes_with_ack=%d; quotes_without_ack=%d; "
+                                    + "quotes_with_uncertain_timeline=%d; first=%s; last=%s; timeline_uncertain=%s%n",
+                            window.windowId(), window.source(), window.connectionId(), window.subscriptionId(),
+                            window.instrumentId(), window.expectedStartUtc(), window.expectedEndUtc(),
+                            window.acknowledgedIntervalsOverlapping(), window.acknowledgedDurationMillis(),
+                            window.unacknowledgedDurationMillis(), window.quoteCount(),
+                            window.quotesWithinAcknowledgedInterval(), window.quotesOutsideAcknowledgedInterval(),
+                            window.quotesWithUncertainLifecycle(),
+                            window.firstQuoteReceivedAtUtc().map(Object::toString).orElse("NONE"),
+                            window.lastQuoteReceivedAtUtc().map(Object::toString).orElse("NONE"),
+                            window.lifecycleTimelineUncertain());
+                }
+                return;
+            }
             if (args.length == 4 && args[0].equals("replay-verify")) {
                 var verification = RunReplayVerifier.verify(
                         Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
@@ -471,6 +511,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar raw-capture-clock-report <raw-capture-journal> <maximum-wall-monotonic-divergence-ms>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
+                + "  java -jar intra-paper-system.jar instrument-feed-coverage-report <feed-lifecycle-journal> <raw-capture-journal> <run.properties> <dated-token-mappings.csv> <subscription-plan.csv> <allowed-wall-clock-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar replay-verify <bars.csv> <run.properties> <run-folder>\n"
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
@@ -498,6 +539,7 @@ public final class IntraPaperCli {
                 + "raw-capture-clock-report compares wall and monotonic elapsed time per connection using a caller threshold; it does not verify UTC offset or feed completeness.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
+                + "instrument-feed-coverage-report joins caller-declared instrument/subscription windows, lifecycle acknowledgements, and decoded saved quotes; it reports missing ack/quote evidence but does not certify expected activity or completeness.\n"
                 + "replay-verify rebuilds all outputs from supplied inputs and compares them byte-for-byte.\n"
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"

@@ -28,16 +28,21 @@ New-Item -ItemType Directory -Force -Path $mainClasses, $testClasses | Out-Null
 try {
     $mainSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' |
         ForEach-Object { $_.FullName })
-    $testSource = Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\marketdata\InstrumentSequenceAnalyzerTest.java'
-    if ($mainSources.Count -eq 0 -or -not (Test-Path -LiteralPath $testSource)) {
-        throw 'Main sources and InstrumentSequenceAnalyzerTest.java are required.'
+    $testSources = @(
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\marketdata\InstrumentSequenceAnalyzerTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\marketdata\InstrumentFeedCoverageAnalyzerTest.java')
+    )
+    if ($mainSources.Count -eq 0 -or @($testSources | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -gt 0) {
+        throw 'Main sources and focused instrument sequence/coverage tests are required.'
     }
     & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
-    & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSource
+    & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused test compilation failed with exit code $LASTEXITCODE" }
     & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.marketdata.InstrumentSequenceAnalyzerTest
     if ($LASTEXITCODE -ne 0) { throw "Instrument-sequence checks failed with exit code $LASTEXITCODE" }
+    & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.marketdata.InstrumentFeedCoverageAnalyzerTest
+    if ($LASTEXITCODE -ne 0) { throw "Instrument-feed-coverage checks failed with exit code $LASTEXITCODE" }
 } finally {
     if (-not $runRootAbsolute.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw 'Refusing to remove focused-check output outside the instrument-sequence test directory.'
