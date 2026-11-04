@@ -265,6 +265,14 @@ public final class IntraPaperCli {
                         result.positionsSha256(), result.report().worstScenarioId(),
                         result.report().worstStressedExitPnl(), result.report().hasShortOptions(),
                         result.report().scope());
+                var exposure = result.report().baseExposure();
+                System.out.printf("BASE EXPOSURE: signed_option_theoretical_value=%.6f; "
+                                + "model_delta_equivalent_units=%.6f; gamma_per_underlying_unit=%.9f; "
+                                + "vega_per_volatility_point=%.6f; theta_per_calendar_day=%.6f; "
+                                + "rho_per_rate_point=%.6f%n",
+                        exposure.netOptionTheoreticalValue(), exposure.deltaEquivalentUnits(),
+                        exposure.gammaPerUnderlyingUnit(), exposure.vegaPerVolatilityPoint(),
+                        exposure.thetaPerCalendarDay(), exposure.rhoPerRatePoint());
                 for (var scenario : result.report().scenarios()) {
                     System.out.printf("SCENARIO %s: underlying_shock_pct=%.4f; iv_shock_points=%.4f; "
                                     + "repriced_pnl=%.2f; exit_haircut=%.2f; stressed_exit_pnl=%.2f%n",

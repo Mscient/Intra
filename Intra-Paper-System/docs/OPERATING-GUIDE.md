@@ -199,7 +199,7 @@ Use `OPTION` rows with model `BSM_SPOT` or `BLACK76_FUTURE`; long contracts are 
 & $java -jar $jar portfolio-stress .\positions.csv 2 3
 ```
 
-This reports all four full-revaluation combinations and the worst stressed exit P&L. It hashes the positions file and uses only the supplied positions, pricing conventions, and exit haircuts. It is not linked to account holdings, an exchange-margin calculation, the replay risk gateway, or a loss-limit action.
+This reports signed base option theoretical value, model delta-equivalent units, gamma, vega, theta, and rho, all four full-revaluation combinations, and the worst stressed exit P&L. Greek totals combine caller-supplied signed units; futures contribute linear delta and zero higher-order Greeks. The volatility-down scenario fails closed if it would make any option volatility non-positive. It hashes the positions file and uses only the supplied positions, pricing conventions, and exit haircuts. It is not linked to account holdings, an exchange-margin calculation, the replay risk gateway, or a loss-limit action.
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 

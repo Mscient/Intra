@@ -49,8 +49,13 @@ public final class PortfolioStressAnalyzer {
     public record Scenario(String id, double underlyingShockPercent, double volatilityShockPoints,
             double repricedPnl, double exitHaircut, double stressedExitPnl) { }
 
-    public record Report(List<Scenario> scenarios, String worstScenarioId, double worstStressedExitPnl,
-            boolean hasShortOptions, String scope) {
+    /** Signed model Greeks aggregated across option units and linear futures units. */
+    public record Exposure(double netOptionTheoreticalValue, double deltaEquivalentUnits,
+            double gammaPerUnderlyingUnit, double vegaPerVolatilityPoint,
+            double thetaPerCalendarDay, double rhoPerRatePoint) { }
+
+    public record Report(List<Scenario> scenarios, Exposure baseExposure, String worstScenarioId,
+            double worstStressedExitPnl, boolean hasShortOptions, String scope) {
         public Report { scenarios = List.copyOf(scenarios); }
     }
 
@@ -68,6 +73,7 @@ public final class PortfolioStressAnalyzer {
         List<FutureLeg> futures = List.copyOf(futureLegs);
         if (options.isEmpty() && futures.isEmpty()) throw new IllegalArgumentException("portfolio has no stressable legs");
 
+        Exposure baseExposure = aggregateExposure(options, futures);
         List<Scenario> scenarios = new ArrayList<>(4);
         for (int underlyingSign : new int[]{-1, 1}) {
             for (int volatilitySign : new int[]{-1, 1}) {
@@ -77,8 +83,11 @@ public final class PortfolioStressAnalyzer {
                 double haircut = 0.0;
                 for (OptionLeg leg : options) {
                     double stressedUnderlying = leg.underlyingPrice() * (1.0 + underlyingShock / 100.0);
-                    double stressedVolatility = Math.max(0.0001,
-                            leg.annualizedVolatility() + volatilityShock / 100.0);
+                    double stressedVolatility = leg.annualizedVolatility() + volatilityShock / 100.0;
+                    if (stressedVolatility <= 0.0) {
+                        throw new IllegalArgumentException("downward volatility shock makes option IV non-positive: "
+                                + leg.instrumentId());
+                    }
                     double baseValue = optionValue(leg, leg.underlyingPrice(), leg.annualizedVolatility());
                     double stressedValue = optionValue(leg, stressedUnderlying, stressedVolatility);
                     double signedUnits = Math.multiplyExact(leg.signedContracts(), leg.unitsPerContract());
@@ -100,8 +109,57 @@ public final class PortfolioStressAnalyzer {
         }
         Scenario worst = scenarios.stream().min(java.util.Comparator.comparingDouble(Scenario::stressedExitPnl)).orElseThrow();
         boolean shortOptions = options.stream().anyMatch(leg -> leg.signedContracts() < 0);
-        return new Report(scenarios, worst.id(), worst.stressedExitPnl(), shortOptions,
+        return new Report(scenarios, baseExposure, worst.id(), worst.stressedExitPnl(), shortOptions,
                 "FOUR_SCENARIO_FULL_REVALUATION_CALLER_INPUTS_NOT_EXCHANGE_MARGIN_OR_LOSS_LIMIT");
+    }
+
+    private static Exposure aggregateExposure(List<OptionLeg> options, List<FutureLeg> futures) {
+        double optionValue = 0.0;
+        double delta = 0.0;
+        double gamma = 0.0;
+        double vega = 0.0;
+        double theta = 0.0;
+        double rho = 0.0;
+        for (OptionLeg leg : options) {
+            double signedUnits = Math.multiplyExact(leg.signedContracts(), leg.unitsPerContract());
+            UnitExposure unit = optionExposure(leg);
+            optionValue += unit.theoreticalValue() * signedUnits;
+            delta += unit.delta() * signedUnits;
+            gamma += unit.gamma() * signedUnits;
+            vega += unit.vegaPerVolatilityPoint() * signedUnits;
+            theta += unit.thetaPerCalendarDay() * signedUnits;
+            rho += unit.rhoPerRatePoint() * signedUnits;
+        }
+        for (FutureLeg leg : futures) delta += leg.signedUnits();
+        if (!Double.isFinite(optionValue) || !Double.isFinite(delta) || !Double.isFinite(gamma)
+                || !Double.isFinite(vega) || !Double.isFinite(theta) || !Double.isFinite(rho)) {
+            throw new ArithmeticException("portfolio base exposure exceeds supported numeric range");
+        }
+        return new Exposure(optionValue, delta, gamma, vega, theta, rho);
+    }
+
+    private record UnitExposure(double theoreticalValue, double delta, double gamma,
+            double vegaPerVolatilityPoint, double thetaPerCalendarDay, double rhoPerRatePoint) { }
+
+    private static UnitExposure optionExposure(OptionLeg leg) {
+        return switch (leg.model()) {
+            case BSM_SPOT -> {
+                EuropeanOptionPricer.ValueGreeks value = EuropeanOptionPricer.value(
+                        new EuropeanOptionPricer.Inputs(leg.underlyingPrice(), leg.strike(),
+                                leg.timeToExpiryYears(), leg.riskFreeRate(), leg.dividendYield(),
+                                leg.annualizedVolatility(), leg.right()));
+                yield new UnitExposure(value.theoreticalValue(), value.delta(), value.gamma(),
+                        value.vegaPerVolatilityPoint(), value.thetaPerCalendarDay(), value.rhoPerRatePoint());
+            }
+            case BLACK76_FUTURE -> {
+                Black76OptionPricer.ValueGreeks value = Black76OptionPricer.value(
+                        new Black76OptionPricer.Inputs(leg.underlyingPrice(), leg.strike(),
+                                leg.timeToExpiryYears(), leg.riskFreeRate(), leg.annualizedVolatility(),
+                                leg.right()));
+                yield new UnitExposure(value.theoreticalValue(), value.deltaPerFuturesUnit(), value.gamma(),
+                        value.vegaPerVolatilityPoint(), value.thetaPerCalendarDay(), value.rhoPerRatePoint());
+            }
+        };
     }
 
     private static double optionValue(OptionLeg leg, double underlying, double volatility) {
