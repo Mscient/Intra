@@ -33,7 +33,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Option-pricer validation pack: [R11 research note and reference code](research/systems/option-pricing-benchmark/). The supplied high-precision values have not yet been compared with the Java implementation or a third-party pricing library.
 - DSR/PBO method audit: [2026-11-04 primary-source review](research/systems/2026-11-04-dsr-pbo-audit.md). The offline evaluator reports a scoped DSR approximation and CSCV diagnostic; effective trial dependence, dependence-aware inference, and one-shot holdout sealing remain open.
 - Trial outcome exposure is now recorded in a separate registration-bound hash chain; see the `trial-outcome-record` and `trial-outcome-verify` commands in the [operating guide](Intra-Paper-System/docs/OPERATING-GUIDE.md). This is operator-maintained evidence, not proof that all outcomes or views were logged.
-- Parallel next-work handoffs: [C1 trial-outcome ledger coding brief and R14 effective-N/dependence research brief](research/systems/PARALLEL-TASK-BRIEFS-2026-11-04.md).
+- Next research handoff: [R14 effective trial-count and dependence-aware Sharpe methods](research/systems/PARALLEL-TASK-BRIEFS-2026-11-04.md). The paired C1 coding task is implemented in commit `7758601`.
 - User-supplied R1–R13 research findings (evidence grades preserved; unresolved claims are not simulator rules): [dated findings](research/systems/2026-11-03-r1-r13-compiled-findings.md).
 - Instrument/data capability matrix: [research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md](research/systems/INSTRUMENT-DATA-CAPABILITY-MATRIX.md)
 - Isolated testing plan: [research/systems/ISOLATED-TESTING-PLAN.md](research/systems/ISOLATED-TESTING-PLAN.md)

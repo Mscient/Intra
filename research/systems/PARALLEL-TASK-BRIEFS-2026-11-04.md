@@ -6,7 +6,9 @@
 
 These briefs are independent handoffs. The coding task must not change DSR/PBO formulas while the research task is unresolved. Both tasks preserve the project's offline-only boundary: no credentials, feed capture, broker connection, order routing, live trading, or performance claim.
 
-## Coding task C1 — append-only outcome-exposure accounting for research trials
+**Status:** C1 has been implemented in `Intra-Paper-System/` at commit `775860108294e551a37ece183c3c217721c207ea` and clean-built on JDK 21.0.13. Runtime behavior has not been exercised. R14 remains the next open research task.
+
+## Coding task C1 — append-only outcome-exposure accounting for research trials (implemented)
 
 ### Objective
 
@@ -79,5 +81,5 @@ Produce a primary-source-backed methods decision memo that determines what can r
 
 ### Suggested task order
 
-Research can proceed independently. Keep C1's ledger work limited to recording and verifying exposure events. Revisit C1's evaluator integration only after R14 is reviewed and a separate implementation decision is recorded.
+R14 can proceed independently of the committed C1 ledger. Any later evaluator integration that uses exposure events must wait until R14 is reviewed and a separate statistical-method decision is recorded.
 
