@@ -39,7 +39,7 @@
 ## Reusable backtesting research
 
 - The current Wave A runner and S01–S03 specification concern NIFTY 50 index-candle signal markouts. Those markouts are not futures/options fills or executable P&L.
-- Keep session-level chronological splits, provenance hashes, variant registration, eligibility rules, and a sealed holdout for future strategy research. Split validation, exact run-to-registration binding, and the append-only hash-chained trial registry exist, but partition-specific evaluation, dependence-aware scoring, DSR/PBO, and sealed-holdout controls are not implemented.
+- Keep session-level chronological splits, provenance hashes, variant registration, eligibility rules, and a sealed holdout for future strategy research. Split validation, exact run-to-registration binding, and diagnostic session summaries by development/validation/holdout exist. Dependence-aware scoring, DSR/PBO, and sealed-holdout controls are not implemented; the partition report does not grant performance eligibility.
 - A completed-bar signal may fill no earlier than the next eligible bar. A candle touching a passive limit does not establish a fill.
 - Caller-input European option model values and Greeks are not observed option premiums or fills; until volatility/rate inputs and model assumptions are validated and replay integration is independently checked, use the premium-series replay for option diagnostics.
 - Preserve dated futures/options contracts and master snapshots. Do not stitch expiries or map an index candle to a contract fill.

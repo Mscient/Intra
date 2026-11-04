@@ -195,3 +195,12 @@ NSE Data & Analytics sells **Historical Order & Trade Data** for CM, F&O, CD and
 - Bailey et al., PBO: https://papers.ssrn.com/abstract=2326253
 - CERT-In NTP directive explainer: https://www.medianama.com/2022/05/223-cybersecurity-directive-time-sync/
 - Repo: https://github.com/Mscient/Intra (README, INSTRUMENT-DATA-CAPABILITY-MATRIX.md, WAVE-A-SIGNAL-SPEC.md)
+
+## 6. Follow-up primary-source checks (2026-11-04)
+
+These checks supplement, and do not overwrite, the compiled findings above.
+
+| Topic | Primary source read | Verified from the document | Still unresolved |
+|---|---|---|---|
+| R1 pre-open | [NSE/FAOP/71582](https://nsearchives.nseindia.com/content/circulars/FAOP71582.pdf), dated 2025-12-02 | The F&O order log and split order log add book type 8 / `PO` for pre-open records effective 2025-12-08. The circular explicitly continues NSE/FAOP/71092 dated 2025-11-03. | FAOP/71092's full phase/order eligibility text and the alleged September 2026 revision were not verified. No session schedule was changed in the simulator. |
+| R2 CAS rollout | [NSE/FAOP/75472](https://nsearchives.nseindia.com/content/circulars/FAOP75472.pdf), dated 2026-07-30 | Page 1 says F&O trading-modality changes associated with equity CAS go live 2026-08-03 and identifies NSE/CMTR/73362 (2026-03-18) and NSE/FAOP/74467 (2026-05-29) as the governing SOP/change circulars. | The full SOP and price-setting/expiry settlement treatment remain unverified; the 75472 mock-session table is not itself evidence for normal live phases. Do not encode settlement policy from this check. |
