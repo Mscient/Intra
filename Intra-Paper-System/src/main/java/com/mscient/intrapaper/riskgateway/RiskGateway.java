@@ -68,6 +68,10 @@ public final class RiskGateway {
         applyEvent(event);
     }
 
+    synchronized void applyEventForPersistence(RiskEvent event) {
+        applyEvent(event);
+    }
+
     /**
      * Evaluates a proposal and reserves its full remaining quantity only when
      * accepted. A repeated proposal ID and matching payload returns its original
