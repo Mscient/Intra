@@ -141,6 +141,14 @@ Saved SmartAPI WebSocket 2.0 NFO Snap Quote captures can be decoded locally into
 
 The command loads the run configuration's dated instrument master and the separate [dated instrument mapping registry](INSTRUMENT-MAPPING-REGISTRY.md), verifies the raw-capture chain, and accepts only the documented 379-byte little-endian Snap Quote mode (mode 3) for NFO (exchange type 2). It resolves the token against an `NFO` registry row at the packet exchange timestamp, then cross-checks the stable instrument ID and contract descriptors against the dated `NSE`/`NFO` instrument master. The master tick size is converted from rupees to paise and packet best-five prices must be exact tick multiples. The decoder selects the best available bid and ask among the five advertised levels, sums quantities at a duplicate best price, and preserves source and receive clocks. Text `ping`/`pong` heartbeat frames are skipped. Other lengths, modes, exchanges, unmapped tokens, invalid timestamps, inconsistent master data, malformed depth levels, and non-tick prices fail the import; the normalized output is published only after all input and output journal checks pass. The CLI prints the instrument-master, mapping-registry, raw-capture, and normalized-quote hashes.
 
+The embedded SmartAPI packet sequence can be summarized by resolved dated instrument without writing an output journal:
+
+```powershell
+& $java -jar $jar raw-capture-instrument-sequence-report .\capture.raw .\run.properties .\dated-token-mappings.csv
+```
+
+This report verifies the raw hash chain, decodes each captured NFO quote, and groups sequence observations by source, connection, subscription, and stable instrument ID. It prints the sequence domain, per-stream first/last sequence, gaps, missing sequence integers, non-increasing transitions, unsequenced quote count, and source/reference hashes. Heartbeats are counted as non-quote messages. It does not assume an initial sequence number, infer expected subscription coverage, or certify that the capture is complete; sequence semantics and packet interpretation still depend on the source contract and caller-supplied dated reference files. The repeatable fixture check is `test-instrument-sequence.ps1`.
+
 Coverage against caller-declared instrument windows can be reviewed separately:
 
 ```powershell

@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /** Strict offline decoder for documented SmartAPI WebSocket 2.0 NFO Snap Quote packets. */
 public final class SmartApiV2NfoSnapQuoteDecoder implements RawQuoteDecoder {
@@ -91,6 +92,30 @@ public final class SmartApiV2NfoSnapQuoteDecoder implements RawQuoteDecoder {
         return Optional.of(new MarketQuote(1, 1, message.source(), resolution.instrumentId(), Optional.of(exchangeTime),
                 message.receivedAtUtc(), message.receivedAtMonotonicNanos(), bidTicks, bid.quantity(),
                 askTicks, ask.quantity()));
+    }
+
+    @Override
+    public OptionalLong sourceSequence(RawMarketMessage message) {
+        Objects.requireNonNull(message, "message");
+        byte[] payload = message.payload();
+        if (isHeartbeat(payload)) return OptionalLong.empty();
+        if (payload.length != SNAP_QUOTE_BYTES) {
+            throw new IllegalArgumentException("Unsupported SmartAPI packet length " + payload.length
+                    + "; only the documented 379-byte Snap Quote mode is accepted");
+        }
+        ByteBuffer packet = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN);
+        if (Byte.toUnsignedInt(packet.get(0)) != SNAP_QUOTE_MODE
+                || Byte.toUnsignedInt(packet.get(1)) != NFO_EXCHANGE_TYPE) {
+            throw new IllegalArgumentException("Source sequence is available only for NFO Snap Quote mode 3 packets");
+        }
+        long sequence = packet.getLong(SEQUENCE_OFFSET);
+        if (sequence < 0) throw new IllegalArgumentException("SmartAPI packet sequence must be non-negative");
+        return OptionalLong.of(sequence);
+    }
+
+    @Override
+    public String sequenceDomain() {
+        return "smartapi.nfo_snap_quote.packet_sequence";
     }
 
     private static long toPaise(BigDecimal tickSizeRupees) {

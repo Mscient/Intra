@@ -15,6 +15,7 @@ import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.marketdata.RawCaptureQuoteImporter;
 import com.mscient.intrapaper.marketdata.SmartApiV2NfoSnapQuoteDecoder;
+import com.mscient.intrapaper.marketdata.InstrumentSequenceAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteCoveragePlan;
 import com.mscient.intrapaper.marketdata.QuoteCoverageAnalyzer;
 import com.mscient.intrapaper.marketdata.RawCaptureClockAnalyzer;
@@ -186,6 +187,30 @@ public final class IntraPaperCli {
                         instrumentMaster.rawFileSha256(), mappingRegistry.registrySha256(),
                         imported.rawCapture().finalHashHex(), imported.normalizedJournal().finalHashHex(),
                         Path.of(args[4]).toAbsolutePath().normalize());
+                return;
+            }
+            if (args.length == 4 && args[0].equals("raw-capture-instrument-sequence-report")) {
+                RunConfig config = RunConfig.load(Path.of(args[2]));
+                var instrumentMaster = InstrumentMasterCsvReader.read(config);
+                var mappingRegistry = DatedInstrumentMappingRegistry.load(Path.of(args[3]));
+                var decoder = new SmartApiV2NfoSnapQuoteDecoder(mappingRegistry, instrumentMaster);
+                var report = InstrumentSequenceAnalyzer.analyze(Path.of(args[1]), decoder);
+                System.out.printf("INSTRUMENT SEQUENCE DIAGNOSTIC (NOT FEED COMPLETENESS): messages=%d; "
+                                + "decoded_quotes=%d; non_quote_messages=%d; sequence_domain=%s; "
+                                + "raw_final_hash=%s; mapping_registry_sha256=%s; instrument_master_sha256=%s%n",
+                        report.rawCapture().eventCount(), report.decodedQuoteCount(), report.nonQuoteMessageCount(),
+                        report.sequenceDomain(), report.rawCapture().finalHashHex(), mappingRegistry.registrySha256(),
+                        instrumentMaster.rawFileSha256());
+                for (var stream : report.streams()) {
+                    System.out.printf("STREAM source=%s; connection=%s; subscription=%s; instrument=%s; "
+                                    + "quotes=%d; sequenced=%d; without_sequence=%d; first=%s; last=%s; "
+                                    + "sequence_gaps=%d; missing_sequence_numbers=%d; non_increasing=%d%n",
+                            stream.source(), stream.connectionId(), stream.subscriptionId(), stream.instrumentId(),
+                            stream.quoteCount(), stream.sequencedQuoteCount(), stream.quotesWithoutSequence(),
+                            stream.firstSourceSequence().isPresent() ? stream.firstSourceSequence().getAsLong() : "NONE",
+                            stream.lastSourceSequence().isPresent() ? stream.lastSourceSequence().getAsLong() : "NONE",
+                            stream.sequenceGapCount(), stream.missingSequenceNumbers(), stream.nonIncreasingTransitions());
+                }
                 return;
             }
             if (args.length == 3 && args[0].equals("raw-capture-clock-report")) {
@@ -442,6 +467,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-import-smartapi-nfo-snap <raw-capture-journal> <run.properties> <dated-token-mappings.csv> <quote-journal>\n"
+                + "  java -jar intra-paper-system.jar raw-capture-instrument-sequence-report <raw-capture-journal> <run.properties> <dated-token-mappings.csv>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-clock-report <raw-capture-journal> <maximum-wall-monotonic-divergence-ms>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
@@ -468,6 +494,7 @@ public final class IntraPaperCli {
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
                 + "raw-capture-import-smartapi-nfo-snap decodes documented 379-byte Snap Quote packets offline using a UTC-dated token registry plus the run.properties instrument master for tick metadata; only NFO packets are accepted.\n"
+                + "raw-capture-instrument-sequence-report verifies and decodes saved NFO packets, then reports embedded sequence gaps grouped by resolved instrument; it does not certify expected subscriptions or completeness.\n"
                 + "raw-capture-clock-report compares wall and monotonic elapsed time per connection using a caller threshold; it does not verify UTC offset or feed completeness.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
