@@ -189,6 +189,28 @@ New-Item -ItemType Directory -Force .\private | Out-Null
 
 The command derives the strategy-card, complete dataset-input, split-plan, and canonical parameter-configuration hashes. Each non-synthetic `run` then requires an exact prior registry entry; the registration record hash is included in the run ID and manifest. Changing the card, dataset/reference inputs, split plan, or run settings requires a new variant registration. Registration is append-only, takes an exclusive file lock, and rejects duplicate trial IDs and duplicate variant IDs within a strategy version. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. Synthetic plumbing fixtures may run without a research registration.
 
+## Record trial attempts and outcome exposure
+
+The outcome ledger records attempt events separately from registration and does not store returns or change evaluator calculations. Use one `attempt_id` per attempt and a globally unique `event_id` per event. Start every attempt before running it:
+
+```powershell
+$trialLedger = '.\private\research-trials.tsv'
+$outcomeLedger = '.\private\research-outcomes.tsv'
+& $java -jar $jar trial-outcome-record $trialLedger $outcomeLedger trial-0001 attempt-0001 event-0001 ATTEMPT_STARTED - run-started
+```
+
+After a run artifact containing performance information is produced, record it; if someone inspects that performance information, record that separately:
+
+```powershell
+& $java -jar $jar trial-outcome-record $trialLedger $outcomeLedger trial-0001 attempt-0001 event-0002 OUTCOME_PRODUCED 0123456789abcdef01234567 run-completed
+& $java -jar $jar trial-outcome-record $trialLedger $outcomeLedger trial-0001 attempt-0001 event-0003 OUTCOME_VIEWED operator-review
+& $java -jar $jar trial-outcome-verify $trialLedger $outcomeLedger
+```
+
+If a failure happened before any performance information was produced, use `MECHANICAL_FAILURE_NO_OUTCOME` instead of `OUTCOME_PRODUCED`. Use `ABANDONED` to record a stopped attempt; earlier production/view events remain in the history, and a later view of an already-produced result can still be recorded. References and reasons are single tokens containing letters, digits, and `._:/@%+=,-`; use `-` when no reference applies. Timestamps are assigned in UTC by the CLI. The verifier rejects invalid registration bindings, duplicate IDs, non-increasing timestamps, broken chains, and impossible event order. The summary distinguishes `NO_ATTEMPT_EVENTS` (unknown history), `MECHANICAL_FAILURE_ONLY` (all recorded attempts had that event), `ATTEMPTED_NO_OUTCOME_RECORDED` (no outcome event appears in the log), `OUTCOME_PRODUCED_UNVIEWED`, and `OUTCOME_VIEWED`. These are summaries of recorded events and cannot establish that omitted outcomes did not occur.
+
+This is an operator-maintained audit trail. It cannot prove that every experiment was registered, that every output/view was logged, who viewed an output, or that a whole ledger file was not replaced. Keep an independently stored final hash. It does not affect the current statistical evaluator's DSR/PBO trial family or eligibility status.
+
 ## Evaluate preregistered backtests offline
 
 The evaluator consumes a strict run index that points to one verified run folder for each trial being compared. Create `private/evaluation-runs.csv` as UTF-8 without a BOM, with LF line endings, a final newline, no blank lines, no quotes, no surrounding spaces, and exactly this header:

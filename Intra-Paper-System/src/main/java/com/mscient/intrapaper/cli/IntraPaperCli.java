@@ -5,6 +5,7 @@ import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.evaluation.OfflineEvaluationAnalyzer;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.evaluation.ResearchTrialLedger;
+import com.mscient.intrapaper.evaluation.ResearchOutcomeLedger;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
@@ -236,6 +237,30 @@ public final class IntraPaperCli {
                         summary.entryCount(), summary.distinctStrategyVersions(), summary.finalHashSha256());
                 return;
             }
+            if (args.length == 9 && args[0].equals("trial-outcome-record")) {
+                var event = ResearchOutcomeLedger.append(Path.of(args[1]), Path.of(args[2]), args[3], args[4],
+                        args[5], ResearchOutcomeLedger.EventType.valueOf(args[6]), args[7], args[8]);
+                System.out.printf("RECORDED TRIAL OUTCOME EVENT: sequence=%d; event_id=%s; trial_id=%s; attempt_id=%s; "
+                                + "event_type=%s; timestamp=%s; registration_hash=%s; chain_hash=%s%n",
+                        event.sequence(), event.eventId(), event.trialId(), event.attemptId(), event.eventType(),
+                        event.occurredAtUtc(), event.registrationHashSha256(), event.recordHashSha256());
+                return;
+            }
+            if (args.length == 3 && args[0].equals("trial-outcome-verify")) {
+                var summary = ResearchOutcomeLedger.verify(Path.of(args[1]), Path.of(args[2]));
+                System.out.printf("VERIFIED TRIAL OUTCOME LEDGER: events=%d; attempts=%d; outcomes_produced=%d; "
+                                + "outcome_views=%d; mechanical_failures_without_outcome=%d; abandoned=%d; final_hash=%s%n",
+                        summary.eventCount(), summary.attemptsStarted(), summary.outcomesProduced(),
+                        summary.outcomeViews(), summary.mechanicalFailuresWithoutOutcome(),
+                        summary.abandonedAttempts(), summary.finalHashSha256());
+                for (var trial : summary.trials()) {
+                    System.out.printf("TRIAL OUTCOME STATE: trial_id=%s; attempts=%d; outcomes=%d; views=%d; "
+                                    + "mechanical_failures=%d; abandoned=%d; exposure=%s%n",
+                            trial.trialId(), trial.attemptCount(), trial.outcomesProduced(), trial.outcomesViewed(),
+                            trial.mechanicalFailuresWithoutOutcome(), trial.abandonedAttempts(), trial.exposureState());
+                }
+                return;
+            }
             if (args.length == 7 && args[0].equals("statistical-evaluate")) {
                 var report = OfflineEvaluationAnalyzer.analyze(Path.of(args[1]), Path.of(args[2]),
                         Path.of(args[3]), Path.of(args[4]), Integer.parseInt(args[6]));
@@ -365,6 +390,8 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
                 + "  java -jar intra-paper-system.jar statistical-evaluate <ledger.tsv> <run-index.csv> <split-plan.csv> <runs-root> <report.json> <even-block-count>\n"
+                + "  java -jar intra-paper-system.jar trial-outcome-record <trial-ledger.tsv> <outcome-ledger.tsv> <trial-id> <attempt-id> <event-id> <event-type> <reference> <reason>\n"
+                + "  java -jar intra-paper-system.jar trial-outcome-verify <trial-ledger.tsv> <outcome-ledger.tsv>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
                 + "  java -jar intra-paper-system.jar portfolio-stress <positions.csv> <underlying-shock-percent> <volatility-shock-points>\n"
@@ -385,6 +412,8 @@ public final class IntraPaperCli {
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"
                 + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
+                + "trial-outcome-record appends a registered-trial attempt/exposure event; event types: ATTEMPT_STARTED, OUTCOME_PRODUCED, OUTCOME_VIEWED, MECHANICAL_FAILURE_NO_OUTCOME, ABANDONED.\n"
+                + "trial-outcome-verify checks outcome-event integrity, registration binding, state transitions, and per-trial exposure summaries; it cannot prove who viewed a file or discover unlogged trials.\n"
                 + "statistical-evaluate verifies registered run artifacts and scores only DEVELOPMENT/VALIDATION sessions; HOLDOUT is excluded and every report remains performance_claim_eligible=false.\n"
                 + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
                 + "portfolio-stress fully reprices a caller-supplied options/futures portfolio in four shock scenarios; it is not account state, exchange margin, or a trading control.\n"
