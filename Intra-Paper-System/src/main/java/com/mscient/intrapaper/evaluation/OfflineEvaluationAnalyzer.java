@@ -260,10 +260,10 @@ public final class OfflineEvaluationAnalyzer {
         }
         double expectedMaxDailySharpe = expectedMaxStandardNormal(familyTrialCount) * trialSharpeSampleStdDev;
         List<TrialSummary> trialSummaries = new ArrayList<>(runs.size());
-        for (int runIndex = 0; runIndex < runs.size(); runIndex++) {
-            RunData run = runs.get(runIndex);
-            Moments moments = trialMoments.get(runIndex);
-            double dailySharpe = dailySharpes[runIndex];
+        for (int runNumber = 0; runNumber < runs.size(); runNumber++) {
+            RunData run = runs.get(runNumber);
+            Moments moments = trialMoments.get(runNumber);
+            double dailySharpe = dailySharpes[runNumber];
             double standardError = sharpeStandardError(dailySharpe, moments, run.returns().length);
             double dsr = normalCdf((dailySharpe - expectedMaxDailySharpe) / standardError);
             double cumulativeReturn = run.totalNetPnlInr()
