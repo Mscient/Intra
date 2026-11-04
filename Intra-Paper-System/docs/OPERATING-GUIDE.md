@@ -162,7 +162,7 @@ Provide a UTF-8 CSV with exactly `session_date,partition` columns. Assign every 
 & $java -jar $jar split-validate .\bars.csv .\run.properties .\evaluation-splits.csv
 ```
 
-The command checks coverage and ordering, then prints the split-file SHA-256. When the validated plan is present in `run.properties`, `run` writes `evaluation-partitions.csv` with session P&L changes grouped by partition, complete-session counts, position exposure at the partition boundaries, and drawdown measured from session-close equity only. Incomplete partitions and partitions with positions crossing their boundaries are marked ineligible in the report. Every row remains diagnostic-only; no annualized return, Sharpe ratio, statistical confidence, or performance eligibility is computed. The report includes HOLDOUT results in the ordinary run artifacts, so this implementation does not seal the holdout or enforce one-shot access. The split is bound to the preregistered trial and its hash is written into the run manifest.
+The command checks coverage and ordering, then prints the split-file SHA-256. When the validated plan is present in `run.properties`, `run` writes `evaluation-partitions.csv` with session P&L changes grouped by partition, complete-session counts, position exposure at the partition boundaries, and drawdown measured from session-close equity only. Incomplete partitions and partitions with positions crossing their boundaries are marked ineligible in the report. This per-run partition report remains diagnostic-only and computes no annualized return, Sharpe ratio, or statistical confidence. It includes HOLDOUT results in the ordinary run artifacts, so the run artifacts do not seal the holdout or enforce one-shot access. The split is bound to the preregistered trial and its hash is written into the run manifest. Use `statistical-evaluate` below for offline DEVELOPMENT/VALIDATION-only scoring.
 
 ## Register attempted research variants
 
@@ -187,7 +187,34 @@ New-Item -ItemType Directory -Force .\private | Out-Null
 & $java -jar $jar run .\bars.csv .\run.properties
 ```
 
-The command derives the strategy-card, complete dataset-input, split-plan, and canonical parameter-configuration hashes. Each non-synthetic `run` then requires an exact prior registry entry; the registration record hash is included in the run ID and manifest. Changing the card, dataset/reference inputs, split plan, or run settings requires a new variant registration. Registration is append-only, takes an exclusive file lock, and rejects duplicate trial IDs and duplicate variant IDs within a strategy version. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. The registry does not score metrics, enforce that a human kept holdout results sealed, or implement Deflated Sharpe Ratio or Probability of Backtest Overfitting. Synthetic plumbing fixtures may run without a research registration.
+The command derives the strategy-card, complete dataset-input, split-plan, and canonical parameter-configuration hashes. Each non-synthetic `run` then requires an exact prior registry entry; the registration record hash is included in the run ID and manifest. Changing the card, dataset/reference inputs, split plan, or run settings requires a new variant registration. Registration is append-only, takes an exclusive file lock, and rejects duplicate trial IDs and duplicate variant IDs within a strategy version. Copy the final hash to an independent record or backup. This is tamper-evident local bookkeeping, not tamper-proof storage. Synthetic plumbing fixtures may run without a research registration.
+
+## Evaluate preregistered backtests offline
+
+The evaluator consumes a strict run index that points to one verified run folder for each trial being compared. Create `private/evaluation-runs.csv` as UTF-8 without a BOM, with LF line endings, a final newline, no blank lines, no quotes, no surrounding spaces, and exactly this header:
+
+```csv
+trial_id,run_id,analysis_capital_inr
+trial-0001,0123456789abcdef01234567,1000000
+trial-0002,89abcdef0123456701234567,1000000
+```
+
+Replace the illustrative IDs with actual registered `trial_id` values and 24-character lowercase-hex run IDs. Each referenced artifact must be present as `<runs-root>/<run_id>`. `analysis_capital_inr` must be a positive plain decimal (no sign, exponent, grouping, or currency symbol); every row must use the same capital. The index must contain exactly one row for every registration in the dataset/split comparison family, with at least two distinct trials and run IDs. It fails if any preregistered trial sharing the family's dataset and split-plan hashes is omitted.
+
+Run the analyzer after the runs have been written:
+
+```powershell
+$runsRoot = if ($env:INTRA_PAPER_RUNS_DIR) { $env:INTRA_PAPER_RUNS_DIR } else { Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs' }
+& $java -jar $jar statistical-evaluate .\private\research-trials.tsv .\private\evaluation-runs.csv .\private\evaluation-splits.csv $runsRoot .\private\evaluation-report.json 8
+```
+
+The final argument is an even chronological block count from 4 through 12. The evaluator verifies the full trial-ledger chain, hashes the supplied split-plan file, verifies every run folder with the run-artifact verifier, and matches the run's trial ID, strategy identity, registration record hash, strategy-card hash, dataset hash, split-plan hash, parameter hash, and registration sequence to the ledger. Every run must use that same split-plan hash and analysis capital. The run's session dates must match every date in the frozen split plan exactly, and its partition report must match those same date ranges. Missing or duplicate session rows, incomplete partitions, boundary positions, unregistered trials, and mismatched identities fail the command. Output is create-new and is never overwritten.
+
+Returns use each session's `net_pnl_change_inr / analysis_capital_inr`; cumulative return is a simple sum with no compounding. Daily Sharpe uses the sample standard deviation and a zero risk-free rate; annualized Sharpe multiplies daily Sharpe by `sqrt(252)`, assuming no serial dependence between sessions. Deflated Sharpe probability uses the observed return skewness and raw kurtosis, the sample standard deviation across the family's observed trial Sharpes, and the number of preregistered trials sharing the dataset/split hashes as the multiple-testing count. It estimates the expected maximum using the paper's independent-normal approximation and converts that threshold to a PSR using each trial's return moments and sample length. It does not adjust for correlation among trials. An exactly zero-variance return series or PBO fold has undefined Sharpe and fails closed. Method references: Bailey and López de Prado, *The Deflated Sharpe Ratio* (2014), Eq. 1–2 and Appendix 3; Bailey, Borwein, López de Prado, and Zhu, *The Probability of Backtest Overfitting* (2015 revised paper), Algorithm 2.3.
+
+Probability of Backtest Overfitting uses combinatorially symmetric cross-validation on the chronological concatenation of DEVELOPMENT and VALIDATION sessions only. These sessions are divided into near-equal contiguous blocks; each combination uses half the blocks to select the best in-sample Sharpe and ranks that trial on the remaining blocks. Ties in out-of-sample scores receive midranks; ties when selecting the in-sample winner are resolved by ascending `trial_id`. PBO is the fraction of combinations where the selected trial's out-of-sample rank is below the cross-sectional median. Every trial must share the same complete session sequence, and each block must contain at least two sessions.
+
+HOLDOUT P&L never enters returns, Sharpe, DSR, or PBO and is not emitted in the statistical report. The analyzer still checks that the HOLDOUT partition is present, complete, and flat at its boundaries. The existing run artifacts are not a one-shot holdout vault: operators must keep holdout access sealed outside this command. Both the per-trial summaries and the overall JSON report always set `performance_claim_eligible=false`; these offline statistics do not establish strategy profitability or authorize paper/live trading.
 
 ## Reproduce and verify a saved run
 

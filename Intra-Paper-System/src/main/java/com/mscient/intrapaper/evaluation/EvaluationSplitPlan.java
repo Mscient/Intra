@@ -6,6 +6,7 @@ import com.mscient.intrapaper.data.ValidatedDataset;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -64,6 +65,59 @@ public record EvaluationSplitPlan(Map<Partition, List<LocalDate>> sessions, Stri
             }
             lastRank = partition.ordinal();
             splitSessions.get(partition).add(date);
+        }
+        for (Partition partition : Partition.values()) {
+            if (splitSessions.get(partition).isEmpty()) {
+                throw new IllegalArgumentException("Evaluation split must contain at least one " + partition + " session");
+            }
+        }
+        return new EvaluationSplitPlan(splitSessions, table.sha256());
+    }
+
+    /** Loads the frozen assignments without a dataset, for artifact-side verification of session coverage. */
+    public static EvaluationSplitPlan loadForEvaluation(Path splitPath) throws IOException {
+        CsvTable table = CsvTable.read(splitPath);
+        if (!table.headers().equals(List.of("session_date", "partition"))) {
+            throw new IllegalArgumentException("Evaluation split CSV headers must be exactly: session_date,partition");
+        }
+        TreeMap<LocalDate, Partition> assignments = new TreeMap<>();
+        for (int i = 0; i < table.rows().size(); i++) {
+            Map<String, String> row = table.rows().get(i);
+            int rowNumber = i + 2;
+            String dateText = required(row.get("session_date"), "session_date", rowNumber);
+            String partitionText = required(row.get("partition"), "partition", rowNumber);
+            LocalDate date;
+            Partition partition;
+            try {
+                date = LocalDate.parse(dateText);
+            } catch (DateTimeParseException invalidDate) {
+                throw new IllegalArgumentException("Evaluation split row " + rowNumber
+                        + ": session_date must be an ISO-8601 date (YYYY-MM-DD)", invalidDate);
+            }
+            try {
+                partition = Partition.valueOf(partitionText);
+            } catch (IllegalArgumentException invalidPartition) {
+                throw new IllegalArgumentException("Evaluation split row " + rowNumber
+                        + ": partition must be DEVELOPMENT, VALIDATION, or HOLDOUT", invalidPartition);
+            }
+            if (!date.toString().equals(dateText)) {
+                throw new IllegalArgumentException("Evaluation split row " + rowNumber + ": session_date must use YYYY-MM-DD");
+            }
+            if (assignments.putIfAbsent(date, partition) != null) {
+                throw new IllegalArgumentException("Duplicate evaluation-split session date: " + date);
+            }
+        }
+
+        EnumMap<Partition, List<LocalDate>> splitSessions = new EnumMap<>(Partition.class);
+        for (Partition partition : Partition.values()) splitSessions.put(partition, new ArrayList<>());
+        int lastRank = -1;
+        for (Map.Entry<LocalDate, Partition> assignment : assignments.entrySet()) {
+            if (assignment.getValue().ordinal() < lastRank) {
+                throw new IllegalArgumentException("Evaluation partitions must be contiguous and chronological; found "
+                        + assignment.getKey());
+            }
+            lastRank = assignment.getValue().ordinal();
+            splitSessions.get(assignment.getValue()).add(assignment.getKey());
         }
         for (Partition partition : Partition.values()) {
             if (splitSessions.get(partition).isEmpty()) {

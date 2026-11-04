@@ -2,6 +2,7 @@ package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
+import com.mscient.intrapaper.evaluation.OfflineEvaluationAnalyzer;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.evaluation.ResearchTrialLedger;
 import com.mscient.intrapaper.marketdata.QuoteJournalReader;
@@ -235,6 +236,18 @@ public final class IntraPaperCli {
                         summary.entryCount(), summary.distinctStrategyVersions(), summary.finalHashSha256());
                 return;
             }
+            if (args.length == 7 && args[0].equals("statistical-evaluate")) {
+                var report = OfflineEvaluationAnalyzer.analyze(Path.of(args[1]), Path.of(args[2]),
+                        Path.of(args[3]), Path.of(args[4]), Integer.parseInt(args[6]));
+                Path output = Path.of(args[5]).toAbsolutePath().normalize();
+                Files.writeString(output, report.toJson(), java.nio.charset.StandardCharsets.UTF_8,
+                        java.nio.file.StandardOpenOption.CREATE_NEW, java.nio.file.StandardOpenOption.WRITE);
+                System.out.printf("OFFLINE STATISTICAL EVALUATION: trials=%d; evaluation_sessions=%d; "
+                                + "blocks=%d; PBO=%.6f; holdout_included=false; performance_claim_eligible=false; output=%s%n",
+                        report.trials().size(), report.evaluationSessionCount(),
+                        report.pbo().chronologicalBlockCount(), report.pbo().probabilityBacktestOverfitting(), output);
+                return;
+            }
             if (args.length == 7 && args[0].equals("pricing-diagnostic")) {
                 String model = args[1].toUpperCase(java.util.Locale.ROOT);
                 var report = switch (model) {
@@ -351,6 +364,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
+                + "  java -jar intra-paper-system.jar statistical-evaluate <ledger.tsv> <run-index.csv> <split-plan.csv> <runs-root> <report.json> <even-block-count>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
                 + "  java -jar intra-paper-system.jar portfolio-stress <positions.csv> <underlying-shock-percent> <volatility-shock-points>\n"
@@ -371,6 +385,7 @@ public final class IntraPaperCli {
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"
                 + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
+                + "statistical-evaluate verifies registered run artifacts and scores only DEVELOPMENT/VALIDATION sessions; HOLDOUT is excluded and every report remains performance_claim_eligible=false.\n"
                 + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
                 + "portfolio-stress fully reprices a caller-supplied options/futures portfolio in four shock scenarios; it is not account state, exchange margin, or a trading control.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");

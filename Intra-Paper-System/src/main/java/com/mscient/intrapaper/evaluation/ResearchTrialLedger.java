@@ -109,6 +109,15 @@ public final class ResearchTrialLedger {
         }
     }
 
+    /** Returns every registration after verifying the complete hash chain under a shared lock. */
+    public static List<Entry> entries(Path path) throws IOException {
+        Objects.requireNonNull(path, "path");
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ);
+             FileLock ignored = channel.lock(0L, Long.MAX_VALUE, true)) {
+            return parse(readBytes(channel));
+        }
+    }
+
     /** Requires an exact prior registration for these frozen run inputs. */
     public static Entry requireRegistered(Path path, Trial expected) throws IOException {
         Objects.requireNonNull(path, "path");
