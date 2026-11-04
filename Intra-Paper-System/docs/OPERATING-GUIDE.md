@@ -32,7 +32,7 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 & $java -jar $jar verify $runFolder
 ```
 
-`verify` recomputes the SHA-256 hashes for the twelve current output ledgers in `run-manifest.json` and checks the folder ID. It also accepts earlier nine-, ten-, and eleven-output manifests. It does not re-open or re-authorize source inputs.
+`verify` recomputes the SHA-256 hashes for the output ledgers in `run-manifest.json`, checks the folder ID, and requires exactly the manifest plus the listed outputs. Extra, missing, nested, and non-regular entries fail verification. It also accepts supported earlier output schemas. It does not re-open or re-authorize source inputs.
 
 ## Standalone European option valuation
 

@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.DirectoryStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -87,6 +88,23 @@ public final class RunArtifactVerifier {
                 && !expectedHashes.keySet().equals(CURRENT_OUTPUT_FILES)
                 && !expectedHashes.keySet().equals(PARTITION_OUTPUT_FILES)) {
             throw new IOException("Run manifest output hash list is incomplete");
+        }
+
+        Set<String> expectedChildren = new java.util.HashSet<>(expectedHashes.keySet());
+        expectedChildren.add("run-manifest.json");
+        try (DirectoryStream<Path> children = Files.newDirectoryStream(runFolder)) {
+            for (Path child : children) {
+                String name = child.getFileName().toString();
+                if (!expectedChildren.remove(name)) {
+                    throw new IOException("Unexpected entry in run folder: " + name);
+                }
+                if (!Files.isRegularFile(child, LinkOption.NOFOLLOW_LINKS)) {
+                    throw new IOException("Run folder entry is not a regular file: " + name);
+                }
+            }
+        }
+        if (!expectedChildren.isEmpty()) {
+            throw new IOException("Run folder is missing expected entries: " + expectedChildren);
         }
 
         for (String name : expectedHashes.keySet()) {
