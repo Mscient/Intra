@@ -3,6 +3,7 @@ package com.mscient.intrapaper.cli;
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.data.SmartApiCandleImporter;
 import com.mscient.intrapaper.data.InstrumentMasterCsvReader;
+import com.mscient.intrapaper.reference.DatedInstrumentMappingRegistry;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.evaluation.OfflineEvaluationAnalyzer;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
@@ -14,6 +15,8 @@ import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
 import com.mscient.intrapaper.marketdata.RawCaptureQuoteImporter;
 import com.mscient.intrapaper.marketdata.SmartApiV2NfoSnapQuoteDecoder;
+import com.mscient.intrapaper.marketdata.QuoteCoveragePlan;
+import com.mscient.intrapaper.marketdata.QuoteCoverageAnalyzer;
 import com.mscient.intrapaper.marketdata.RawCaptureClockAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
@@ -99,6 +102,32 @@ public final class IntraPaperCli {
                         journal.bytesRead(), journal.finalHashHex());
                 return;
             }
+            if (args.length == 3 && args[0].equals("quote-coverage-report")) {
+                var plan = QuoteCoveragePlan.load(Path.of(args[2]));
+                var report = QuoteCoverageAnalyzer.analyze(Path.of(args[1]), plan);
+                System.out.printf("QUOTE COVERAGE DIAGNOSTIC: windows=%d; journal_events=%d; "
+                                + "quotes_for_unplanned_instruments=%d; quotes_from_unplanned_sources=%d; "
+                                + "quotes_outside_planned_windows=%d; "
+                                + "plan_sha256=%s; journal_final_hash=%s%n",
+                        report.windows().size(), report.journal().eventCount(),
+                        report.quotesForUnplannedInstruments(), report.quotesFromUnplannedSources(),
+                        report.quotesOutsidePlannedWindows(),
+                        report.planSha256(), report.journal().finalHashHex());
+                for (var window : report.windows()) {
+                    System.out.printf("WINDOW %s: source=%s; instrument=%s; expected=[%s,%s); "
+                                    + "quotes=%d; first=%s; last=%s; max_silence=%s; "
+                                    + "excessive_silence_intervals=%d; non_increasing_receive=%d; "
+                                    + "missing_exchange_timestamp=%d%n",
+                            window.windowId(), window.source(), window.instrumentId(),
+                            window.expectedStartUtc(), window.expectedEndUtc(), window.quoteCount(),
+                            window.firstQuoteReceivedAtUtc().map(Object::toString).orElse("NONE"),
+                            window.lastQuoteReceivedAtUtc().map(Object::toString).orElse("NONE"),
+                            window.maximumObservedSilence().map(Object::toString).orElse("NONE"),
+                            window.excessiveSilenceIntervals(), window.nonIncreasingReceiveTransitions(),
+                            window.quotesMissingExchangeTimestamp());
+                }
+                return;
+            }
             if (args.length == 6 && args[0].equals("quote-feature-export")) {
                 var policy = new QuoteQualityPolicy(Duration.ofMillis(Long.parseLong(args[3])),
                         Duration.ofMillis(Long.parseLong(args[4])));
@@ -144,16 +173,19 @@ public final class IntraPaperCli {
                         summary.nonIncreasingUpstreamSequenceTransitions(), summary.bytesRead(), summary.finalHashHex());
                 return;
             }
-            if (args.length == 4 && args[0].equals("raw-capture-import-smartapi-nfo-snap")) {
+            if (args.length == 5 && args[0].equals("raw-capture-import-smartapi-nfo-snap")) {
                 RunConfig config = RunConfig.load(Path.of(args[2]));
                 var instrumentMaster = InstrumentMasterCsvReader.read(config);
-                var imported = RawCaptureQuoteImporter.importJournal(Path.of(args[1]), Path.of(args[3]),
-                        new SmartApiV2NfoSnapQuoteDecoder(instrumentMaster));
+                var mappingRegistry = DatedInstrumentMappingRegistry.load(Path.of(args[3]));
+                var imported = RawCaptureQuoteImporter.importJournal(Path.of(args[1]), Path.of(args[4]),
+                        new SmartApiV2NfoSnapQuoteDecoder(mappingRegistry, instrumentMaster));
                 System.out.printf("IMPORTED OFFLINE SMARTAPI NFO SNAP QUOTES: raw_messages=%d; quote_snapshots=%d; "
-                                + "instrument_master_sha256=%s; raw_final_hash=%s; quote_final_hash=%s; output=%s%n",
+                                + "instrument_master_sha256=%s; mapping_registry_sha256=%s; raw_final_hash=%s; "
+                                + "quote_final_hash=%s; output=%s%n",
                         imported.rawCapture().eventCount(), imported.normalizedQuoteCount(),
-                        instrumentMaster.rawFileSha256(), imported.rawCapture().finalHashHex(),
-                        imported.normalizedJournal().finalHashHex(), Path.of(args[3]).toAbsolutePath().normalize());
+                        instrumentMaster.rawFileSha256(), mappingRegistry.registrySha256(),
+                        imported.rawCapture().finalHashHex(), imported.normalizedJournal().finalHashHex(),
+                        Path.of(args[4]).toAbsolutePath().normalize());
                 return;
             }
             if (args.length == 3 && args[0].equals("raw-capture-clock-report")) {
@@ -404,11 +436,12 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar oms-recover <run-folder>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
+                + "  java -jar intra-paper-system.jar quote-coverage-report <quote-journal> <coverage-plan.csv>\n"
                 + "  java -jar intra-paper-system.jar quote-feature-export <quote-journal> <instrument-id> <maximum-age-ms> <maximum-future-skew-ms> <output.csv>\n"
                 + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output-root>\n"
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
-                + "  java -jar intra-paper-system.jar raw-capture-import-smartapi-nfo-snap <raw-capture-journal> <run.properties> <quote-journal>\n"
+                + "  java -jar intra-paper-system.jar raw-capture-import-smartapi-nfo-snap <raw-capture-journal> <run.properties> <dated-token-mappings.csv> <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-clock-report <raw-capture-journal> <maximum-wall-monotonic-divergence-ms>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
@@ -429,11 +462,12 @@ public final class IntraPaperCli {
                 + "run resumes a deterministic built-in SMA replay from the last verified checkpoint; set recovery.checkpoint_interval_bars=0 to disable.\n"
                 + "journal-verify replays and checks quote framing, canonical records, sequence, and the SHA-256 chain.\n"
                 + "quote-quality-report checks journal integrity and counts quote flags using caller-supplied millisecond thresholds.\n"
+                + "quote-coverage-report compares journal receive timestamps with caller-declared source/instrument windows and reports observed silence; it does not certify feed completeness.\n"
                 + "quote-feature-export verifies a quote journal and atomically writes sequence-aware L1 features without overwriting output.\n"
                 + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes a content-addressed run folder.\n"
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
-                + "raw-capture-import-smartapi-nfo-snap decodes documented 379-byte Snap Quote packets offline using the dated NFO instrument master in run.properties; only NFO packets and explicit token mappings are accepted.\n"
+                + "raw-capture-import-smartapi-nfo-snap decodes documented 379-byte Snap Quote packets offline using a UTC-dated token registry plus the run.properties instrument master for tick metadata; only NFO packets are accepted.\n"
                 + "raw-capture-clock-report compares wall and monotonic elapsed time per connection using a caller threshold; it does not verify UTC offset or feed completeness.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"

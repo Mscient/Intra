@@ -1,8 +1,10 @@
 package com.mscient.intrapaper.marketdata;
 
+import com.mscient.intrapaper.reference.ContractKind;
+import com.mscient.intrapaper.reference.DatedInstrumentMappingRegistry;
+import com.mscient.intrapaper.reference.InstrumentMappingResolution;
 import com.mscient.intrapaper.reference.InstrumentMasterSnapshot;
 import com.mscient.intrapaper.reference.InstrumentReference;
-import com.mscient.intrapaper.reference.ContractKind;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -28,9 +30,12 @@ public final class SmartApiV2NfoSnapQuoteDecoder implements RawQuoteDecoder {
     private static final int LEVELS_PER_SIDE = 5;
     private static final ZoneId NSE_ZONE = ZoneId.of("Asia/Kolkata");
 
+    private final DatedInstrumentMappingRegistry mappingRegistry;
     private final InstrumentMasterSnapshot instrumentMaster;
 
-    public SmartApiV2NfoSnapQuoteDecoder(InstrumentMasterSnapshot instrumentMaster) {
+    public SmartApiV2NfoSnapQuoteDecoder(DatedInstrumentMappingRegistry mappingRegistry,
+            InstrumentMasterSnapshot instrumentMaster) {
+        this.mappingRegistry = Objects.requireNonNull(mappingRegistry, "mappingRegistry");
         this.instrumentMaster = Objects.requireNonNull(instrumentMaster, "instrumentMaster");
     }
 
@@ -61,18 +66,29 @@ public final class SmartApiV2NfoSnapQuoteDecoder implements RawQuoteDecoder {
         long exchangeEpochMillis = packet.getLong(EXCHANGE_TIME_OFFSET);
         if (exchangeEpochMillis <= 0) throw new IllegalArgumentException("SmartAPI exchange timestamp must be positive epoch milliseconds");
         Instant exchangeTime = Instant.ofEpochMilli(exchangeEpochMillis);
-        LocalDate sessionDate = exchangeTime.atZone(NSE_ZONE).toLocalDate();
-        InstrumentReference mapping = instrumentMaster.requireContract("NSE", "NFO", token, sessionDate);
-        if (mapping.contractKind() != ContractKind.FUTURE && mapping.contractKind() != ContractKind.OPTION) {
-            throw new IllegalArgumentException("SmartAPI NFO token does not resolve to a futures or options contract");
+        InstrumentMappingResolution resolution = mappingRegistry.resolve("NFO", token, exchangeTime);
+        if (resolution.mapping().instrumentType() != ContractKind.FUTURE
+                && resolution.mapping().instrumentType() != ContractKind.OPTION) {
+            throw new IllegalArgumentException("SmartAPI NFO token does not resolve to a futures or options mapping");
         }
-        long tickSizePaise = toPaise(mapping.tickSize());
+        LocalDate sessionDate = exchangeTime.atZone(NSE_ZONE).toLocalDate();
+        InstrumentReference datedReference = instrumentMaster.requireContract("NSE", "NFO", token, sessionDate);
+        var datedMapping = resolution.mapping();
+        if (!datedReference.instrumentId().equals(resolution.instrumentId())
+                || !datedReference.tradingSymbol().equals(datedMapping.tradingSymbol())
+                || datedReference.contractKind() != datedMapping.instrumentType()
+                || !datedReference.expiry().equals(datedMapping.expiry())
+                || !datedReference.strike().equals(datedMapping.strike())
+                || !datedReference.optionRight().equals(datedMapping.optionRight())) {
+            throw new IllegalArgumentException("UTC token registry and session-dated instrument master disagree on contract identity");
+        }
+        long tickSizePaise = toPaise(datedReference.tickSize());
 
         BookLevel bid = bestLevel(packet, 0);
         BookLevel ask = bestLevel(packet, 1);
         long bidTicks = toTicks(bid.pricePaise(), tickSizePaise, "bid");
         long askTicks = toTicks(ask.pricePaise(), tickSizePaise, "ask");
-        return Optional.of(new MarketQuote(1, 1, message.source(), mapping.instrumentId(), Optional.of(exchangeTime),
+        return Optional.of(new MarketQuote(1, 1, message.source(), resolution.instrumentId(), Optional.of(exchangeTime),
                 message.receivedAtUtc(), message.receivedAtMonotonicNanos(), bidTicks, bid.quantity(),
                 askTicks, ask.quantity()));
     }
