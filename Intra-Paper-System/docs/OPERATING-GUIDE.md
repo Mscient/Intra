@@ -139,7 +139,7 @@ Provide a UTF-8 CSV with exactly `session_date,partition` columns. Assign every 
 & $java -jar $jar split-validate .\bars.csv .\run.properties .\evaluation-splits.csv
 ```
 
-The command checks coverage and ordering, then prints the split-file SHA-256. It does not score strategies or open the holdout results; that workflow remains unfinished.
+The command checks coverage and ordering, then prints the split-file SHA-256. When the validated plan is present in `run.properties`, `run` writes `evaluation-partitions.csv` with session P&L changes grouped by partition, complete-session counts, position exposure at the partition boundaries, and drawdown measured from session-close equity only. Incomplete partitions and partitions with positions crossing their boundaries are marked ineligible in the report. Every row remains diagnostic-only; no annualized return, Sharpe ratio, statistical confidence, or performance eligibility is computed. The report includes HOLDOUT results in the ordinary run artifacts, so this implementation does not seal the holdout or enforce one-shot access. The split is bound to the preregistered trial and its hash is written into the run manifest.
 
 ## Register attempted research variants
 
@@ -172,7 +172,7 @@ The command derives the strategy-card, complete dataset-input, split-plan, and c
 & $java -jar $jar replay-verify .\Intra-Paper-System\examples\synthetic-futures-bars.csv .\Intra-Paper-System\examples\synthetic-run.properties $runFolder
 ```
 
-`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all twelve current output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
+`replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all thirteen current output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 

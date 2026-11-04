@@ -2,6 +2,7 @@ package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.CsvTable;
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.evaluation.EvaluationPartitionReport;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
 import com.mscient.intrapaper.provenance.RunConfig;
 
@@ -32,6 +33,7 @@ public final class RunArtifactWriter {
     public WrittenRun write(Path outputRoot, String runId, ValidatedDataset data,
             RunConfig config, BacktestResult result) throws IOException {
         var researchTrial = ResearchTrialBinding.resolve(config, data, result.strategyId());
+        var evaluationPartitions = EvaluationPartitionReport.create(config, data, result.sessionAudits());
         Path outputRootAbsolute = outputRoot.toAbsolutePath().normalize();
         if (!runId.matches("[0-9a-f]{24}")) throw new IllegalArgumentException("runId must be a 24-character lowercase hex content ID");
         Files.createDirectories(outputRootAbsolute);
@@ -116,16 +118,17 @@ public final class RunArtifactWriter {
                                 line.componentCode(), line.basis(), line.calculationBase(), line.rate(),
                                 line.chargeInr(), line.gstBps(), line.gstTaxableBaseInr(), line.gstInr(),
                                 line.totalInr(), line.sourceReference())).toList()));
+                writeNew(stagingFolder.resolve("evaluation-partitions.csv"), evaluationPartitionsCsv(evaluationPartitions));
 
-                writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result));
+                writeNew(stagingFolder.resolve("summary.json"), summaryJson(runId, data, config, result, evaluationPartitions));
                 Map<String, String> outputHashes = new TreeMap<>();
                 for (String name : List.of("signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
                         "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
-                        "settlement-cost-lines.csv", "summary.json")) {
+                        "settlement-cost-lines.csv", "evaluation-partitions.csv", "summary.json")) {
                     outputHashes.put(name, RunConfig.sha256(Files.readAllBytes(stagingFolder.resolve(name))));
                 }
                 writeNew(stagingFolder.resolve("run-manifest.json"),
-                        manifestJson(runId, data, config, result, outputHashes, researchTrial));
+                        manifestJson(runId, data, config, result, outputHashes, researchTrial, evaluationPartitions));
                 Files.move(stagingFolder, runFolder, StandardCopyOption.ATOMIC_MOVE);
                 return new WrittenRun(runId, runFolder);
             } catch (IOException | RuntimeException failure) {
@@ -207,7 +210,8 @@ public final class RunArtifactWriter {
         }
     }
 
-    private static String summaryJson(String runId, ValidatedDataset data, RunConfig config, BacktestResult result) {
+    private static String summaryJson(String runId, ValidatedDataset data, RunConfig config, BacktestResult result,
+            java.util.Optional<EvaluationPartitionReport> evaluationPartitions) {
         DiagnosticMetrics metrics = DiagnosticMetrics.from(result);
         return "{\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
@@ -250,13 +254,15 @@ public final class RunArtifactWriter {
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
                 + "  \"data_rights_status\": " + q(config.dataRightsStatus().name()) + ",\n"
                 + "  \"strategy_id\": " + q(result.strategyId()) + ",\n"
+                + "  \"evaluation_partition_report\": " + evaluationPartitionReportJson(evaluationPartitions) + ",\n"
                 + "  \"cost_status\": " + q(config.costStatus()) + "\n"
                 + "}\n";
     }
 
     private static String manifestJson(String runId, ValidatedDataset data, RunConfig config,
             BacktestResult result, Map<String, String> outputHashes,
-            java.util.Optional<ResearchTrialBinding.Evidence> researchTrial) {
+            java.util.Optional<ResearchTrialBinding.Evidence> researchTrial,
+            java.util.Optional<EvaluationPartitionReport> evaluationPartitions) {
         var bars = data.bars();
         var first = bars.getFirst();
         var last = bars.getLast();
@@ -272,8 +278,9 @@ public final class RunArtifactWriter {
         data.expirySettlement().ifPresent(settlement -> inputHashes.put("expiry_settlement", settlement.sha256()));
         data.settlementCostSchedule().ifPresent(schedule -> inputHashes.put("settlement_cost_schedule", schedule.sha256()));
         data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
+        evaluationPartitions.ifPresent(report -> inputHashes.put("evaluation_split_plan", report.splitPlanSha256()));
         return "{\n"
-                + "  \"schema_version\": 12,\n"
+                + "  \"schema_version\": 13,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -312,6 +319,7 @@ public final class RunArtifactWriter {
                 + "  \"strategy\": {\"id\": " + q(result.strategyId()) + ", \"parameters\": "
                 + mapJson(result.strategyParameters()) + "},\n"
                 + "  \"research_trial\": " + researchTrialJson(researchTrial) + ",\n"
+                + "  \"evaluation_partition_report\": " + evaluationPartitionReportJson(evaluationPartitions) + ",\n"
                 + "  \"fill_model\": " + q(switch (config.executionModel()) {
                     case BAR_NEXT_OPEN -> "NEXT_BAR_OPEN_MARKET_WITH_FIXED_ADVERSE_TICK_SLIPPAGE_V1";
                     case L1_FULL_SIZE_IOC -> "L1_TOP_OF_BOOK_FULL_SIZE_IOC_V1";
@@ -392,6 +400,32 @@ public final class RunArtifactWriter {
                 + "  \"input_file_sha256\": " + mapJson(inputHashes) + ",\n"
                 + "  \"output_file_sha256\": " + mapJson(outputHashes) + "\n"
                 + "}\n";
+    }
+
+    private static String evaluationPartitionsCsv(java.util.Optional<EvaluationPartitionReport> report) {
+        String header = "partition,first_session,last_session,session_count,complete_session_count,position_units_at_start,"
+                + "position_units_at_end,flat_at_partition_boundaries,realized_pnl_change_inr,unrealized_pnl_change_inr,"
+                + "net_pnl_change_inr,max_session_close_drawdown_inr,fees_paid_inr,modeled_slippage_inr,orders_created,"
+                + "fills,completed_trades,risk_halts,status,performance_claim_eligible";
+        List<String> rows = report.map(value -> value.partitions().stream().map(partition -> row(
+                partition.partition(), partition.firstSession(), partition.lastSession(), partition.sessionCount(),
+                partition.completeSessionCount(), partition.positionUnitsAtStart(), partition.positionUnitsAtEnd(),
+                partition.flatAtPartitionBoundaries(), partition.realizedPnlChangeInr(),
+                partition.unrealizedPnlChangeInr(), partition.netPnlChangeInr(),
+                partition.maxSessionCloseDrawdownInr(), partition.feesPaidInr(), partition.modeledSlippageInr(),
+                partition.ordersCreated(), partition.fills(), partition.completedTrades(), partition.riskHalts(),
+                partition.status(), false)).toList()).orElse(List.of());
+        return csv(header, rows);
+    }
+
+    private static String evaluationPartitionReportJson(java.util.Optional<EvaluationPartitionReport> report) {
+        if (report.isEmpty()) return "null";
+        return "{\"split_plan_sha256\": " + q(report.orElseThrow().splitPlanSha256())
+                + ", \"file\": \"evaluation-partitions.csv\""
+                + ", \"aggregation\": \"SESSION_NET_PNL_CHANGE_SUM\""
+                + ", \"drawdown_method\": \"SESSION_CLOSE_EQUITY_ONLY\""
+                + ", \"holdout_control\": \"NOT_SEALED_OR_ONE_SHOT_ENFORCED\""
+                + ", \"performance_claim_eligible\": false}";
     }
 
     private static String mapJson(Map<String, String> values) {
