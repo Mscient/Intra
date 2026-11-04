@@ -26,6 +26,7 @@ public final class PortfolioAccountingLedgerTest {
         usesCloseForBarEndFrames();
         duplicateExecutionIsIdempotent();
         accountsThroughFlatAndReversal();
+        marksCompletedBarsBeforeNextOpen();
         rejectedFrameDoesNotPartiallyMutateLedger();
         rejectsInvalidTimeAndLotSize();
         System.out.println("PortfolioAccountingLedger checks passed");
@@ -125,6 +126,30 @@ public final class PortfolioAccountingLedgerTest {
         require(future.averageOpenPrice().compareTo(new BigDecimal("90.0")) == 0,
                 "reversed residual must use its own opening fill basis");
         require(future.unrealizedPnlInr().signum() == 0, "reversed residual must mark from its new basis");
+    }
+
+    private static void marksCompletedBarsBeforeNextOpen() {
+        SynchronizedBarFrameBuilder.Frame first = frame("2026-11-03T03:45:00Z",
+                future("2026-11-03T03:45:00Z", "100.0", "106.0", "105.0"),
+                option("2026-11-03T03:45:00Z", "10.0", "12.0", "11.0"));
+        SynchronizedBarFrameBuilder.Frame next = frame("2026-11-03T03:46:00Z",
+                future("2026-11-03T03:46:00Z", "101.0", "103.0", "102.0"),
+                option("2026-11-03T03:46:00Z", "9.0", "10.0", "9.5"));
+        PortfolioAccountingLedger ledger = new PortfolioAccountingLedger();
+        ledger.mark(first, List.of(execution("F-1", 1, "NIFTY-FUT", first.timestamp(),
+                PortfolioExecution.Side.BUY, 25, "100.0", "0")));
+        var close = ledger.markToClose(first);
+        require(close.phase() == PortfolioAccountingLedger.MarkPhase.BAR_CLOSE
+                && close.timestamp().equals(Instant.parse("2026-11-03T03:46:00Z")),
+                "BAR_START close mark must be timestamped at the interval end");
+        require(close.positions().get("NIFTY-FUT").unrealizedPnlInr()
+                .compareTo(new BigDecimal("125.0")) == 0, "completed bar close must update unrealized P&L");
+        var nextOpen = ledger.mark(next, List.of());
+        require(nextOpen.phase() == PortfolioAccountingLedger.MarkPhase.BAR_OPEN
+                && nextOpen.timestamp().equals(close.timestamp()),
+                "next frame open may share the preceding completed-bar close timestamp");
+        require(nextOpen.positions().get("NIFTY-FUT").unrealizedPnlInr()
+                .compareTo(new BigDecimal("25.0")) == 0, "next open must re-mark any opening gap");
     }
 
     private static void rejectedFrameDoesNotPartiallyMutateLedger() {

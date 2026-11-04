@@ -1,11 +1,13 @@
 package com.mscient.intrapaper.simulation.portfolio;
 
 import com.mscient.intrapaper.data.Bar;
+import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.SynchronizedBarFrameBuilder;
 import com.mscient.intrapaper.reference.TimestampRole;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -17,14 +19,17 @@ import java.util.TreeMap;
  * It consumes caller-supplied simulated executions and exact-time synchronized bars only.
  */
 public final class PortfolioAccountingLedger {
+    public enum MarkPhase { BAR_OPEN, BAR_CLOSE }
+
     public record PositionSnapshot(long signedUnits, BigDecimal averageOpenPrice,
             BigDecimal realizedGrossPnlInr, BigDecimal feesInr, BigDecimal unrealizedPnlInr) { }
 
-    public record Snapshot(Instant timestamp, Map<String, PositionSnapshot> positions,
+    public record Snapshot(Instant timestamp, MarkPhase phase, Map<String, PositionSnapshot> positions,
             BigDecimal realizedGrossPnlInr, BigDecimal feesInr,
             BigDecimal unrealizedPnlInr, BigDecimal netPnlInr) {
         public Snapshot {
             Objects.requireNonNull(timestamp, "timestamp");
+            Objects.requireNonNull(phase, "phase");
             positions = Collections.unmodifiableMap(new LinkedHashMap<>(new TreeMap<>(positions)));
         }
     }
@@ -40,7 +45,9 @@ public final class PortfolioAccountingLedger {
     private final Map<String, PortfolioExecution> executionsById = new TreeMap<>();
     private final Map<String, Bar> contractReferences = new TreeMap<>();
     private long lastExecutionSequence;
-    private Instant lastFrameTimestamp;
+    private Instant lastOpenedFrameTimestamp;
+    private Instant lastMarkTimestamp;
+    private MarkPhase lastMarkPhase;
 
     /**
      * Applies executions at the frame timestamp and marks positions at a contemporaneously available price:
@@ -50,8 +57,15 @@ public final class PortfolioAccountingLedger {
             java.util.List<PortfolioExecution> executionsAtFrame) {
         Objects.requireNonNull(frame, "frame");
         Objects.requireNonNull(executionsAtFrame, "executionsAtFrame");
-        if (lastFrameTimestamp != null && !frame.timestamp().isAfter(lastFrameTimestamp)) {
+        if (lastOpenedFrameTimestamp != null && !frame.timestamp().isAfter(lastOpenedFrameTimestamp)) {
             throw new IllegalArgumentException("Portfolio frames must be strictly chronological");
+        }
+        if (lastMarkTimestamp != null && frame.timestamp().isBefore(lastMarkTimestamp)) {
+            throw new IllegalArgumentException("Portfolio frame precedes the latest mark");
+        }
+        if (lastMarkTimestamp != null && frame.timestamp().equals(lastMarkTimestamp)
+                && lastMarkPhase != MarkPhase.BAR_CLOSE) {
+            throw new IllegalArgumentException("Only a next-frame open may share the preceding frame-close timestamp");
         }
 
         Map<String, Bar> bars = frame.barsByInstrument();
@@ -101,15 +115,53 @@ public final class PortfolioAccountingLedger {
             stagedSequence = execution.sequence();
         }
 
+        MarkPhase phase = bars.values().iterator().next().timestampRole() == TimestampRole.BAR_START
+                ? MarkPhase.BAR_OPEN : MarkPhase.BAR_CLOSE;
+        Snapshot snapshot = buildSnapshot(frame, frame.timestamp(), phase, stagedPositions);
+        positions.clear();
+        positions.putAll(stagedPositions);
+        executionsById.clear();
+        executionsById.putAll(stagedExecutions);
+        contractReferences.clear();
+        contractReferences.putAll(stagedReferences);
+        lastExecutionSequence = stagedSequence;
+        lastOpenedFrameTimestamp = frame.timestamp();
+        lastMarkTimestamp = frame.timestamp();
+        lastMarkPhase = phase;
+        return snapshot;
+    }
+
+    /** Marks a BAR_START frame at its close after all that bar's OHLC data becomes observable. */
+    public Snapshot markToClose(SynchronizedBarFrameBuilder.Frame frame) {
+        Objects.requireNonNull(frame, "frame");
+        if (lastOpenedFrameTimestamp == null || !frame.timestamp().equals(lastOpenedFrameTimestamp)
+                || lastMarkPhase != MarkPhase.BAR_OPEN || !lastMarkTimestamp.equals(frame.timestamp())) {
+            throw new IllegalStateException("Only the most recently opened BAR_START frame can be marked to close");
+        }
+        Bar firstBar = frame.barsByInstrument().values().iterator().next();
+        if (firstBar.timestampRole() != TimestampRole.BAR_START) {
+            throw new IllegalArgumentException("markToClose requires BAR_START bars");
+        }
+        Duration interval = IntervalSupport.duration(firstBar.interval());
+        Instant closeTimestamp = frame.timestamp().plus(interval);
+        Snapshot snapshot = buildSnapshot(frame, closeTimestamp, MarkPhase.BAR_CLOSE, positions);
+        lastMarkTimestamp = closeTimestamp;
+        lastMarkPhase = MarkPhase.BAR_CLOSE;
+        return snapshot;
+    }
+
+    private static Snapshot buildSnapshot(SynchronizedBarFrameBuilder.Frame frame, Instant timestamp,
+            MarkPhase phase, Map<String, Position> positions) {
         BigDecimal totalRealized = BigDecimal.ZERO;
         BigDecimal totalFees = BigDecimal.ZERO;
         BigDecimal totalUnrealized = BigDecimal.ZERO;
         LinkedHashMap<String, PositionSnapshot> snapshotPositions = new LinkedHashMap<>();
-        for (Map.Entry<String, Bar> entry : new TreeMap<>(bars).entrySet()) {
+        for (Map.Entry<String, Bar> entry : new TreeMap<>(frame.barsByInstrument()).entrySet()) {
             String instrumentId = entry.getKey();
             Bar bar = entry.getValue();
-            Position position = stagedPositions.computeIfAbsent(instrumentId, ignored -> new Position());
-            BigDecimal markPrice = markPrice(bar);
+            Position position = positions.getOrDefault(instrumentId, new Position());
+            BigDecimal markPrice = phase == MarkPhase.BAR_OPEN && bar.timestampRole() == TimestampRole.BAR_START
+                    ? bar.open() : bar.close();
             BigDecimal unrealized = position.signedUnits == 0 ? BigDecimal.ZERO
                     : markPrice.multiply(BigDecimal.valueOf(Math.abs(position.signedUnits)))
                             .subtract(position.remainingBasis)
@@ -123,15 +175,7 @@ public final class PortfolioAccountingLedger {
             snapshotPositions.put(instrumentId, new PositionSnapshot(position.signedUnits,
                     averageOpenPrice, position.realizedGrossPnlInr, position.feesInr, unrealized));
         }
-        positions.clear();
-        positions.putAll(stagedPositions);
-        executionsById.clear();
-        executionsById.putAll(stagedExecutions);
-        contractReferences.clear();
-        contractReferences.putAll(stagedReferences);
-        lastExecutionSequence = stagedSequence;
-        lastFrameTimestamp = frame.timestamp();
-        return new Snapshot(frame.timestamp(), snapshotPositions, totalRealized, totalFees,
+        return new Snapshot(timestamp, phase, snapshotPositions, totalRealized, totalFees,
                 totalUnrealized, totalRealized.add(totalUnrealized).subtract(totalFees));
     }
 
