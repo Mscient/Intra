@@ -10,6 +10,8 @@
 
 ## Gate and work-package tracker
 
+**Research handoff:** Complete outsource-ready briefs for DR-00–DR-17 are in [`research/systems/OUTSOURCED-DEEP-RESEARCH-BRIEFS.md`](../research/systems/OUTSOURCED-DEEP-RESEARCH-BRIEFS.md). They specify source/evidence standards, exact questions, dependencies, deliverables, and acceptance criteria. This records a research plan only; no new research findings or gate closures are claimed.
+
 | Stage / package | Status | Evidence / next action |
 |---|---|---|
 | S0 / G0 — charter (WP0) | In progress; gate open | Keep this project offline. Operator/stop authority, current route and rule review, data permissions, retention, private risk budgets, and A1–A15 assumptions remain unconfirmed. |

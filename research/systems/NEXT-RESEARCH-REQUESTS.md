@@ -1,5 +1,7 @@
 # Next research requests for Intra
 
+For complete outsource-ready scopes, evidence grading, required report structure, prerequisites, and acceptance criteria, use the [Outsourced Deep Research Briefs](OUTSOURCED-DEEP-RESEARCH-BRIEFS.md). The compact queue below is retained as a quick index; the detailed briefs are authoritative when assigning work.
+
 Use primary NSE, NSE Clearing, SEBI, and Angel One SmartAPI documents wherever available. For every rule, record the document number, publication date, effective date, product/segment scope, source URL, exact page/paragraph/table, and later amendments. Mark forum posts and broker summaries as leads only. Do not include credentials, private account IDs, or a recommendation to place live orders.
 
 ## What each research topic will unblock
