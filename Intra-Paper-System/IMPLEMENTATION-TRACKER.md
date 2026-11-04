@@ -46,6 +46,7 @@
 - [x] Quote-journal verification reports sequence jumps and total skipped sequence integers between records without assuming a starting sequence or equating jumps with packet loss.
 - [x] Effective-dated instrument references and immutable master-snapshot model.
 - [x] UTF-8 normalized futures-bar reader with explicit timestamp roles, increasing timestamps, OHLC/tick validation, and required source hashes.
+- [x] Offline `smartapi-candle-import` parses saved Angel One historical-candle JSON for one NFO instrument, requires one-row caller-supplied dated metadata, preserves response/metadata hashes in source provenance, and emits the normalized bars schema. It does not connect to SmartAPI, verify the query/instrument mapping or data rights, infer bar-start/end timestamp semantics, fetch OI, repair gaps, or prove completeness.
 - [x] Bar volume and open interest preserve absent values as null and retain numeric zero distinctly.
 - [x] Effective-dated market-rule registry with unique IDs, non-overlapping ranges per exchange/segment/contract kind, source metadata, and caller verification status. Open sessions validate regime date/scope/source, timezone, session windows, and dated contract lot/tick values; registry file is hashed into run identity and its applied rules are written to the run manifest.
 - [x] Session completeness checks against supplied first/last bar labels and expected interval grid; missing open sessions fail closed.

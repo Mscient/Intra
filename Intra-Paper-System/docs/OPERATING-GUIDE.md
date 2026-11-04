@@ -275,6 +275,26 @@ This reports signed base option theoretical value, model delta-equivalent units,
 
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
+## Import a saved SmartAPI historical-candle response
+
+`smartapi-candle-import` converts one saved SmartAPI JSON response into the normalized bars CSV below. It is an offline file parser: it does not log in, make HTTP requests, read credentials, or verify data rights. Angel One's [official Historical API documentation](https://smartapi.angelone.in/docs/Historical) describes candle rows as `[timestamp, open, high, low, close, volume]` and shows ISO-8601 timestamps with an offset. It does not establish whether the timestamp labels a bar's start or end, so set that role from verified source behavior before replay. The same documentation exposes historical OI through a separate endpoint; this candle importer leaves `open_interest` blank.
+
+Create a one-row metadata CSV with exactly this header and order. Values must describe the exact instrument and request used to obtain the saved response; the response itself does not echo those request parameters.
+
+```csv
+instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,interval,timestamp_role,timezone,source,request_fromdate,request_todate
+NIFTY_FUTURE_ID,NFO,NFO,REPLACE_WITH_DATED_TOKEN,NIFTY_FUTURE_SYMBOL,FUTURE,NIFTY,2026-11-26,,,1,1,ONE_MINUTE,BAR_START,Asia/Kolkata,smartapi-historical,2026-11-04 09:15,2026-11-04 15:30
+```
+
+Replace every illustrative value with the dated instrument-master fields and exact request metadata. `exchange` must be `NFO`; the interval must be supported by this simulator (`ONE_MINUTE`, `FIVE_MINUTE`, `FIFTEEN_MINUTE`, `THIRTY_MINUTE`, `ONE_HOUR`, or `ONE_DAY`); timestamp role must be an explicit `BAR_START` or `BAR_END` choice. Do not infer that choice from the API example. Metadata hashes are caller assertions, not an independent check of the original API request or instrument-token mapping.
+
+```powershell
+& $java -jar $jar smartapi-candle-import .\private\smartapi-response.json `
+  .\private\smartapi-request-metadata.csv .\private\normalized-bars.csv
+```
+
+The import rejects unsuccessful API envelopes, malformed/non-array rows, non-offset timestamps, non-numeric OHLCV, duplicate or out-of-order timestamps, and bars that fail the existing OHLC/tick/instrument checks. It preserves null volume as blank, keeps numeric zero as zero, and does not synthesize missing bars. The normalized CSV's `source` field includes the exact response-byte and metadata-file SHA-256 values; each `raw_record_hash` identifies the canonicalized six-field candle row. The CLI also prints the normalized CSV hash. Keep the original response and metadata files with the run inputs. A valid parse does not prove licensing, retention permission, completeness, historical coverage, or source correctness; the normal non-synthetic run still requires the configured authorized-local-replay rights reference.
+
 ## Normalized bars CSV
 
 The header must include these fields in any order:

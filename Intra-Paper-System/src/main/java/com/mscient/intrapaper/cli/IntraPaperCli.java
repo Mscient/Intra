@@ -1,6 +1,7 @@
 package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
+import com.mscient.intrapaper.data.SmartApiCandleImporter;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.evaluation.OfflineEvaluationAnalyzer;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
@@ -261,6 +262,15 @@ public final class IntraPaperCli {
                 }
                 return;
             }
+            if (args.length == 4 && args[0].equals("smartapi-candle-import")) {
+                var result = SmartApiCandleImporter.importResponse(
+                        Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+                System.out.printf("IMPORTED SMARTAPI CANDLES OFFLINE: rows=%d; response_sha256=%s; metadata_sha256=%s; "
+                                + "normalized_csv_sha256=%s; timestamp_role=%s; timezone=%s; output=%s%n",
+                        result.candleCount(), result.responseSha256(), result.metadataSha256(),
+                        result.normalizedCsvSha256(), result.timestampRole(), result.timezone(), result.outputPath());
+                return;
+            }
             if (args.length == 7 && args[0].equals("statistical-evaluate")) {
                 var report = OfflineEvaluationAnalyzer.analyze(Path.of(args[1]), Path.of(args[2]),
                         Path.of(args[3]), Path.of(args[4]), Integer.parseInt(args[6]));
@@ -392,6 +402,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar statistical-evaluate <ledger.tsv> <run-index.csv> <split-plan.csv> <runs-root> <report.json> <even-block-count>\n"
                 + "  java -jar intra-paper-system.jar trial-outcome-record <trial-ledger.tsv> <outcome-ledger.tsv> <trial-id> <attempt-id> <event-id> <event-type> <reference> <reason>\n"
                 + "  java -jar intra-paper-system.jar trial-outcome-verify <trial-ledger.tsv> <outcome-ledger.tsv>\n"
+                + "  java -jar intra-paper-system.jar smartapi-candle-import <response.json> <metadata.csv> <normalized-bars.csv>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
                 + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
                 + "  java -jar intra-paper-system.jar portfolio-stress <positions.csv> <underlying-shock-percent> <volatility-shock-points>\n"
@@ -414,6 +425,7 @@ public final class IntraPaperCli {
                 + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
                 + "trial-outcome-record appends a registered-trial attempt/exposure event; event types: ATTEMPT_STARTED, OUTCOME_PRODUCED, OUTCOME_VIEWED, MECHANICAL_FAILURE_NO_OUTCOME, ABANDONED.\n"
                 + "trial-outcome-verify checks outcome-event integrity, registration binding, state transitions, and per-trial exposure summaries; it cannot prove who viewed a file or discover unlogged trials.\n"
+                + "smartapi-candle-import converts a saved SmartAPI historical-candle response offline; it makes no request and does not verify data rights, token mapping, timestamp role, or query metadata.\n"
                 + "statistical-evaluate verifies registered run artifacts and scores only DEVELOPMENT/VALIDATION sessions; HOLDOUT is excluded and every report remains performance_claim_eligible=false.\n"
                 + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
                 + "portfolio-stress fully reprices a caller-supplied options/futures portfolio in four shock scenarios; it is not account state, exchange margin, or a trading control.\n"
