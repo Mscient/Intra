@@ -350,6 +350,15 @@ public final class RiskGateway {
             throw new RiskEventException("out-of-order event: " + event.eventId());
         }
 
+        if (event instanceof OrderAcceptedEvent accepted) {
+            RiskDecision replayed = evaluate(accepted.proposal());
+            if (!replayed.accepted()) {
+                throw new RiskEventException("persisted accepted proposal no longer passes replayed risk state: "
+                        + replayed.reason());
+            }
+            return;
+        }
+
         if (event instanceof SessionStartEvent start) {
             applySessionStart(start);
         } else {
