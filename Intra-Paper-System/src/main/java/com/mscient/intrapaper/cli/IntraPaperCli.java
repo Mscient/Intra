@@ -16,6 +16,7 @@ import com.mscient.intrapaper.marketdata.FeedLifecycleEvent;
 import com.mscient.intrapaper.marketdata.FeedCaptureReconciler;
 import com.mscient.intrapaper.marketdata.FeedCaptureReconciliationReport;
 import com.mscient.intrapaper.provenance.RunConfig;
+import com.mscient.intrapaper.pricing.OptionPricingDiagnostics;
 import com.mscient.intrapaper.simulation.BacktestEngine;
 import com.mscient.intrapaper.simulation.BacktestResult;
 import com.mscient.intrapaper.simulation.BacktestCheckpointStore;
@@ -233,6 +234,28 @@ public final class IntraPaperCli {
                         summary.entryCount(), summary.distinctStrategyVersions(), summary.finalHashSha256());
                 return;
             }
+            if (args.length == 7 && args[0].equals("pricing-diagnostic")) {
+                String model = args[1].toUpperCase(java.util.Locale.ROOT);
+                var report = switch (model) {
+                    case "BLACK76" -> OptionPricingDiagnostics.black76(
+                            Double.parseDouble(args[2]), Double.parseDouble(args[3]), Double.parseDouble(args[4]),
+                            Double.parseDouble(args[5]), Double.parseDouble(args[6]));
+                    default -> throw new IllegalArgumentException(
+                            "pricing-diagnostic BLACK76 requires futures strike years rate volatility; use pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>");
+                };
+                printPricingDiagnostic(report);
+                if (!report.passed()) System.exit(3);
+                return;
+            }
+            if (args.length == 8 && args[0].equals("pricing-diagnostic")
+                    && args[1].equalsIgnoreCase("BSM")) {
+                var report = OptionPricingDiagnostics.bsm(
+                        Double.parseDouble(args[2]), Double.parseDouble(args[3]), Double.parseDouble(args[4]),
+                        Double.parseDouble(args[5]), Double.parseDouble(args[6]), Double.parseDouble(args[7]));
+                printPricingDiagnostic(report);
+                if (!report.passed()) System.exit(3);
+                return;
+            }
             if (args.length != 3 || !(args[0].equals("validate") || args[0].equals("run"))) {
                 usage();
                 System.exit(2);
@@ -303,6 +326,8 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar split-validate <bars.csv> <run.properties> <splits.csv>\n\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-register <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar trial-ledger-verify <ledger.tsv>\n"
+                + "  java -jar intra-paper-system.jar pricing-diagnostic BLACK76 <future> <strike> <years> <rate> <volatility>\n"
+                + "  java -jar intra-paper-system.jar pricing-diagnostic BSM <spot> <strike> <years> <rate> <dividend-yield> <volatility>\n"
                 + "Run artifacts default under %LOCALAPPDATA%\\Intra-Paper-System\\runs\\<content-id> or INTRA_PAPER_RUNS_DIR.\n"
                 + "verify recomputes output hashes from run-manifest.json.\n"
                 + "oms-recover verifies a completed run and reconstructs its simulated order/execution state from saved ledgers.\n"
@@ -320,6 +345,17 @@ public final class IntraPaperCli {
                 + "split-validate checks chronological development/validation/holdout assignments; it does not score strategies.\n"
                 + "trial-ledger-register appends a unique variant registration bound to strategy-card, dataset, split, and parameter hashes; it does not run or score a strategy.\n"
                 + "trial-ledger-verify checks the append-only trial ledger's sequence and SHA-256 chain; keep an external copy of the final hash because a local chain is not tamper-proof.\n"
+                + "pricing-diagnostic checks bounds, put-call parity, and finite-difference Greeks; it is not an independent pricing oracle.\n"
                 + "One dated futures contract or one option-premium series per run. There is no broker connectivity or live-order route.");
+    }
+
+    private static void printPricingDiagnostic(OptionPricingDiagnostics.Report report) {
+        System.out.printf("PRICING DIAGNOSTIC: model=%s; passed=%s; scope=%s%n",
+                report.model(), report.passed(), report.scope());
+        for (var check : report.checks()) {
+            System.out.printf("%s %s: observed=%.12g; expected=%.12g; abs_error=%.6g%n",
+                    check.passed() ? "PASS" : "FAIL", check.name(), check.observed(),
+                    check.expected(), check.absoluteError());
+        }
     }
 }

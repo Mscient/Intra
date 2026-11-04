@@ -174,6 +174,17 @@ The command derives the strategy-card, complete dataset-input, split-plan, and c
 
 `replay-verify` validates the saved output hashes, reloads the supplied bars and run properties, recomputes the content ID from input hashes, configured build commit, and strategy identity/parameters, runs the simulator in a new temporary directory, and compares all thirteen current output ledgers plus `run-manifest.json` byte-for-byte. The run folder ID must match the supplied inputs and configured build commit. The temporary replay directory is removed after success or failure. This verifies deterministic reproduction; it does not verify data rights or the truth of the source data.
 
+## Check option-pricer numerical consistency
+
+Use these offline diagnostics for option bounds, put-call parity, and finite-difference checks of delta, gamma, vega, rho, and theta:
+
+```powershell
+& $java -jar $jar pricing-diagnostic BLACK76 25000 25000 0.25 0.06 0.20
+& $java -jar $jar pricing-diagnostic BSM 25000 25000 0.25 0.06 0.01 0.20
+```
+
+The command exits 3 when a numerical check fails. It checks internal formulas with numerical perturbations; it is not an independent implementation, market quote comparison, volatility-surface validation, or permission to use model values as fills.
+
 Runs are stored under `%LOCALAPPDATA%\Intra-Paper-System\runs\<content-id>`. Set `INTRA_PAPER_RUNS_DIR` before starting Java to select a different directory. Existing run folders are never overwritten.
 
 ## Normalized bars CSV
