@@ -39,7 +39,6 @@ public final class Black76OptionPricer {
         }
     }
 
-    private static final double SQRT_TWO_PI = Math.sqrt(2.0 * Math.PI);
     private static final double DAYS_PER_YEAR = 365.0;
 
     private Black76OptionPricer() { }
@@ -95,17 +94,11 @@ public final class Black76OptionPricer {
     }
 
     private static double normalDensity(double value) {
-        return Math.exp(-0.5 * value * value) / SQRT_TWO_PI;
+        return NormalDistribution.density(value);
     }
 
-    /** Abramowitz-Stegun 7.1.26 approximation; maximum absolute CDF error is about 7.5e-8. */
     private static double normalCdf(double value) {
-        double x = Math.abs(value);
-        double t = 1.0 / (1.0 + 0.2316419 * x);
-        double tail = normalDensity(x) * t * (0.319381530 + t * (-0.356563782
-                + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
-        double positiveCdf = 1.0 - tail;
-        return value >= 0 ? positiveCdf : 1.0 - positiveCdf;
+        return NormalDistribution.cdf(value);
     }
 
     private static void requireFinite(double value, String name) {

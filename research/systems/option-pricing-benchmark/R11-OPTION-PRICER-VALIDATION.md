@@ -194,3 +194,9 @@ None of the following is resolved by this work.
 ## 11. Next assignment (R12)
 
 R12 (DSR/PBO and chronological holdout methodology) was not started. It would also need the unread `NEXT-RESEARCH-REQUESTS.md` to see the current implementation and open items.
+
+## C2 implementation follow-up (2026-11-05)
+
+The statements in §§0–1 describe the original research-only review and predate the implementation follow-up. The Java BSM and Black-76 pricers were independently compared against every rounded output in §4.2 and against pinned QuantLib-Python 1.44. All 22 reference rows passed both comparisons. The checked-in CSV fixture was generated without importing or executing the side-effecting reference script: the extractor parsed its literal case inputs as AST and joined them to this note's printed expected-output table. Tolerances reflect the final printed digit plus a small float64 allowance; see the benchmark README for the exact rule and reproducible commands.
+
+The comparison found measurable price, annual theta, and raw rho error in the previous Abramowitz–Stegun normal-CDF approximation. Both production pricers now use a shared Cephes erf/erfc approximation; post-fix Java and QuantLib maxima are printed by the Java and Python validation runners. Expiry, near-expiry, low-volatility, deep ITM/OTM, and R11 no-arbitrage sweeps also pass. The CDF change only affects theoretical valuation and Greeks: model outputs remain excluded from simulated fills and accounting P&L. QuantLib is an offline validation dependency only and is not bundled with the runtime.

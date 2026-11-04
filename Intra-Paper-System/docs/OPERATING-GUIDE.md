@@ -38,7 +38,23 @@ $runFolder = Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\runs\<content-id>'
 
 `com.mscient.intrapaper.pricing.EuropeanOptionPricer.value(...)` provides a Java API for a caller-input European Black–Scholes–Merton value and Greeks. Inputs are spot, strike, time to expiry in years, continuously compounded annual risk-free rate and dividend yield, annualized volatility as a decimal, and `OptionRight`. Values are per underlying unit. Delta is per underlying-price unit; gamma is per squared underlying-price unit; vega and rho are per one percentage point; theta is per calendar day using 365 days per year.
 
-This helper does not select or calibrate volatility, resolve rates/yield, determine day-count conventions, or price American exercise. It has not been independently validated against a second implementation. An optional replay valuation sidecar uses this and the Black-76 pricer for diagnostic comparison; model values remain separate from fills, settlement, and portfolio P&L.
+This helper does not select or calibrate volatility, resolve rates/yield, determine day-count conventions, or price American exercise. The caller-input BSM and Black-76 formulas have an offline R11 validation harness and a separate pinned QuantLib comparison; this does not validate market inputs or exercise/settlement assumptions. An optional replay valuation sidecar uses these pricers for diagnostic comparison; model values remain separate from fills, settlement, and portfolio P&L.
+
+To reproduce the 22-case reference, boundary, and no-arbitrage checks, use JDK 21 and run from the repository root:
+
+```powershell
+& .\Intra-Paper-System\validate-option-pricers.ps1
+```
+
+Run the required independent-library comparison from a separate Python environment:
+
+```powershell
+python -m venv $env:TEMP\intra-quantlib-validation
+& $env:TEMP\intra-quantlib-validation\Scripts\python.exe -m pip install -r .\research\systems\option-pricing-benchmark\requirements-quantlib.txt
+& $env:TEMP\intra-quantlib-validation\Scripts\python.exe .\research\systems\option-pricing-benchmark\quantlib_crosscheck.py
+```
+
+The harness is compiled outside the runtime JAR. Both commands are offline after dependencies have been installed. Fixture provenance, rounding-based tolerances, Greek-unit conversions, and the QuantLib model mapping are documented in `research/systems/option-pricing-benchmark/README.md`.
 
 ## Option valuation alongside premium-bar replay
 

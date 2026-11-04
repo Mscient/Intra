@@ -1,0 +1,2 @@
+# Independent offline validation dependency; this does not enter the Java runtime.
+QuantLib==1.44
