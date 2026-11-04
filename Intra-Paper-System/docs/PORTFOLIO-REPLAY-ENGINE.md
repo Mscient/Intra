@@ -2,6 +2,8 @@
 
 `PortfolioReplayEngine` connects exact-time frames from `SynchronizedBarFrameBuilder` to the standalone `PortfolioAccountingLedger`. It is an offline in-memory API for replay research; it is not a broker simulator or order route.
 
+`ValidatedPortfolioDataset.load` accepts a map from stable instrument ID to a pair of normalized bar CSV and existing single-contract run-properties file. It calls `RunConfig.load` and `ValidatedDataset.load` separately for every contract, rejects any dataset whose actual dated instrument ID differs from its map key, and then requires exact synchronized timestamps through `SynchronizedBarFrameBuilder`. The existing validator checks each contract's dated master, session calendar, source metadata, market-rule regime, OHLC/tick values, and any configured optional inputs before the portfolio is assembled. The loader accepts BAR_START only. No bar is forward-filled or interpolated. The resulting canonical dataset fingerprint binds every validated bar/config/calendar/master/rule/input hash and caller-declared data-rights metadata; `PortfolioReplayEngine.run(ValidatedPortfolioDataset)` records it in the result and replay fingerprint.
+
 ## Timing and no-lookahead boundary
 
 - Version 1 accepts only BAR_START frames. All frame timestamps and the supported interval must be explicit.
@@ -22,6 +24,6 @@ Pending targets at a session transition must either be cancelled or explicitly a
 
 Results include decisions, intents/outcomes, simulated executions, opening/closing portfolio snapshots, strategy/fill parameters, caller configuration, input/fingerprint hashes, and build commit. Classification is always `REPLAY_DIAGNOSTIC_ONLY`; `performanceClaimEligible()` is always false.
 
-This API consumes in-memory frames. It does not load multiple per-contract `ValidatedDataset` objects, write a content-addressed run folder, calculate exchange costs/taxes/margin, settle expiry, enforce independent portfolio risk, or validate data rights/completeness. Strategies and fill models must be deterministic for a repeated run; their identifiers and parameters are recorded, but their behavior cannot be proven deterministic by the engine. Long/short targets are accounting/research inputs only and imply no trading authorization. No broker, network, live-feed, or order-submission capability is present.
+The validated loader consumes a caller-supplied list of existing per-contract files, but no command-line portfolio configuration or content-addressed portfolio run-artifact writer is available yet. The replay does not calculate exchange costs/taxes/margin, settle expiry, enforce independent portfolio risk, or establish data rights/completeness beyond the existing caller-supplied validation checks. Strategies and fill models must be deterministic for a repeated run; their identifiers and parameters are recorded, but their behavior cannot be proven deterministic by the engine. Long/short targets are accounting/research inputs only and imply no trading authorization. No broker, network, live-feed, or order-submission capability is present.
 
 Run focused checks with `.\test-portfolio-replay-engine.ps1` in PowerShell under JDK 21.

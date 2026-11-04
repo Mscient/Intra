@@ -3,6 +3,7 @@ package com.mscient.intrapaper.simulation.portfolio;
 import com.mscient.intrapaper.data.Bar;
 import com.mscient.intrapaper.data.IntervalSupport;
 import com.mscient.intrapaper.data.SynchronizedBarFrameBuilder;
+import com.mscient.intrapaper.data.ValidatedPortfolioDataset;
 import com.mscient.intrapaper.provenance.BuildInfo;
 import com.mscient.intrapaper.provenance.CrossSessionPositionPolicy;
 import com.mscient.intrapaper.reference.TimestampRole;
@@ -116,6 +117,7 @@ public final class PortfolioReplayEngine {
     public record Result(String strategyId, Map<String, String> strategyParameters,
             String fillModelId, Map<String, String> fillModelParameters,
             String buildCommit, Config config,
+            String validatedDatasetsSha256,
             String frameInputsSha256, String strategyFingerprintSha256,
             String fillModelFingerprintSha256, String replayFingerprintSha256,
             List<DecisionRecord> decisions, List<OrderOutcome> orders,
@@ -152,6 +154,16 @@ public final class PortfolioReplayEngine {
     }
 
     public Result run(List<SynchronizedBarFrameBuilder.Frame> inputFrames) {
+        return run(inputFrames, "");
+    }
+
+    /** Replays only frames backed by individually validated datasets and records their provenance hash. */
+    public Result run(ValidatedPortfolioDataset dataset) {
+        Objects.requireNonNull(dataset, "dataset");
+        return run(dataset.frames(), dataset.datasetsSha256());
+    }
+
+    private Result run(List<SynchronizedBarFrameBuilder.Frame> inputFrames, String validatedDatasetsSha256) {
         List<SynchronizedBarFrameBuilder.Frame> frames = List.copyOf(
                 Objects.requireNonNull(inputFrames, "inputFrames"));
         if (frames.isEmpty()) throw new IllegalArgumentException("Portfolio replay requires frames");
@@ -166,7 +178,8 @@ public final class PortfolioReplayEngine {
         String strategyHash = hashIdentity("INTRA_PORTFOLIO_STRATEGY_V1", strategy.id(), strategyParameters);
         String fillHash = hashIdentity("INTRA_PORTFOLIO_FILL_MODEL_V1", fillModel.id(), fillParameters);
         String buildCommit = BuildInfo.commitId();
-        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V1", List.of(buildCommit, framesHash, strategyHash,
+        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V1", List.of(buildCommit,
+                validatedDatasetsSha256, framesHash, strategyHash,
                 fillHash, config.maxAbsLotsByInstrument().toString(), config.pendingIntentBoundaryPolicy().name(),
                 config.positionBoundaryPolicy().name(), Boolean.toString(config.requireContiguousFramesWithinSession())));
 
@@ -280,6 +293,7 @@ public final class PortfolioReplayEngine {
         }
 
         return new Result(strategy.id(), strategyParameters, fillModel.id(), fillParameters, buildCommit, config,
+                validatedDatasetsSha256,
                 framesHash, strategyHash, fillHash, replayHash, decisions, orderOutcomes,
                 executions, snapshots, "REPLAY_DIAGNOSTIC_ONLY");
     }
