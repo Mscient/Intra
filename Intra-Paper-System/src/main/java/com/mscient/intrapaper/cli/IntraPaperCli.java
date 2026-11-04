@@ -2,6 +2,7 @@ package com.mscient.intrapaper.cli;
 
 import com.mscient.intrapaper.data.ValidatedDataset;
 import com.mscient.intrapaper.data.SmartApiCandleImporter;
+import com.mscient.intrapaper.data.InstrumentMasterCsvReader;
 import com.mscient.intrapaper.evaluation.EvaluationSplitPlan;
 import com.mscient.intrapaper.evaluation.OfflineEvaluationAnalyzer;
 import com.mscient.intrapaper.evaluation.ResearchTrialBinding;
@@ -11,6 +12,8 @@ import com.mscient.intrapaper.marketdata.QuoteJournalReader;
 import com.mscient.intrapaper.marketdata.QuoteJournalQualityAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteFeatureCsvExporter;
 import com.mscient.intrapaper.marketdata.RawCaptureJournalReader;
+import com.mscient.intrapaper.marketdata.RawCaptureQuoteImporter;
+import com.mscient.intrapaper.marketdata.SmartApiV2NfoSnapQuoteDecoder;
 import com.mscient.intrapaper.marketdata.RawCaptureClockAnalyzer;
 import com.mscient.intrapaper.marketdata.QuoteQualityFlag;
 import com.mscient.intrapaper.marketdata.QuoteQualityPolicy;
@@ -139,6 +142,18 @@ public final class IntraPaperCli {
                         summary.eventCount(), summary.upstreamSequencedEventCount(), summary.upstreamSequenceStreamCount(),
                         summary.upstreamSequenceGapCount(), summary.missingUpstreamSequenceNumbers(),
                         summary.nonIncreasingUpstreamSequenceTransitions(), summary.bytesRead(), summary.finalHashHex());
+                return;
+            }
+            if (args.length == 4 && args[0].equals("raw-capture-import-smartapi-nfo-snap")) {
+                RunConfig config = RunConfig.load(Path.of(args[2]));
+                var instrumentMaster = InstrumentMasterCsvReader.read(config);
+                var imported = RawCaptureQuoteImporter.importJournal(Path.of(args[1]), Path.of(args[3]),
+                        new SmartApiV2NfoSnapQuoteDecoder(instrumentMaster));
+                System.out.printf("IMPORTED OFFLINE SMARTAPI NFO SNAP QUOTES: raw_messages=%d; quote_snapshots=%d; "
+                                + "instrument_master_sha256=%s; raw_final_hash=%s; quote_final_hash=%s; output=%s%n",
+                        imported.rawCapture().eventCount(), imported.normalizedQuoteCount(),
+                        instrumentMaster.rawFileSha256(), imported.rawCapture().finalHashHex(),
+                        imported.normalizedJournal().finalHashHex(), Path.of(args[3]).toAbsolutePath().normalize());
                 return;
             }
             if (args.length == 3 && args[0].equals("raw-capture-clock-report")) {
@@ -393,6 +408,7 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar quote-order-replay <quote-journal> <intents.csv> <maximum-age-ms> <maximum-future-skew-ms> <output-root>\n"
                 + "  java -jar intra-paper-system.jar quote-order-replay-verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-verify <raw-capture-journal>\n"
+                + "  java -jar intra-paper-system.jar raw-capture-import-smartapi-nfo-snap <raw-capture-journal> <run.properties> <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar raw-capture-clock-report <raw-capture-journal> <maximum-wall-monotonic-divergence-ms>\n"
                 + "  java -jar intra-paper-system.jar feed-lifecycle-report <feed-lifecycle-journal>\n"
                 + "  java -jar intra-paper-system.jar feed-capture-reconcile <feed-lifecycle-journal> <raw-capture-journal> <allowed-wall-clock-skew-ms>\n"
@@ -417,6 +433,7 @@ public final class IntraPaperCli {
                 + "quote-order-replay verifies a quote journal, replays strict IOC intents offline, and atomically writes a content-addressed run folder.\n"
                 + "quote-order-replay-verify checks the saved manifest content ID and outcome CSV hash; source inputs are not bundled.\n"
                 + "raw-capture-verify checks exact-payload capture framing and its SHA-256 chain; it makes no network connection.\n"
+                + "raw-capture-import-smartapi-nfo-snap decodes documented 379-byte Snap Quote packets offline using the dated NFO instrument master in run.properties; only NFO packets and explicit token mappings are accepted.\n"
                 + "raw-capture-clock-report compares wall and monotonic elapsed time per connection using a caller threshold; it does not verify UTC offset or feed completeness.\n"
                 + "feed-lifecycle-report verifies a separate connection/subscription lifecycle journal and reports state anomalies; it makes no network connection.\n"
                 + "feed-capture-reconcile cross-checks raw message receive times against acknowledged subscription windows using a caller-supplied skew tolerance; it is diagnostic and does not certify completeness.\n"
