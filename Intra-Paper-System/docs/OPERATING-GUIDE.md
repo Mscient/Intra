@@ -1,5 +1,7 @@
 # Offline Backtest Operating Guide
 
+The separate offline K0–K3 stop-policy state machine is documented in [OPERATIONAL-KILL-CONTROLLER.md](OPERATIONAL-KILL-CONTROLLER.md). It produces recommended responses from caller-supplied health observations and human attestations; it is not a live watchdog, independent risk service, broker control, order-cancel mechanism, or process kill path.
+
 ## Commands
 
 Build with JDK 21 from the repository root:
