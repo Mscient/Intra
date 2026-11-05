@@ -201,6 +201,8 @@ public final class PortfolioReplayEngine {
         this.executionCostSchedule = Objects.requireNonNull(executionCostSchedule, "executionCostSchedule");
         this.settlementEvents = Objects.requireNonNull(settlementEvents);
         this.settlementCostSchedule = Objects.requireNonNull(settlementCostSchedule);
+        if (fillModel instanceof PortfolioReplayLifecycle && config.settlementPolicy() != PortfolioSettlementPolicy.NONE)
+            throw new IllegalArgumentException("Risk lifecycle replay cannot translate cash settlement into an order fill; use settlement_policy=NONE");
         if ((config.settlementPolicy() != PortfolioSettlementPolicy.NONE) != settlementEvents.isPresent()
                 || (settlementEvents.isEmpty() && settlementCostSchedule.isPresent()))
             throw new IllegalArgumentException("Settlement inputs conflict with settlement policy");
@@ -266,6 +268,15 @@ public final class PortfolioReplayEngine {
         for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
             SynchronizedBarFrameBuilder.Frame frame = frames.get(frameIndex);
             List<PortfolioExecution> frameExecutions = new ArrayList<>();
+            if (fillModel instanceof PortfolioReplayLifecycle lifecycle) {
+                Map<String, Long> units = new TreeMap<>();
+                Map<String, Integer> lots = new TreeMap<>();
+                for (String instrument : instruments) {
+                    units.put(instrument, previousSnapshot == null ? 0L : previousSnapshot.positions().get(instrument).signedUnits());
+                    lots.put(instrument, frame.barsByInstrument().get(instrument).lotSize());
+                }
+                lifecycle.beforeFrame(frame.timestamp(), frame.sessionDate(), units, lots);
+            }
             if (pending != null) {
                 if (!pending.decisionSessionDate().equals(frame.sessionDate())
                         && config.pendingIntentBoundaryPolicy() == PendingIntentBoundaryPolicy.CANCEL_AT_SESSION_BOUNDARY) {
@@ -297,44 +308,53 @@ public final class PortfolioReplayEngine {
                     PortfolioFillModel.OpeningMarketPoint opening = new PortfolioFillModel.OpeningMarketPoint(
                             instrumentId, frame.timestamp(), frame.sessionDate(), bar.contractKind(),
                             bar.open(), bar.tickSize(), bar.lotSize());
-                    Optional<PortfolioFillModel.Fill> fill = Objects.requireNonNull(
-                            fillModel.fill(intent, opening), "fill model result");
-                    if (fill.isEmpty()) {
-                        orderOutcomes.add(new OrderOutcome(intent, OrderStatus.MISSED, 0, Optional.empty()));
-                        continue;
-                    }
-                    PortfolioFillModel.Fill filled = fill.orElseThrow();
-                    if (filled.quantityUnits() > requestedUnits
-                            || filled.quantityUnits() % bar.lotSize() != 0
-                            || filled.price().remainder(bar.tickSize()).signum() != 0) {
-                        throw new IllegalArgumentException("Fill model returned a quantity or price outside the dated contract constraints");
-                    }
-                    long signedFilled = side == PortfolioExecution.Side.BUY
-                            ? filled.quantityUnits() : -filled.quantityUnits();
-                    long resultingUnits = Math.addExact(currentUnits, signedFilled);
-                    if (Math.abs(resultingUnits) > maxUnits) {
-                        throw new IllegalArgumentException("Fill would exceed configured per-instrument position limit: " + instrumentId);
-                    }
-                    BigDecimal tradedValue = filled.price().multiply(BigDecimal.valueOf(filled.quantityUnits()));
-                    PortfolioExecutionFeeBreakdown feeBreakdown;
-                    if (executionCostSchedule.isPresent()) {
-                        if (filled.feeInr().signum() != 0) {
-                            throw new IllegalArgumentException("Fill-model fee must be zero when a dated execution cost schedule is enabled");
+                    try {
+                        Optional<PortfolioFillModel.Fill> fill = Objects.requireNonNull(
+                                fillModel.fill(intent, opening), "fill model result");
+                        if (fill.isEmpty()) {
+                            OrderOutcome outcome = new OrderOutcome(intent, OrderStatus.MISSED, 0, Optional.empty());
+                            if (fillModel instanceof PortfolioReplayLifecycle lifecycle) lifecycle.afterOutcome(outcome);
+                            orderOutcomes.add(outcome);
+                            continue;
                         }
-                        feeBreakdown = executionCostSchedule.orElseThrow().calculate(frame.sessionDate(), instrumentId,
-                                bar.contractKind(), side, filled.price(), filled.quantityUnits()).breakdown();
-                    } else {
-                        feeBreakdown = PortfolioExecutionFeeBreakdown.legacy(fillModel.id(), frame.sessionDate(),
-                                bar.contractKind(), tradedValue, filled.feeInr());
+                        PortfolioFillModel.Fill filled = fill.orElseThrow();
+                        if (filled.quantityUnits() > requestedUnits
+                                || filled.quantityUnits() % bar.lotSize() != 0
+                                || filled.price().remainder(bar.tickSize()).signum() != 0) {
+                            throw new IllegalArgumentException("Fill model returned a quantity or price outside the dated contract constraints");
+                        }
+                        long signedFilled = side == PortfolioExecution.Side.BUY
+                                ? filled.quantityUnits() : -filled.quantityUnits();
+                        long resultingUnits = Math.addExact(currentUnits, signedFilled);
+                        if (Math.abs(resultingUnits) > maxUnits) {
+                            throw new IllegalArgumentException("Fill would exceed configured per-instrument position limit: " + instrumentId);
+                        }
+                        BigDecimal tradedValue = filled.price().multiply(BigDecimal.valueOf(filled.quantityUnits()));
+                        PortfolioExecutionFeeBreakdown feeBreakdown;
+                        if (executionCostSchedule.isPresent()) {
+                            if (filled.feeInr().signum() != 0) {
+                                throw new IllegalArgumentException("Fill-model fee must be zero when a dated execution cost schedule is enabled");
+                            }
+                            feeBreakdown = executionCostSchedule.orElseThrow().calculate(frame.sessionDate(), instrumentId,
+                                    bar.contractKind(), side, filled.price(), filled.quantityUnits()).breakdown();
+                        } else {
+                            feeBreakdown = PortfolioExecutionFeeBreakdown.legacy(fillModel.id(), frame.sessionDate(),
+                                    bar.contractKind(), tradedValue, filled.feeInr());
+                        }
+                        PortfolioExecution execution = new PortfolioExecution("PX-" + (++executionSequence),
+                                executionSequence, instrumentId, frame.timestamp(), side,
+                                filled.quantityUnits(), filled.price(), feeBreakdown.totalFeeInr(), Optional.of(feeBreakdown));
+                        frameExecutions.add(execution);
+                        executions.add(execution);
+                        OrderStatus status = filled.quantityUnits() == requestedUnits
+                                ? OrderStatus.FILLED : OrderStatus.PARTIAL;
+                        OrderOutcome outcome = new OrderOutcome(intent, status, filled.quantityUnits(), Optional.of(execution));
+                        if (fillModel instanceof PortfolioReplayLifecycle lifecycle) lifecycle.afterOutcome(outcome);
+                        orderOutcomes.add(outcome);
+                    } catch (RuntimeException failure) {
+                        if (fillModel instanceof PortfolioReplayLifecycle lifecycle) lifecycle.executionUncertain(intent, failure);
+                        throw failure;
                     }
-                    PortfolioExecution execution = new PortfolioExecution("PX-" + (++executionSequence),
-                            executionSequence, instrumentId, frame.timestamp(), side,
-                            filled.quantityUnits(), filled.price(), feeBreakdown.totalFeeInr(), Optional.of(feeBreakdown));
-                    frameExecutions.add(execution);
-                    executions.add(execution);
-                    OrderStatus status = filled.quantityUnits() == requestedUnits
-                            ? OrderStatus.FILLED : OrderStatus.PARTIAL;
-                    orderOutcomes.add(new OrderOutcome(intent, status, filled.quantityUnits(), Optional.of(execution)));
                 }
             }
 
@@ -343,6 +363,11 @@ public final class PortfolioReplayEngine {
             PortfolioAccountingLedger.Snapshot closeSnapshot = ledger.markToClose(frame);
             snapshots.add(closeSnapshot);
             previousSnapshot = closeSnapshot;
+            if (fillModel instanceof PortfolioReplayLifecycle lifecycle) {
+                Map<String, Long> units = new TreeMap<>();
+                closeSnapshot.positions().forEach((id, position) -> units.put(id, position.signedUnits()));
+                lifecycle.afterFrame(units);
+            }
 
             if (frameIndex + 1 == frames.size()) {
                 if (settlementEvents.isPresent()) {

@@ -30,6 +30,12 @@ public final class PortfolioReplayCsvRunner {
     private PortfolioReplayCsvRunner() { }
 
     public static Replay replay(Path inputManifest, Path propertiesPath) throws IOException {
+        return replay(inputManifest, propertiesPath, java.util.function.UnaryOperator.identity());
+    }
+
+    /** Allows a separate offline adapter to wrap execution before any fill model is called. */
+    public static Replay replay(Path inputManifest, Path propertiesPath,
+            java.util.function.UnaryOperator<PortfolioFillModel> fillAdapter) throws IOException {
         Path inputsPath = inputManifest.toAbsolutePath().normalize();
         Path settingsPath = propertiesPath.toAbsolutePath().normalize();
         CsvTable table = CsvTable.read(inputsPath);
@@ -104,7 +110,7 @@ public final class PortfolioReplayCsvRunner {
         PortfolioReplayEngine.Config config = new PortfolioReplayEngine.Config(maxLots, pendingPolicy,
                 positionPolicy, contiguous, settlementPolicy, settlementTargets);
         PortfolioStrategy strategy = new PortfolioSmaCrossoverStrategy(fast, slow, longLots);
-        PortfolioFillModel fillModel = new OpeningPriceIocFillModel(slippageTicks, fee);
+        PortfolioFillModel fillModel = java.util.Objects.requireNonNull(fillAdapter.apply(new OpeningPriceIocFillModel(slippageTicks, fee)));
         PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel, costSchedule,
                 settlementEvents, settlementCosts).run(dataset);
         return new Replay(dataset, result);

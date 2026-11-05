@@ -1,0 +1,3 @@
+market_rule_regime_id,effective_from,effective_through,exchange,segment,contract_kind,timezone,session_open_local,session_close_local,preopen_enabled,preopen_start_local,preopen_end_local,expiry_weekday,holiday_expiry_shift,lot_size,tick_size,expiry_elm_addon_percent,calendar_spread_expiry_eligible,source_reference,source_published_date,source_sha256,verification_status
+F-RULE,2030-01-01,,SYN,DERIV,FUTURE,Asia/Kolkata,09:15,09:19,false,,,,,1,0.05,,,synthetic-rule,,,SYNTHETIC_ONLY
+O-RULE,2030-01-01,,SYN,DERIV,OPTION,Asia/Kolkata,09:15,09:19,false,,,,,1,0.05,,,synthetic-rule,,,SYNTHETIC_ONLY

@@ -1,0 +1,3 @@
+instrument_id,bars_csv,run_properties,max_abs_lots
+F,future.csv,future.properties,3
+O,option.csv,option.properties,3

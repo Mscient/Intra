@@ -1,5 +1,7 @@
 # Multi-instrument portfolio replay engine
 
+For optional pre-execution checks through the Task 2 gateway, see the separate [offline risk adapter and runner](PORTFOLIO-RISK-REPLAY.md), including exact-frame inputs, lifecycle feedback and reproducible risk provenance.
+
 `PortfolioReplayEngine` connects exact-time frames from `SynchronizedBarFrameBuilder` to the standalone `PortfolioAccountingLedger`. It is an offline in-memory API for replay research; it is not a broker simulator or order route.
 
 `ValidatedPortfolioDataset.load` accepts a map from stable instrument ID to a pair of normalized bar CSV and existing single-contract run-properties file. It calls `RunConfig.load` and the shared `ValidatedDataset` checks in a dedicated portfolio settlement context for every contract, rejects any dataset whose actual dated instrument ID differs from its map key, and then requires exact synchronized timestamps through `SynchronizedBarFrameBuilder`. The existing validator checks each contract's dated master, session calendar, source metadata, market-rule regime, OHLC/tick values, and any configured optional inputs before the portfolio is assembled. The loader accepts BAR_START only. No bar is forward-filled or interpolated. The resulting canonical dataset fingerprint binds every validated bar/config/calendar/master/rule/input hash and caller-declared data-rights metadata; `PortfolioReplayEngine.run(ValidatedPortfolioDataset)` records it in the result and replay fingerprint.

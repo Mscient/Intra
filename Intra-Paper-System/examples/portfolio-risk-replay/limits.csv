@@ -1,0 +1,2 @@
+currency,max_gross_notional_inr,max_margin_proxy_inr,max_daily_loss_inr,maximum_input_age_seconds
+INR,10000,150,1000,60

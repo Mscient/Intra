@@ -1,0 +1,3 @@
+instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through
+F,SYN,DERIV,F-TOKEN,SYN-FUT,FUTURE,SYNTHETIC,2030-05-30,,,1,0.05,2030-01-01,
+O,SYN,DERIV,O-TOKEN,SYN-CALL,OPTION,SYNTHETIC,2030-05-30,100,CALL,1,0.05,2030-01-01,
