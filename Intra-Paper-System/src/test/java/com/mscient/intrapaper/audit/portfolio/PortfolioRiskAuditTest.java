@@ -17,6 +17,7 @@ public final class PortfolioRiskAuditTest {
         try {
             arithmeticAndCoverage(root.resolve("unit"));
             endToEnd(root.resolve("e2e"), Path.of(args[0]));
+            settlementCheckpoints(root.resolve("settlement"), Path.of(args[0]));
         } finally { PortfolioRiskAudit.cleanup(root); }
         System.out.println("PortfolioRiskAudit: " + checks + " focused checks passed");
     }
@@ -122,6 +123,92 @@ public final class PortfolioRiskAuditTest {
         fails(() -> PortfolioRiskCalculator.calculate(frames.subList(1, frames.size()), replay, RiskInputs.load(folder)), "frame/snapshot mismatch rejected");
     }
 
+    private static void settlementCheckpoints(Path root, Path project) throws Exception {
+        Files.createDirectories(root);
+        try (var files = Files.list(project.resolve("examples/portfolio-settlement"))) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) Files.copy(file, root.resolve(file.getFileName()));
+        }
+        Path risk = root.resolve("risk"); Files.createDirectory(risk);
+        writeRisk(risk, List.of("F", "O"), "2030-05-06", "2030-05-06");
+        Path inputs = root.resolve("inputs.csv"), settings = root.resolve("portfolio.properties");
+        Path run = PortfolioReplayCsvRunner.run(inputs, settings, root.resolve("runs")).path();
+        var audit = PortfolioRiskAudit.audit(run, inputs, settings, risk, root.resolve("audits"));
+        require(audit.status().equals("PASS"), "settlement-bearing replay is audited");
+        require(PortfolioRiskAudit.verify(audit.path(), run, inputs, settings, risk).equals(audit), "settlement audit deterministic bytes");
+        var checkpoints = CsvTable.read(audit.path().resolve("checkpoints.csv")).rows();
+        var last = checkpoints.getLast();
+        require(checkpoints.size() == 9 && last.get("phase").equals("SETTLEMENT"), "same-time events produce one audit checkpoint");
+        require(last.get("net_pnl_inr").equals("-4.83") && last.get("session_pnl_inr").equals("-4.83"), "settlement proceeds and all fees enter session loss once");
+        require(last.get("gross_notional_inr").equals("0") && last.get("caller_supplied_margin_proxy_inr").equals("0"), "settled positions have zero exposure and proxy");
+        var eventRows = CsvTable.read(audit.path().resolve("settlement-reconciliation.csv")).rows();
+        var chargeRows = CsvTable.read(audit.path().resolve("settlement-charges.csv")).rows();
+        require(eventRows.size() == 2 && chargeRows.size() == 3, "audit publishes each integrated event and charge once");
+        require(eventRows.getFirst().get("settlement_mark_adjustment_inr").equals("7")
+                && eventRows.getLast().get("settlement_mark_adjustment_inr").equals("-8"), "bridge distinguishes marked adjustment from realized gross P&L");
+        require(Files.readString(audit.path().resolve("summary.properties")).contains("input_classification=CALLER_SUPPLIED_UNAUTHENTICATED"), "summary preserves unauthenticated input label");
+        require(Files.readString(audit.path().resolve("audit-manifest.properties")).startsWith("schema_version=2\n"), "settlement audit uses version two contract");
+        Path chargeOutput = audit.path().resolve("settlement-charges.csv"); byte[] chargeBytes = Files.readAllBytes(chargeOutput);
+        Files.writeString(chargeOutput, "tamper\n", StandardOpenOption.APPEND);
+        fails(() -> PortfolioRiskAuditArtifacts.verify(audit.path()), "separate charge artifact hash is verified");
+        Files.write(chargeOutput, chargeBytes);
+        String completeSettings = Files.readString(settings);
+        Files.writeString(settings, completeSettings.lines().filter(l -> !l.startsWith("portfolio.settlement_cost_schedule_csv="))
+                .reduce("", (a, b) -> a + b + "\n"));
+        Path omittedRun = PortfolioReplayCsvRunner.run(inputs, settings, root.resolve("runs")).path();
+        var omitted = PortfolioRiskAudit.audit(omittedRun, inputs, settings, risk, root.resolve("audits"));
+        require(omitted.status().equals("INCOMPLETE") && PortfolioRiskAuditCli.run(new String[]{"verify", omitted.path().toString(),
+                omittedRun.toString(), inputs.toString(), settings.toString(), risk.toString()}) == 3, "omitted charges preserve incomplete through full CLI verification");
+        var omittedLast = CsvTable.read(omitted.path().resolve("checkpoints.csv")).rows().getLast();
+        require(omittedLast.get("net_pnl_inr").isEmpty() && omittedLast.get("modeled_net_pnl_inr").equals("-3"), "unmodeled charges do not become a covered zero");
+        Files.writeString(settings, completeSettings);
+        String budgets = Files.readString(risk.resolve("budgets.csv"));
+        Files.writeString(risk.resolve("budgets.csv"), budgets.replace(",10000,10000,10000,0,10,", ",10000,4,10000,0,10,"));
+        var breached = PortfolioRiskAudit.audit(run, inputs, settings, risk, root.resolve("audits"));
+        var breaches = CsvTable.read(breached.path().resolve("breaches.csv")).rows();
+        require(breached.status().equals("BREACH") && breaches.size() == 1
+                && breaches.getFirst().get("phase").equals("SETTLEMENT") && breaches.getFirst().get("actual").equals("4.83"), "loss limit breached only by settlement and charges");
+        Files.writeString(risk.resolve("budgets.csv"), budgets);
+        Path eventFile = root.resolve("settlement-events.csv"); String originalEvents = Files.readString(eventFile);
+        Files.writeString(eventFile, originalEvents.replace("09:19:00+05:30,110", "09:20:00+05:30,110")
+                .replace("09:19:00+05:30,5", "09:21:00+05:30,5"));
+        Path delayedRun = PortfolioReplayCsvRunner.run(inputs, settings, root.resolve("runs")).path();
+        var delayed = PortfolioRiskAudit.audit(delayedRun, inputs, settings, risk, root.resolve("audits"));
+        var exposures = CsvTable.read(delayed.path().resolve("exposures.csv")).rows();
+        require(delayed.status().equals("INCOMPLETE") && exposures.stream().anyMatch(row -> row.get("phase").equals("SETTLEMENT")
+                && row.get("instrument_id").equals("O") && row.get("mark_coverage").equals("STALE_MARK")), "unsettled position retains the age of the last close");
+        require(exposures.stream().filter(row -> row.get("phase").equals("SETTLEMENT") && row.get("signed_units").equals("0"))
+                .allMatch(row -> row.get("mark_coverage").equals("NOT_REQUIRED_FLAT") && row.get("mark_price").isEmpty()), "no market price is fabricated for flat positions");
+        var delayedCheckpoints = CsvTable.read(delayed.path().resolve("checkpoints.csv")).rows();
+        require(delayedCheckpoints.size() == 10 && delayedCheckpoints.get(8).get("net_pnl_inr").isEmpty()
+                && delayedCheckpoints.getLast().get("net_pnl_inr").equals("-4.83"), "delayed groups retain unknown intermediate value and settle once");
+        Files.writeString(eventFile, originalEvents.replace(",110,false", ",-2,false").replace(",5,true", ",0,true"));
+        var replay = PortfolioReplayCsvRunner.replay(inputs, settings);
+        var supplied = PortfolioSettlementEvents.load(eventFile);
+        for (int sign : List.of(1, -1)) {
+            PortfolioStrategy strategy = new PortfolioStrategy() {
+                public String id() { return "signed-settlement-risk"; }
+                public Map<String, String> parameters() { return Map.of("sign", Integer.toString(sign)); }
+                public PortfolioTarget evaluate(List<SynchronizedBarFrameBuilder.Frame> seen, Instant at, PortfolioAccountingLedger.Snapshot snapshot) {
+                    int quantity = sign * (seen.size() == 1 ? 2 : 1);
+                    return new PortfolioTarget(Map.of("F", quantity, "O", quantity), "partial exit before settlement");
+                }
+            };
+            var result = new PortfolioReplayEngine(replay.result().config(), strategy, new OpeningPriceIocFillModel(0, BigDecimal.ONE),
+                    Optional.empty(), Optional.of(supplied), Optional.empty()).run(replay.dataset());
+            var report = PortfolioRiskCalculator.calculate(replay.dataset().frames(), result, RiskInputs.load(risk));
+            Path totals = root.resolve("signed-checkpoints.csv"); Files.writeString(totals, report.files().get("checkpoints.csv"));
+            var terminal = CsvTable.read(totals).rows().getLast();
+            require(terminal.get("modeled_net_pnl_inr").equals(sign > 0 ? "-116" : "108"), "signed residual future/option settlement reconciles after partial exit");
+            require(report.status().equals("INCOMPLETE") && terminal.get("net_pnl_inr").isEmpty(), "omitted charges remain unknown");
+        }
+        Files.writeString(eventFile, originalEvents);
+        Path output = audit.path().resolve("checkpoints.csv"); byte[] saved = Files.readAllBytes(output);
+        Files.writeString(output, "tamper\n", StandardOpenOption.APPEND);
+        fails(() -> PortfolioRiskAuditArtifacts.verify(audit.path()), "settlement checkpoint artifact tampering rejected");
+        Files.write(output, saved);
+        Files.writeString(eventFile, originalEvents.replace("synthetic-future-value", "changed source"));
+        fails(() -> PortfolioRiskAudit.verify(audit.path(), run, inputs, settings, risk), "settlement provenance change invalidates risk audit");
+    }
     private static void endToEnd(Path root, Path project) throws Exception {
         Files.createDirectories(root);
         try (var paths = Files.list(project.resolve("examples"))) {
@@ -145,6 +232,19 @@ public final class PortfolioRiskAuditTest {
         require(first.equals(repeated), "same inputs reproduce identical audit and reuse verified artifact");
         require(PortfolioRiskAudit.verify(first.path(), run, inputs, settings, risk).equals(first), "semantic verifier recomputes all bytes");
         require(PortfolioRiskAuditCli.run(new String[]{"verify-artifact", first.path().toString()}) == 0, "dedicated entrypoint verifies");
+        // Legacy layout remains integrity-verifiable; it does not acquire settlement coverage.
+        var legacyFiles = new TreeMap<String, byte[]>();
+        for (String name : List.of("breaches.csv", "checkpoints.csv", "coverage.csv", "exposures.csv", "inputs.csv",
+                "reconciliation.csv", "risk-budgets.csv", "risk-limits.csv", "risk-margin-proxies.csv", "risk-sources.csv", "summary.properties"))
+            legacyFiles.put(name, Files.readAllBytes(first.path().resolve(name)));
+        StringBuilder legacyManifest = new StringBuilder("schema_version=1\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\nmargin_classification=CALLER_SUPPLIED_PROXIES\nstatus=PASS\n");
+        legacyFiles.forEach((name, bytes) -> legacyManifest.append("sha256.").append(name).append('=').append(RiskInputs.hash(bytes)).append('\n'));
+        byte[] legacyBytes = PortfolioRiskAudit.utf8(legacyManifest.toString());
+        Path legacy = output.resolve(RiskInputs.hash(legacyBytes)); Files.createDirectory(legacy);
+        for (var file : legacyFiles.entrySet()) Files.write(legacy.resolve(file.getKey()), file.getValue());
+        Files.write(legacy.resolve("audit-manifest.properties"), legacyBytes);
+        require(PortfolioRiskAuditArtifacts.verify(legacy).status().equals("PASS"), "version one layout still supports integrity verification");
+        fails(() -> PortfolioRiskAudit.verify(legacy, run, inputs, settings, risk), "legacy integrity does not imply current semantic equivalence");
         String limits = Files.readString(risk.resolve("limits.csv"));
         Files.writeString(risk.resolve("limits.csv"), limits.replace(",2,10000,", ",0,0,"));
         fails(() -> PortfolioRiskAudit.verify(first.path(), run, inputs, settings, risk), "changed risk hashes rejected by semantic verifier");

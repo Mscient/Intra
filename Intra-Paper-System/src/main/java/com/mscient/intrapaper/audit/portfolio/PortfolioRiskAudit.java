@@ -69,6 +69,8 @@ public final class PortfolioRiskAudit {
         saved.outputSha256().forEach((name, hash) -> hashes.put("run/" + name, hash));
         risk.files.forEach((name, bytes) -> hashes.put("risk/" + name, RiskInputs.hash(bytes)));
         replay.result().executionCostScheduleSourceFileSha256().ifPresent(hash -> hashes.put("execution_cost_schedule", hash));
+        replay.result().settlementEventsSourceFileSha256().ifPresent(hash -> hashes.put("settlement_events", hash));
+        replay.result().settlementCostScheduleSourceFileSha256().ifPresent(hash -> hashes.put("settlement_cost_schedule", hash));
         replay.dataset().datasetsByInstrument().forEach((id, data) -> {
             String prefix = "dataset/" + id + "/";
             hashes.put(prefix + "bars", data.barsSha256());
@@ -80,11 +82,17 @@ public final class PortfolioRiskAudit {
         });
         hashes.forEach((name, hash) -> PortfolioRiskCalculator.row(inputs, name, hash));
         files.put("inputs.csv", utf8(inputs.toString()));
-        String summary = "schema_version=1\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\n"
+        String summary = "schema_version=2\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\n"
+                + "input_classification=CALLER_SUPPLIED_UNAUTHENTICATED\n"
                 + "margin_classification=CALLER_SUPPLIED_PROXIES\nstatus=" + report.status()
                 + "\nreplay_reconciliation=PASS\ncoverage_issue_count=" + report.coverageIssues()
                 + "\nbreach_count=" + report.breaches() + "\nframe_count=" + replay.dataset().frames().size()
-                + "\nexecution_count=" + replay.result().executions().size() + "\naudit_build=" + BuildInfo.commitId() + "\n";
+                + "\nexecution_count=" + replay.result().executions().size()
+                + "\nsettlement_count=" + replay.result().settlements().size()
+                + "\nsettlement_scope=" + replay.result().config().settlementPolicy()
+                + "\nsettlement_reconciliation=" + (replay.result().settlements().isEmpty() ? "NOT_REQUESTED" : "PASS")
+                + "\nsettlement_checkpoint_count=" + replay.result().settlements().stream().map(s -> s.event().timestamp()).distinct().count()
+                + "\ncheckpoint_count=" + replay.result().snapshots().size() + "\naudit_build=" + BuildInfo.commitId() + "\n";
         files.put("summary.properties", utf8(summary));
         risk.unchanged(riskFolder);
         if (!manifestHash.equals(RiskInputs.hash(Files.readAllBytes(inputManifest)))
