@@ -4,6 +4,7 @@ An isolated, offline-first Java 21 futures and options research simulator. Its e
 
 ## Built in this increment
 
+- Dedicated offline `PortfolioSettlementAuditCli` and `portfolio-settlement-audit.ps1` reconstruct completed portfolio runs and publish separate atomic settlement sidecars. Caller cash values support signed futures/options positions, exact final-mark adjustments, compatible dated settlement charges, and semantic/artifact verification. Replay outputs remain unchanged; exchange/broker source validation remains open. See [portfolio settlement audit](docs/PORTFOLIO-SETTLEMENT-AUDIT.md).
 - JDK 21 command-line application with `validate`, `run`, run-artifact `verify` and `oms-recover`, quote-journal `journal-verify`, `quote-quality-report`, `quote-feature-export`, `quote-order-replay` and its artifact verifier, raw-capture `raw-capture-verify`, `feed-lifecycle-report`, `feed-capture-reconcile`, and deterministic `replay-verify` commands.
 - Java API to import verified raw captures into normalized quote journals through caller-supplied offline decoders; the importer publishes only a fully verified journal and does not include a vendor adapter.
 - Separate hash-chained feed-lifecycle journal records sanitized connection, authentication, subscription, heartbeat, disconnect, and reconnect facts. Its analyzer reconstructs state and counts invalid transitions. It does not connect to a feed or establish market-data completeness.
