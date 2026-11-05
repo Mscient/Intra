@@ -52,6 +52,27 @@ public final class RiskGateway {
         return snapshot();
     }
 
+    /** Transaction candidate, including process-local rejected-proposal decisions. */
+    synchronized RiskGateway copyForPersistence() {
+        RiskGateway copy = new RiskGateway(configuration);
+        copy.positions.putAll(positions);
+        copy.orders.putAll(orders);
+        copy.marks.putAll(marks);
+        copy.markTimes.putAll(markTimes);
+        copy.openingPositions.putAll(openingPositions);
+        copy.openingMarks.putAll(openingMarks);
+        copy.tradeCashflows.putAll(tradeCashflows);
+        copy.history.addAll(history);
+        copy.eventsById.putAll(eventsById);
+        copy.proposalsById.putAll(proposalsById);
+        copy.decisionsById.putAll(decisionsById);
+        copy.sessionId = sessionId;
+        copy.lastEventAt = lastEventAt;
+        copy.dailyProfitLoss = dailyProfitLoss;
+        copy.dailyLossHalted = dailyLossHalted;
+        return copy;
+    }
+
     public synchronized void startSession(SessionStartEvent event) {
         applyEvent(event);
     }
@@ -286,7 +307,8 @@ public final class RiskGateway {
     private boolean exceedsPositionLimit(ExposureSummary summary) {
         for (Map.Entry<String, PositionRange> entry : summary.projectedPositionRanges().entrySet()) {
             InstrumentRiskSpec spec = configuration.instruments().get(entry.getKey());
-            if (spec == null || entry.getValue().maximumAbsolutePosition() > spec.maxAbsolutePosition()) {
+            if (spec == null || entry.getValue().minimum() == Long.MIN_VALUE
+                    || entry.getValue().maximumAbsolutePosition() > spec.maxAbsolutePosition()) {
                 return true;
             }
         }
@@ -840,7 +862,7 @@ public final class RiskGateway {
         }
 
         public long maximumAbsolutePosition() {
-            return Math.max(Math.abs(minimum), Math.abs(maximum));
+            return Math.max(Math.absExact(minimum), Math.absExact(maximum));
         }
     }
 
