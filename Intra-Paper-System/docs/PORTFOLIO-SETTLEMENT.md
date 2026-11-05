@@ -110,3 +110,5 @@ Artifact verification checks schemas, counts, membership, dates, identity, prove
 The sample buys one future at 103 and one option at 13, then settles at 110 and 5: gross P&L -1. Synthetic execution fees total 2. Settlement fees are 1.19 for the future and 0.64 for the option, including the declared rounding/GST; net P&L is -4.83. These numbers test plumbing only.
 
 The workflow does not implement independently expiring instrument universes, sliced settlement quantities, physical delivery, daily variation margin, collateral, broker account reconciliation, early-exercise decisions, price discovery, or exchange matching. No network or broker order route is added.
+
+The separate portfolio risk-audit command currently accepts bar-open/bar-close snapshots only and rejects settlement-bearing replays. Settlement arithmetic and final equity are verified by the portfolio artifact and deterministic verifiers; risk-limit auditing at settlement checkpoints is a separate integration task.
