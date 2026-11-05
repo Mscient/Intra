@@ -54,6 +54,7 @@ Research notes are prepared for all 15 listed books. Full-text reading remains i
 - Wave A status: the isolated Python runner is built and nine unit tests pass. It smoke-tested 104 consecutive 2 Nov candles through 10:58 IST, generated S01/S02 signals, and skipped S03 because the prior close was absent. This is a partial-session pipeline check, not a strategy backtest; full-session candles are still pending. Runs save a private report, signal ledger, and input-hash manifest locally.
 - Book backlog and access status: [research/BOOK_TRACKER.md](research/BOOK_TRACKER.md)
 - Session history: [research/sessions/](research/sessions/)
+- Standalone offline portfolio cash settlement audit: [schema, commands, reconciliation and limitations](Intra-Paper-System/docs/PORTFOLIO-SETTLEMENT-AUDIT.md). Completed replays can be reconstructed and reconciled to caller-supplied cash values with separate dated charge lines; exchange/broker source correctness and G2 evidence remain open.
 - Per-chat logging and commit procedure: [SESSION_PROTOCOL.md](SESSION_PROTOCOL.md)
 
 ## Source and text policy
