@@ -24,7 +24,7 @@ import static com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialIdentity
 
 /** Separate offline evaluator over registered, verified multi-instrument portfolio replay artifacts. */
 public final class PortfolioTrialEvaluationAnalyzer {
-    public static final String REPORT_SCHEMA = "INTRA_PORTFOLIO_TRIAL_EVALUATION_V1";
+    public static final String REPORT_SCHEMA = "INTRA_PORTFOLIO_TRIAL_EVALUATION_V2";
 
     public record SessionReturn(java.time.LocalDate sessionDate, EvaluationSplitPlan.Partition partition,
             BigDecimal realizedGrossPnlChangeInr, BigDecimal unrealizedPnlChangeInr, BigDecimal feesPaidInr,
@@ -35,7 +35,7 @@ public final class PortfolioTrialEvaluationAnalyzer {
             Map<String, String> outputSha256, BigDecimal startingCapitalInr, int instrumentCount,
             int developmentSessionCount, int validationSessionCount, int excludedHoldoutSessionCount,
             BigDecimal totalNetPnlInr, List<SessionReturn> sessions,
-            SessionReturnStatistics.TrialStatistics statistics) {
+            SessionReturnStatistics.TrialStatistics statistics, int includedSettlementCount, int excludedHoldoutSettlementCount) {
         public TrialReport { outputSha256 = Map.copyOf(outputSha256); sessions = List.copyOf(sessions); }
         public boolean performanceClaimEligible() { return false; }
     }
@@ -45,7 +45,8 @@ public final class PortfolioTrialEvaluationAnalyzer {
     public record Report(String trialLedgerFileSha256, String trialLedgerFinalSha256, int registeredTrialCount,
             String trialCatalogSha256, int catalogTrialCount, int comparisonFamilyTrialCount,
             String datasetSha256, String splitPlanSha256, BigDecimal startingCapitalInr,
-            SessionReturnStatistics.Summary statistics, List<TrialReport> trials, OutcomeProvenance outcomeHistory) {
+            SessionReturnStatistics.Summary statistics, List<TrialReport> trials, OutcomeProvenance outcomeHistory,
+            PortfolioTrialCatalog.ArtifactScope artifactScope) {
         public Report { trials = List.copyOf(trials); }
         public boolean performanceClaimEligible() { return false; }
 
@@ -62,8 +63,9 @@ public final class PortfolioTrialEvaluationAnalyzer {
                     "analyzed_trial_count", trials.size(), "comparison_family_trial_count", comparisonFamilyTrialCount,
                     "dataset_sha256", datasetSha256, "split_plan_sha256", splitPlanSha256,
                     "starting_capital_inr", startingCapitalInr,
+                    "artifact_scope", artifactScope.name(),
                     "return_formula", "r_t = (N_t - N_previous_session) / starting_capital_inr; N_before_first_session = 0",
-                    "portfolio_net_pnl_formula", "N_t = sum_instruments(realized_gross_pnl_inr + unrealized_pnl_inr - fees_inr) at the final BAR_CLOSE",
+                    "portfolio_net_pnl_formula", "N_t = sum_instruments(realized_gross_pnl_inr + unrealized_pnl_inr - fees_inr) at the final checkpoint of the session, including explicit settlements",
                     "return_basis", "fixed starting capital; simple, non-compounded; no capital inferred from P&L",
                     "included_partitions", List.of("DEVELOPMENT", "VALIDATION"),
                     "holdout_included", false, "holdout_data_used_for_calculation", false,
@@ -143,7 +145,7 @@ public final class PortfolioTrialEvaluationAnalyzer {
             requireEqual(row.trial().strategyId(), run.strategyId(), "registered portfolio strategy");
             requireEqual(row.trial().datasetSha256(), run.verification().validatedDatasetsSha256(), "registered portfolio dataset");
             requireEqual(row.trial().parameterConfigSha256(), run.parameterConfigSha256(), "registered portfolio parameters");
-            var series = PortfolioSessionReturns.read(folder, run, split, row.startingCapitalInr());
+            var series = PortfolioSessionReturns.read(folder, run, split, row.startingCapitalInr(), catalog.artifactScope());
             var checkedAgain = PortfolioReplayArtifactVerifier.verifyIntegrity(folder);
             if (!checkedAgain.equals(run.verification())) throw new IOException("Portfolio artifacts changed during evaluation");
             requireEqual(row.runManifestSha256(), PortfolioTrialIdentity.fileSha256(
@@ -190,7 +192,7 @@ public final class PortfolioTrialEvaluationAnalyzer {
                     trial.run().verification().outputSha256(), trial.catalog().startingCapitalInr(),
                     series.instrumentCount(), series.developmentSessionCount(), series.validationSessionCount(),
                     series.excludedHoldoutSessionCount(), series.totalNetPnlInr(), sessions,
-                    statistics.trials().get(index)));
+                    statistics.trials().get(index), series.includedSettlementCount(), series.excludedHoldoutSettlementCount()));
         }
         requireEqual(ledgerFileHash, PortfolioTrialIdentity.fileSha256(registrationLedger), "registration ledger changed during evaluation");
         requireEqual(catalog.sha256(), PortfolioTrialIdentity.fileSha256(catalogPath), "catalog changed during evaluation");
@@ -200,7 +202,7 @@ public final class PortfolioTrialEvaluationAnalyzer {
                 "outcome ledger changed during evaluation");
         return new Report(ledgerFileHash, finalLedgerHash, registrations.size(), catalog.sha256(),
                 catalog.trials().size(), familyCount, datasetHash, splitHash, first.catalog().startingCapitalInr(),
-                statistics, reports, outcome);
+                statistics, reports, outcome, catalog.artifactScope());
     }
 
     private static Map<String, Object> trialJson(TrialReport report, int familyCount) {
@@ -217,6 +219,7 @@ public final class PortfolioTrialEvaluationAnalyzer {
                 "starting_capital_inr", report.startingCapitalInr(), "instrument_count", report.instrumentCount(),
                 "development_session_count", report.developmentSessionCount(), "validation_session_count", report.validationSessionCount(),
                 "excluded_holdout_session_count", report.excludedHoldoutSessionCount(), "session_count", score.sessionCount(),
+                "included_settlement_count", report.includedSettlementCount(), "excluded_holdout_settlement_count", report.excludedHoldoutSettlementCount(),
                 "total_net_pnl_inr", report.totalNetPnlInr(),
                 "cumulative_simple_return", report.totalNetPnlInr().divide(report.startingCapitalInr(), MathContext.DECIMAL128),
                 "mean_session_return", score.meanSessionReturn(),

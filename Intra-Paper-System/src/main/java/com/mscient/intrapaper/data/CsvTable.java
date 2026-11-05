@@ -3,6 +3,7 @@ package com.mscient.intrapaper.data;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,7 +34,9 @@ public record CsvTable(List<String> headers, List<Map<String, String>> rows, Str
             throw new IllegalStateException(impossible);
         }
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                new DigestInputStream(Files.newInputStream(path), digest), StandardCharsets.UTF_8))) {
+                new DigestInputStream(Files.newInputStream(path), digest), StandardCharsets.UTF_8.newDecoder()
+                        .onMalformedInput(CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(CodingErrorAction.REPORT)))) {
             String headerLine = reader.readLine();
             if (headerLine == null) {
                 throw new IllegalArgumentException("CSV is empty: " + path);

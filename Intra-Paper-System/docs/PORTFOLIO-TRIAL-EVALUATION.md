@@ -1,6 +1,6 @@
 # Offline portfolio trial evaluation
 
-The dedicated `com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialEvaluationCli` evaluates a complete registered family of verified multi-instrument portfolio replay artifacts. It uses the existing registration/outcome ledgers and shared session-return Sharpe, DSR sensitivity, and chronological-block CSCV definitions. It emits `INTRA_PORTFOLIO_TRIAL_EVALUATION_V1` JSON. Every report and trial sets `performance_claim_eligible=false`.
+The dedicated `com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialEvaluationCli` evaluates a complete registered family of verified multi-instrument portfolio replay artifacts, including explicit final-session settlements. It uses the existing registration/outcome ledgers and shared session-return Sharpe, DSR sensitivity, and chronological-block CSCV definitions. It emits `INTRA_PORTFOLIO_TRIAL_EVALUATION_V2` JSON with artifact scope and included/excluded settlement counts. Every report and trial sets `performance_claim_eligible=false`.
 
 ## Entrypoint and workflow
 
@@ -39,9 +39,20 @@ var registration = ResearchTrialLedger.register(trialLedgerPath, trial);
 
 The catalog is assembled after artifacts are available, using the previously frozen registration and split. Starting capital is an explicit fixed normalization input; it is not inferred from the account P&L or claimed to be an actual account balance. Preserve the catalog, ledgers, split, and their hashes independently. The evaluator does not append registrations/outcome events, rerun strategies, seal files, or grant evidence gates.
 
+For settlement-enabled registration, use the overload that accepts both frozen settlement inputs:
+
+```java
+String parameters = PortfolioTrialIdentity.parameterConfigSha256(
+        config, strategy, fillModel, executionCosts, settlementEvents, settlementCosts);
+// Optional<PortfolioSettlementEvents> and Optional<PortfolioSettlementCostSchedule>;
+// the event instrument set must exactly match config.settlementInstruments().
+```
+
+The original four-argument helper remains valid for settlement-disabled runs. It rejects an enabled policy without supplied settlement inputs.
+
 ## Strict catalog and identity contract
 
-The UTF-8 JSON catalog has exactly two root keys, `schema` and `trials`. Schema is `INTRA_PORTFOLIO_TRIAL_CATALOG_V1`; no unknown, duplicate, or missing keys are accepted. The catalog supports up to 16 MiB and requires at least two trials for evaluation. Each trial has exactly these fields:
+The UTF-8 JSON catalog requires root keys `schema` and `trials`, with optional `artifact_scope`. Schema remains `INTRA_PORTFOLIO_TRIAL_CATALOG_V1`; other unknown, duplicate, or missing keys are rejected. The catalog supports up to 16 MiB and requires at least two trials for evaluation. Each trial has exactly these fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -71,11 +82,13 @@ Portfolio parameter identity uses the domain `INTRA_PORTFOLIO_TRIAL_PARAMETERS_V
 3. `execution_cost_schedule_enabled`, `execution_cost_schedule_id_base64`, `execution_cost_schedule_source_file_sha256`
 4. `max_abs_lots_by_instrument_base64`, `pending_intent_boundary_policy`, `position_boundary_policy`, `require_contiguous_frames_within_session`
 
+Settlement-disabled registrations preserve this V1 identity exactly. Settlement-enabled registrations use domain `INTRA_PORTFOLIO_TRIAL_PARAMETERS_V2` and append, in order: `settlement_policy`, `settlement_instruments`, `settlement_events_source_file_sha256`, `settlement_cost_schedule_id_base64`, and `settlement_cost_schedule_source_file_sha256`. Changes to supplied settlement values, source references, targets, cost inputs, or policy therefore cannot silently reuse a registration identity.
+
 Values use the unchanged canonical portfolio manifest encoding. This freezes strategy/fill parameters, per-instrument limits, optional dated costs, and boundary policies. Split/card/dataset are separate registration hashes. Starting capital is catalog provenance, separate from the replay parameter identity. Strategy version, variant, and card are external registration declarations: the old replay format does not embed them or prove their relation to reviewed source code.
 
 ## Aggregate session returns and coverage
 
-For each trial, take the final **BAR_CLOSE** account mark of each registered session:
+For each trial, take the final account checkpoint of each registered session: **BAR_CLOSE**, or the last **SETTLEMENT** snapshot when that session has explicit settlement events:
 
 ```text
 N_t = sum over instruments(realized_gross_pnl_inr + unrealized_pnl_inr - fees_inr)
@@ -88,11 +101,18 @@ cumulative_simple_return = sum(DEVELOPMENT/VALIDATION delta_N_t) / C_0
 
 Amounts and divisions use `BigDecimal` with DECIMAL128 for returns; statistical observations are finite Java doubles. There is no compounding, capital/margin inference, cash-flow adjustment, risk-free deduction, portfolio-notional denominator, or implicit reset of cumulative P&L. Fees are already subtracted in net P&L. Returns may reflect leverage; the capital input is not a solvency or margin check.
 
-`equity.csv` repeats the account totals on each instrument row. The evaluator verifies full instrument coverage and equality of those totals, reconciles totals to instrument components, and counts the account mark **once**. It requires exact paired BAR_OPEN/BAR_CLOSE snapshots, increasing timestamps, common intervals, contiguous intraday frames, and counts matching every instrument's validated bars and complete sessions. Snapshot dates use the common dataset timezone. Sessions spanning local midnight and mixed timezone IDs are unsupported.
+`equity.csv` repeats the account totals on each instrument row. The evaluator verifies full instrument coverage and equality of those totals, reconciles included totals to instrument components, and counts the account checkpoint **once**. Paired BAR_OPEN/BAR_CLOSE snapshots must have increasing timestamps, common intervals, contiguous intraday frames, and counts matching every instrument's validated bars and complete sessions. Every dataset's `final_bar_close_timestamp_utc` must equal the actual last BAR_CLOSE timestamp, including in sealed holdout artifacts. Terminal settlement snapshots must match the declared events' timestamps, exact identities, source hashes, and signed residual quantities; same-time events share one snapshot. Only declared positions may become flat. The session end is updated after the last event, so proceeds and charges enter returns once. Snapshot dates use the common dataset timezone. Sessions spanning local midnight and mixed timezone IDs are unsupported.
 
-Artifacts must contain every and only split session, including HOLDOUT. Each partition must be flat immediately before its first session and at its final session close; `REQUIRE_FLAT` additionally requires every session to end flat. Overnight positions within a partition under `ALLOW_OVERNIGHT` contribute their mark-to-market changes to the next session. Strategies and pending-intent state are not reset by this evaluator.
+`artifact_scope` is an explicit catalog-wide choice:
 
-Only DEVELOPMENT and VALIDATION numerical P&L enters session returns and scores. Holdout bytes are hashed, timestamps/instruments/positions are inspected for coverage and boundaries, but holdout numerical P&L is not parsed, scored, or emitted. Existing replay artifacts already expose holdout performance to an operator; these files are not a one-shot holdout vault.
+- `ALL_SPLIT_SESSIONS` (default): artifacts must contain every and only registered split session, including HOLDOUT. Since replay settlement is terminal, any settlement occurs in the final holdout session and is excluded from evaluated returns.
+- `DEVELOPMENT_VALIDATION_ONLY`: artifacts must contain every and only DEVELOPMENT/VALIDATION session, ending at the last validation session. The frozen split must still declare nonempty future HOLDOUT sessions; no holdout artifacts may be included. This scope allows terminal settlement P&L and charges to enter validation returns without opening the holdout. Missing included sessions, partial prefixes, or an unexpected holdout row fail. Declare this scope before the run; do not relabel observed holdout outcomes as validation.
+
+To use a prefix, set `"artifact_scope": "DEVELOPMENT_VALIDATION_ONLY"` in the catalog and generate the registered dataset/replay using only the frozen development/validation dates. Full-split and prefix datasets have different byte-bound identities. Scope itself is bound by the catalog hash and emitted in the report; complete comparison-family and common dataset/split/capital requirements still apply.
+
+Each included partition must be flat immediately before its first session and at its final checkpoint, after any settlement; full-split mode checks the holdout's structural flat boundaries too. `REQUIRE_FLAT` additionally requires every observed session to end flat. Overnight positions within a partition under `ALLOW_OVERNIGHT` contribute their mark-to-market changes to the next session. Strategies and pending-intent state are not reset by this evaluator.
+
+Only DEVELOPMENT and VALIDATION numerical P&L enters session returns and scores. Prefix mode performs full artifact accounting verification after confirming no holdout rows are present. Full-split mode uses integrity checks plus split-aware validation: holdout timestamps, identities, quantities, and event/charge links are inspected, but holdout equity, settlement values/P&L, charge rates, and charge amounts are not numerically parsed, scored, or emitted. This structural holdout check does not certify held-out accounting. Use the full replay verifier separately when authorized to inspect that partition. Existing replay artifacts expose holdout performance to an operator; these files are not a one-shot holdout vault.
 
 ## Statistics, provenance, and limits
 
@@ -123,4 +143,4 @@ Method references already reviewed in this project: [DSR/PBO method audit](../..
 
 ## Focused validation
 
-Run `test-portfolio-trial-evaluation.ps1` under JDK 21. It compiles production/test sources and exercises real synthetic, complete two-instrument replay artifacts. Coverage includes all registration identities, run identity versus registration, strict catalog/capital handling, missing/duplicate sessions, chronological partitions, flat boundaries, complete-family and unrelated registration counts, optional outcome history, locale/timezone/input-order determinism, holdout P&L exclusion, checksum and rehashed artifact tampering, ledger tampering, undefined statistics, and create-new CLI output. Existing replay, execution-cost, and artifact-verifier checks run in the same focused script. Synthetic checks are implementation evidence only.
+Run `test-portfolio-trial-evaluation.ps1` under JDK 21. It compiles production/test sources and exercises real synthetic, complete two-instrument replay artifacts. Coverage includes all registration identities, run identity versus registration, strict catalog/capital handling, missing/duplicate sessions, chronological partitions, flat boundaries, complete-family and unrelated registration counts, optional outcome history, locale/timezone/input-order determinism, holdout P&L exclusion, checksum and rehashed artifact tampering, ledger tampering, undefined statistics, and create-new CLI output. Settlement checks cover input-bound V2 identities, both artifact scopes, exact-once charges, sealed holdout financial fields, and final-bar metadata/checkpoint agreement even after output hashes and manifest pins are refreshed. Existing replay, execution-cost, and artifact-verifier checks run in the same focused script. Synthetic checks are implementation evidence only.

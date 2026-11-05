@@ -40,20 +40,23 @@ final class PortfolioSessionReturns {
             BigDecimal sessionReturn) { }
 
     record Series(List<Session> sessions, BigDecimal totalNetPnlInr, int instrumentCount,
-            int developmentSessionCount, int validationSessionCount, int excludedHoldoutSessionCount) {
+            int developmentSessionCount, int validationSessionCount, int excludedHoldoutSessionCount,
+            int includedSettlementCount, int excludedHoldoutSettlementCount) {
         Series { sessions = List.copyOf(sessions); }
         double[] returns() { return sessions.stream().mapToDouble(s -> s.sessionReturn().doubleValue()).toArray(); }
     }
 
-    private record Snapshot(Instant timestamp, String phase, LocalDate date, boolean flat,
+    private record Snapshot(Instant timestamp, String phase, LocalDate date, boolean flat, Map<String, Long> units,
             BigDecimal realized, BigDecimal fees, BigDecimal unrealized, BigDecimal net) { }
     private record SessionBoundary(boolean startFlat, Snapshot lastClose) { }
 
     private PortfolioSessionReturns() { }
 
     static Series read(Path runFolder, PortfolioTrialIdentity.FrozenRun run, EvaluationSplitPlan split,
-            BigDecimal capital) throws IOException {
+            BigDecimal capital, PortfolioTrialCatalog.ArtifactScope scope) throws IOException {
+        boolean prefixOnly = scope == PortfolioTrialCatalog.ArtifactScope.DEVELOPMENT_VALIDATION_ONLY;
         List<LocalDate> plannedDates = java.util.Arrays.stream(Partition.values())
+                .filter(partition -> !prefixOnly || partition != Partition.HOLDOUT)
                 .flatMap(partition -> split.sessions().get(partition).stream()).toList();
         TreeMap<LocalDate, Partition> assignments = new TreeMap<>();
         split.sessions().forEach((partition, dates) -> dates.forEach(date -> assignments.put(date, partition)));
@@ -89,6 +92,7 @@ final class PortfolioSessionReturns {
         if (!instruments.keySet().equals(PortfolioTrialIdentity.lotLimits(run).keySet())) {
             throw new IOException("Portfolio dataset instruments do not match registered lot limits");
         }
+        var settlementGroups = PortfolioSettlementCheckpoints.read(runFolder, run, instruments, plannedDates.getLast(), zone);
 
         CsvTable equity = verifiedTable(runFolder, run, "equity.csv", EQUITY_HEADERS);
         int instrumentCount = instruments.size();
@@ -97,21 +101,22 @@ final class PortfolioSessionReturns {
         }
         int snapshotCount = equity.rows().size() / instrumentCount;
         if (snapshotCount != positiveInteger(run.manifest().get("snapshot_count"), "snapshot_count")
-                || snapshotCount != 2L * expectedFrames) {
+                || snapshotCount != 2L * expectedFrames + settlementGroups.size()) {
             throw new IOException("Portfolio snapshot count does not match validated frame provenance");
         }
         List<String> ids = List.copyOf(instruments.keySet());
         List<Snapshot> snapshots = new ArrayList<>(snapshotCount);
         for (int index = 0; index < equity.rows().size(); index += instrumentCount) {
             snapshots.add(snapshot(equity.rows().subList(index, index + instrumentCount),
-                    ids, zone, assignments));
+                    ids, zone, assignments, prefixOnly));
         }
 
         TreeMap<LocalDate, SessionBoundary> boundaries = new TreeMap<>();
         Snapshot previousClose = null;
         Duration interval = null;
         BigDecimal previousFees = BigDecimal.ZERO;
-        for (int index = 0; index < snapshots.size(); index += 2) {
+        int barSnapshotCount = Math.multiplyExact(expectedFrames, 2);
+        for (int index = 0; index < barSnapshotCount; index += 2) {
             Snapshot open = snapshots.get(index);
             Snapshot close = snapshots.get(index + 1);
             if (!open.phase().equals("BAR_OPEN") || !close.phase().equals("BAR_CLOSE")
@@ -142,15 +147,43 @@ final class PortfolioSessionReturns {
             boundaries.put(open.date(), new SessionBoundary(startFlat, close));
             previousClose = close;
         }
+        for (var row : instruments.values()) {
+            requireEqual(previousClose.timestamp().toString(), row.get("final_bar_close_timestamp_utc"),
+                    "portfolio final bar close timestamp for " + row.get("instrument_id"));
+        }
+        int settlementIndex = barSnapshotCount;
+        for (var group : settlementGroups.entrySet()) {
+            Snapshot settled = snapshots.get(settlementIndex++);
+            if (!settled.phase().equals("SETTLEMENT") || !settled.timestamp().equals(group.getKey())
+                    || !settled.date().equals(previousClose.date()) || settled.timestamp().isBefore(previousClose.timestamp()))
+                throw new IOException("Invalid terminal settlement checkpoint");
+            var expectedUnits = new TreeMap<>(previousClose.units());
+            for (var event : group.getValue()) {
+                if (expectedUnits.get(event.instrument()) != event.signedUnits()) throw new IOException("Settlement residual quantity mismatch");
+                expectedUnits.put(event.instrument(), 0L);
+            }
+            if (!expectedUnits.equals(settled.units())) throw new IOException("Settlement changed unexpected positions");
+            if (settled.fees() != null && settled.fees().compareTo(previousFees) < 0) throw new IOException("Settlement cumulative fees decrease");
+            if (settled.fees() != null) previousFees = settled.fees();
+            var prior = boundaries.get(settled.date());
+            boundaries.put(settled.date(), new SessionBoundary(prior.startFlat(), settled));
+            previousClose = settled;
+        }
         if (!List.copyOf(boundaries.keySet()).equals(plannedDates)) {
             throw new IOException("Portfolio artifacts must contain every and only registered split session");
         }
         for (Partition partition : Partition.values()) {
+            if (prefixOnly && partition == Partition.HOLDOUT) continue;
             List<LocalDate> dates = split.sessions().get(partition);
             if (!boundaries.get(dates.getFirst()).startFlat() || !boundaries.get(dates.getLast()).lastClose().flat()) {
                 throw new IOException("Position-contaminated " + partition + " partition boundary");
             }
         }
+
+        // Prefix scope contains no holdout rows, so complete financial reconciliation is safe.
+        // Full-split scope intentionally checks holdout structure/identities without interpreting its financial payloads.
+        if (prefixOnly && !com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifier.verify(runFolder).equals(run.verification()))
+            throw new IOException("Portfolio artifacts changed during accounting verification");
         if ("REQUIRE_FLAT".equals(run.manifest().get("position_boundary_policy"))
                 && boundaries.values().stream().anyMatch(boundary -> !boundary.lastClose().flat())) {
             throw new IOException("Portfolio session boundary contradicts REQUIRE_FLAT");
@@ -182,7 +215,9 @@ final class PortfolioSessionReturns {
             priorFees = end.fees();
         }
         return new Series(sessions, totalPnl, instrumentCount, split.sessions().get(Partition.DEVELOPMENT).size(),
-                split.sessions().get(Partition.VALIDATION).size(), split.sessions().get(Partition.HOLDOUT).size());
+                split.sessions().get(Partition.VALIDATION).size(), split.sessions().get(Partition.HOLDOUT).size(),
+                prefixOnly ? Integer.parseInt(run.manifest().get("settlement_count")) : 0,
+                prefixOnly ? 0 : Integer.parseInt(run.manifest().get("settlement_count")));
     }
 
     private static String datasetFingerprint(TreeMap<String, Map<String, String>> instruments) throws IOException {
@@ -223,7 +258,7 @@ final class PortfolioSessionReturns {
     }
 
     private static Snapshot snapshot(List<Map<String, String>> rows, List<String> ids, ZoneId zone,
-            Map<LocalDate, Partition> assignments) throws IOException {
+            Map<LocalDate, Partition> assignments, boolean prefixOnly) throws IOException {
         Map<String, String> first = rows.getFirst();
         Instant timestamp;
         try {
@@ -233,11 +268,13 @@ final class PortfolioSessionReturns {
         LocalDate date = timestamp.atZone(zone).toLocalDate();
         Partition partition = assignments.get(date);
         if (partition == null) throw new IOException("Portfolio snapshot is outside registered split sessions: " + date);
+        if (prefixOnly && partition == Partition.HOLDOUT) throw new IOException("Holdout artifact rows are forbidden in DEVELOPMENT_VALIDATION_ONLY scope");
         boolean included = partition != Partition.HOLDOUT;
         boolean flat = true;
         BigDecimal realized = BigDecimal.ZERO;
         BigDecimal fees = BigDecimal.ZERO;
         BigDecimal unrealized = BigDecimal.ZERO;
+        Map<String, Long> quantities = new TreeMap<>();
         for (int index = 0; index < rows.size(); index++) {
             var row = rows.get(index);
             if (!row.get("instrument_id").equals(ids.get(index))
@@ -256,6 +293,7 @@ final class PortfolioSessionReturns {
                 }
             } catch (NumberFormatException invalid) { throw new IOException("Invalid portfolio signed_units", invalid); }
             flat &= units == 0;
+            quantities.put(ids.get(index), units);
             if (included) {
                 BigDecimal instrumentFees = decimal(row, "fees_inr");
                 BigDecimal instrumentUnrealized = decimal(row, "unrealized_pnl_inr");
@@ -269,7 +307,7 @@ final class PortfolioSessionReturns {
                 unrealized = unrealized.add(instrumentUnrealized);
             }
         }
-        if (!included) return new Snapshot(timestamp, first.get("phase"), date, flat, null, null, null, null);
+        if (!included) return new Snapshot(timestamp, first.get("phase"), date, flat, Map.copyOf(quantities), null, null, null, null);
         BigDecimal net = decimal(first, "net_pnl_inr");
         if (realized.compareTo(decimal(first, "total_realized_gross_pnl_inr")) != 0
                 || fees.compareTo(decimal(first, "total_fees_inr")) != 0
@@ -277,7 +315,7 @@ final class PortfolioSessionReturns {
                 || realized.add(unrealized).subtract(fees).compareTo(net) != 0) {
             throw new IOException("Portfolio aggregate equity totals do not reconcile");
         }
-        return new Snapshot(timestamp, first.get("phase"), date, flat, realized, fees, unrealized, net);
+        return new Snapshot(timestamp, first.get("phase"), date, flat, Map.copyOf(quantities), realized, fees, unrealized, net);
     }
 
     private static BigDecimal decimal(Map<String, String> row, String field) throws IOException {

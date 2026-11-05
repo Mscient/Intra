@@ -1,5 +1,7 @@
 # Offline portfolio risk audit
 
+Version 2 adds an isolated [settlement audit contract](PORTFOLIO-RISK-AUDIT-SETTLEMENT.md): separate pre-settlement positions, close-to-settlement adjustments, charge components and settled portfolio exposure. Omitted settlement charges produce INCOMPLETE with blank covered net P&L, while explicitly labeled modeled values remain available for replay reconciliation. This extension is independent of trial evaluation.
+
 `com.mscient.intrapaper.audit.portfolio.PortfolioRiskAuditCli` checks a completed portfolio replay against separate caller-supplied limits and margin proxies. It verifies the saved artifact, runs `PortfolioReplayDeterminismVerifier`, reconstructs with `PortfolioReplayCsvRunner`, and compares the exact reconstructed output hashes before auditing the in-memory frames and executions. Original manifests, settings and their referenced files are required. Replay build identity must match; the established verifier intentionally rejects a run that cannot be reproduced by the current build.
 
 This is an offline diagnostic command, not an independent live risk service. It has no broker/account connection, order gate or execution effect. All margin amounts are **caller-supplied proxies**. No exchange-margin calculation or adequacy certification is provided. It does not modify replay behavior or `IntraPaperCli.java`.
@@ -59,14 +61,16 @@ The audit starts flat, as the portfolio replay does. It independently accumulate
 
 - Signed exposure = signed units × contemporaneous bar mark.
 - Gross notional = sum of absolute instrument exposures. Options use premium notional, not underlying-equivalent or delta-adjusted notional.
-- Cumulative net P&L = sum of negative signed execution consideration + signed marked values − execution fees. It includes realized and unrealized P&L and does not use the replay ledger to perform this calculation.
-- Session P&L = cumulative net P&L − preceding session's final close net P&L; the first session starts at zero. Overnight movement and current execution fees belong to the incoming session. The session-loss budget applies to `max(0, -session P&L)`, not peak-to-trough drawdown.
+- Cumulative net P&L = sum of negative signed execution consideration + signed settlement proceeds + remaining signed marked values − execution fees − settlement fees. It includes realized and unrealized P&L and does not use the replay ledger to perform this calculation.
+- Session P&L = cumulative net P&L − preceding session's final checkpoint net P&L; the first session starts at zero. Overnight movement and current execution/settlement fees belong to the incoming session. The session-loss budget applies to `max(0, -session P&L)`, not peak-to-trough drawdown.
 
-Positions, per-instrument net P&L and fees, and aggregate net P&L and fees must reconcile exactly with both BAR_OPEN and BAR_CLOSE replay snapshots. A mismatch rejects publication. Original execution fees, including dated schedule fees when enabled, are consumed as validated replay values; audit proxy amounts do not affect replay P&L.
+Positions, per-instrument net P&L and fees, and aggregate net P&L and fees must reconcile exactly with BAR_OPEN, BAR_CLOSE, and terminal SETTLEMENT replay snapshots. A mismatch rejects publication. Every settlement's signed quantity and full dated identity must match the outstanding position; cash consideration is independently recalculated as signed units times the supplied per-unit value. Positions become flat and settlement charges enter cumulative fees exactly once. Original execution and settlement fees are consumed from the fully verified replay; audit proxy amounts do not affect replay P&L. Same-time settlement events are audited as one published checkpoint, and events at different timestamps produce separate checks on the final frame index.
 
 Each frame is checked after its opening executions and at its close. There is no claim about unobserved intrabar highs/lows, intermediate execution sequencing, continuous risk, open-order reservations or capital adequacy. BAR_START open prices are available at the frame timestamp; close prices are marked at timestamp + interval. These exact phase marks have zero age. The age check rejects missing/future/too-old marks; no close is brought forward to the open, and no absent frame is forward-filled. It does not prove feed receive-time freshness. The original validator rejects unaligned/missing instrument marks or missing session boundaries; replay-permitted intrasession gaps produce `MISSING_FRAME_MARKS` coverage issues and INCOMPLETE status. At a gap, only existing checkpoints are valued; absent checkpoint exposures remain unknown.
 
 Unknown margin totals and values whose mark freshness cannot be established are empty CSV cells, not zero. Missing applicable limits remain empty and checks needing them are not treated as passed. Available checkpoints and known breaches are retained in an incomplete report.
+
+At settlement, a still-open instrument retains the final bar close price **and its original observation timestamp**. A later settlement timestamp does not refresh that quote; if it exceeds `max_mark_age_seconds`, affected exposure/P&L checks remain unknown and the report is INCOMPLETE. A flat instrument requires no market quote: it records `NOT_REQUIRED_FLAT`, an empty mark price, and zero exposure. It still requires explicit risk/proxy/source coverage. Its zero unit-based margin proxy is not a claim about release of actual account collateral. Final realized losses and settlement charges are checked even if all positions are flat. No new market marks, rates, margin formulas, or exchange rules are inferred.
 
 ## Published artifact
 
@@ -74,13 +78,17 @@ Reports use deterministic UTF-8/LF output, canonical ordering, no wall-clock tim
 
 | File | Contents |
 | --- | --- |
-| `inputs.csv` | Original manifest/settings byte hashes, verified run manifest/output hashes, replay/frame identity, every validated dataset's bars/config/calendar/master/rule/additional hashes, execution-cost hash when enabled, risk-file hashes |
+| `inputs.csv` | Original manifest/settings byte hashes, verified run manifest/output hashes, replay/frame identity, every validated dataset's bars/config/calendar/master/rule/additional hashes, execution-cost and settlement event/cost hashes when enabled, risk-file hashes |
 | `risk-*.csv` | Exact frozen bytes of the four risk files, retaining all effective dates, limits, proxy rates and source references |
 | `exposures.csv` | Every frame/phase/instrument's signed position, mark, exposure, gross notional, caller-supplied margin proxy, resolved caps/source IDs and coverage |
 | `checkpoints.csv` | Portfolio totals, session baseline/P&L, budgets and budget coverage at every checkpoint |
 | `coverage.csv` | Missing/expired/stale schedules, source and mark coverage issues |
 | `breaches.csv` | Checkpoint, instrument or portfolio, limit name, actual amount and cap |
 | `reconciliation.csv` | Exact position, per-instrument P&L, aggregate fee and net P&L comparison results |
-| `summary.properties` | Classification, status, reconciliation, issue/breach/frame/execution counts and audit build identity |
+| `settlement-reconciliation.csv` | Per-event historical pre-settlement position/value, residual basis, caller settlement value/proceeds, adjustment, modeled/covered charges, post-settlement exposure and provenance |
+| `settlement-charges.csv` | Independently reconciled caller charge components, bases, charge/GST rounding, amounts and references |
+| `summary.properties` | Classification, status, reconciliation, issue/breach/frame/execution counts, settlement event/checkpoint counts, total checkpoint count, and audit build identity |
 
 The focused checks create their own synthetic two-instrument validated replay and isolated output. They cover signed/reversed positions, partial closes, fee-inclusive and overnight P&L, cap equality/excess, missing coverage, effective expiry/source freshness, malformed risk data, missing/stale marks, deterministic reproduction, manifest/output/input hash tampering and rehashed replay mismatch. Existing portfolio replay and accounting checks remain separate.
+
+The same command also runs the [settlement fixture matrix](../examples/portfolio-risk-audit/SETTLEMENT-FIXTURES.md). Use `-FixtureOutput <new-directory>` to retain the synthetic scenario tables and expected totals for inspection. Version 1 artifacts retain integrity-only verification support; new audits use version 2.

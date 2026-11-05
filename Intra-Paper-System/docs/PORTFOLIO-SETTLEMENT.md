@@ -23,7 +23,7 @@ The engine preserves the final `BAR_CLOSE` snapshot, then applies events ordered
 
 ## Settlement event CSV
 
-UTF-8 CSV headers must be exactly these columns in this order:
+CSV files must contain valid UTF-8. Malformed byte sequences are rejected rather than replaced in identity or source text. An optional UTF-8 BOM, LF/CRLF line endings, and valid Unicode source references are supported; hashes always bind the original bytes. Headers must be exactly these columns in this order:
 
 ```csv
 event_id,instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,settlement_date,settlement_timestamp,settlement_value_per_unit_inr,option_exercise,charge_turnover_per_unit_inr,charge_turnover_source_reference,source_reference
@@ -41,7 +41,7 @@ Dates use ISO `YYYY-MM-DD`. Timestamps require a UTC offset, such as `2030-05-06
 
 ## Effective-dated settlement cost CSV
 
-Headers must be exactly:
+The cost CSV uses the same strict UTF-8 decoding and original-byte hashing as the event CSV. Headers must be exactly:
 
 ```csv
 schedule_id,entry_id,effective_from,effective_until,instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,position_side,charge_category,component_code,basis,rate,charge_rounding_scale,charge_rounding_mode,gst_bps,gst_on_charge,gst_rounding_scale,gst_rounding_mode,source_reference
@@ -111,10 +111,10 @@ The sample buys one future at 103 and one option at 13, then settles at 110 and 
 
 The workflow does not implement independently expiring instrument universes, sliced settlement quantities, physical delivery, daily variation margin, collateral, broker account reconciliation, early-exercise decisions, price discovery, or exchange matching. No network or broker order route is added.
 
-The separate portfolio risk-audit command currently accepts bar-open/bar-close snapshots only and rejects settlement-bearing replays. Settlement arithmetic and final equity are verified by the portfolio artifact and deterministic verifiers; risk-limit auditing at settlement checkpoints is a separate integration task.
+The [portfolio risk audit](PORTFOLIO-RISK-AUDIT.md) checks terminal settlement snapshots, signed cash consideration, fees, remaining exposure, and session-loss budgets. Unsettled positions retain the last close's observation time; no fresh mark is inferred at a later settlement timestamp.
 
-The registered portfolio trial evaluator also retains bar-only session-return boundaries. It accepts v3 artifacts with settlement disabled and explicitly rejects settlement-enabled registration or evaluation until settlement-aware return boundaries are implemented. It cannot silently omit settlement P&L or fees from evaluation.
+The [registered portfolio trial evaluator](PORTFOLIO-TRIAL-EVALUATION.md) binds settlement policy/inputs into registration identity and uses the final session checkpoint after settlement. Its explicit DEVELOPMENT_VALIDATION_ONLY artifact scope includes validation settlement P&L/fees while leaving future holdout artifacts absent. Default ALL_SPLIT_SESSIONS scope excludes terminal holdout settlements from statistics while checking their structural event/position linkage.
 
-The evaluator uses the explicitly limited verifyIntegrity API before its split-aware reader, so holdout equity P&L is not interpreted during its integrity check. Full verify and deterministic replay continue to reconcile all settlement/equity rows; the integrity-only API is not equivalent to those checks.
+The evaluator uses the explicitly limited verifyIntegrity API before its split-aware reader, so holdout equity and settlement financial payloads are not interpreted during its integrity check. Prefix runs without holdout artifacts also receive full accounting verification. Full verify and deterministic replay continue to reconcile all settlement/equity rows; structural holdout checks are not equivalent to those checks.
 
 The separate portfolio settlement-audit command uses its own input contract and reconstructs the verified final bar snapshot before integrated settlements. Its sidecar is an independent calculation from that basis, never an additional settlement applied to the final replay balance. Its summary distinguishes the pre-settlement audit basis from the actual replay final P&L. Use the full portfolio artifact verifier and deterministic replay verifier to validate integrated settlements and their charges.

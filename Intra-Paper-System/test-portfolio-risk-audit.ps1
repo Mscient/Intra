@@ -1,3 +1,4 @@
+param([string]$FixtureOutput)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $jdkHome = $env:JAVA_HOME
@@ -14,11 +15,15 @@ try {
     $classes = Join-Path $auditTestRoot 'classes'
     New-Item -ItemType Directory -Path $classes | Out-Null
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
-    $test = Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio\PortfolioRiskAuditTest.java'
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources $test
+    $tests = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio') -Filter '*.java' | ForEach-Object { $_.FullName })
+    & $javac --release 21 -encoding UTF-8 -d $classes @sources @tests
     if ($LASTEXITCODE -ne 0) { throw "Compilation failed: $LASTEXITCODE" }
     & $java -cp $classes com.mscient.intrapaper.audit.portfolio.PortfolioRiskAuditTest $projectRoot
     if ($LASTEXITCODE -ne 0) { throw "Audit checks failed: $LASTEXITCODE" }
+    $fixtureArguments = @($projectRoot)
+    if (-not [string]::IsNullOrWhiteSpace($FixtureOutput)) { $fixtureArguments += [System.IO.Path]::GetFullPath($FixtureOutput) }
+    & $java -cp $classes com.mscient.intrapaper.audit.portfolio.PortfolioRiskSettlementFixtures @fixtureArguments
+    if ($LASTEXITCODE -ne 0) { throw "Settlement risk checks failed: $LASTEXITCODE" }
 } finally {
     $resolvedAuditRoot = [System.IO.Path]::GetFullPath($auditTestRoot)
     if (-not $resolvedAuditRoot.StartsWith($auditTempPrefix, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'Refusing cleanup outside TEMP.' }

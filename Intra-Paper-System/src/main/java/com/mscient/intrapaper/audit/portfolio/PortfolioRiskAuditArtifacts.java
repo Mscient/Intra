@@ -9,15 +9,21 @@ import java.util.*;
 /** Content-addressed, fixed-layout reports. Integrity verification alone is not an audit rerun. */
 public final class PortfolioRiskAuditArtifacts {
     private static final String MANIFEST = "audit-manifest.properties";
-    private static final List<String> OUTPUTS = List.of("breaches.csv", "checkpoints.csv", "coverage.csv", "exposures.csv",
+    private static final List<String> V1_OUTPUTS = List.of("breaches.csv", "checkpoints.csv", "coverage.csv", "exposures.csv",
             "inputs.csv", "reconciliation.csv", "risk-budgets.csv", "risk-limits.csv", "risk-margin-proxies.csv",
             "risk-sources.csv", "summary.properties");
+    private static final List<String> OUTPUTS = java.util.stream.Stream.concat(V1_OUTPUTS.stream(),
+            java.util.stream.Stream.of("settlement-reconciliation.csv", "settlement-charges.csv")).sorted().toList();
     private PortfolioRiskAuditArtifacts() { }
 
     static byte[] manifest(PortfolioRiskAudit.Prepared prepared) {
-        StringBuilder out = new StringBuilder("schema_version=1\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\nmargin_classification=CALLER_SUPPLIED_PROXIES\nstatus=")
+        return manifest(prepared, 2, OUTPUTS);
+    }
+
+    private static byte[] manifest(PortfolioRiskAudit.Prepared prepared, int version, List<String> outputs) {
+        StringBuilder out = new StringBuilder("schema_version=" + version + "\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\nmargin_classification=CALLER_SUPPLIED_PROXIES\nstatus=")
                 .append(prepared.status()).append('\n');
-        for (String name : OUTPUTS) out.append("sha256.").append(name).append('=').append(RiskInputs.hash(prepared.files().get(name))).append('\n');
+        for (String name : outputs) out.append("sha256.").append(name).append('=').append(RiskInputs.hash(prepared.files().get(name))).append('\n');
         return PortfolioRiskAudit.utf8(out.toString());
     }
 
@@ -61,23 +67,25 @@ public final class PortfolioRiskAuditArtifacts {
     private static String verifyFiles(Path folder, String id) throws IOException {
         if (!Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(folder))
             throw new IOException("Audit folder is not a real directory");
-        Set<String> expected = new TreeSet<>(OUTPUTS); expected.add(MANIFEST);
-        try (var children = Files.list(folder)) {
-            if (!new TreeSet<>(children.map(p -> p.getFileName().toString()).toList()).equals(expected))
-                throw new IOException("Missing or unexpected audit files");
-        }
         RiskInputs.requireFile(folder.resolve(MANIFEST));
         byte[] bytes = Files.readAllBytes(folder.resolve(MANIFEST));
         if (!RiskInputs.hash(bytes).equals(id)) throw new IOException("Audit manifest/folder hash mismatch");
         List<String> lines = new String(bytes, StandardCharsets.UTF_8).lines().toList();
-        if (lines.size() != OUTPUTS.size() + 4 || !lines.get(0).equals("schema_version=1")
+        int version = !lines.isEmpty() && lines.getFirst().equals("schema_version=1") ? 1 : 2;
+        List<String> outputs = version == 1 ? V1_OUTPUTS : OUTPUTS;
+        Set<String> expected = new TreeSet<>(outputs); expected.add(MANIFEST);
+        try (var children = Files.list(folder)) {
+            if (!new TreeSet<>(children.map(p -> p.getFileName().toString()).toList()).equals(expected))
+                throw new IOException("Missing or unexpected audit files");
+        }
+        if (lines.size() != outputs.size() + 4 || !lines.get(0).equals("schema_version=" + version)
                 || !lines.get(1).equals("classification=OFFLINE_PORTFOLIO_RISK_AUDIT")
                 || !lines.get(2).equals("margin_classification=CALLER_SUPPLIED_PROXIES")
                 || !List.of("status=PASS", "status=BREACH", "status=INCOMPLETE").contains(lines.get(3)))
             throw new IOException("Invalid audit manifest contract");
         TreeMap<String, byte[]> contents = new TreeMap<>();
-        for (int i = 0; i < OUTPUTS.size(); i++) {
-            String name = OUTPUTS.get(i);
+        for (int i = 0; i < outputs.size(); i++) {
+            String name = outputs.get(i);
             RiskInputs.requireFile(folder.resolve(name));
             byte[] content = Files.readAllBytes(folder.resolve(name));
             if (!lines.get(i + 4).equals("sha256." + name + "=" + RiskInputs.hash(content)))
@@ -85,7 +93,7 @@ public final class PortfolioRiskAuditArtifacts {
             contents.put(name, content);
         }
         String status = lines.get(3).substring("status=".length());
-        if (!Arrays.equals(bytes, manifest(new PortfolioRiskAudit.Prepared(contents, status))))
+        if (!Arrays.equals(bytes, manifest(new PortfolioRiskAudit.Prepared(contents, status), version, outputs)))
             throw new IOException("Noncanonical audit manifest");
         return status;
     }

@@ -15,6 +15,9 @@ import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactWriter
 import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayEngine;
 import com.mscient.intrapaper.simulation.portfolio.PortfolioStrategy;
 import com.mscient.intrapaper.simulation.portfolio.PortfolioTarget;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementPolicy;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementEvents;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementCostSchedule;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -58,7 +61,94 @@ public final class PortfolioTrialEvaluationTest {
         tamperedArtifactsAndLedgers(project);
         cliCreateNewAndFailure(project);
         statisticalEdgeCases();
+        settlementReturnsAndHoldout(project);
         System.out.println("PortfolioTrialEvaluation: " + checks + " focused checks passed");
+    }
+
+    private static void settlementReturnsAndHoldout(Path project) throws Exception {
+        try (Fixture fixture = new Fixture(project, true, true)) {
+            var report = fixture.analyze(); var first = report.trials().getFirst(); var last = first.sessions().getLast();
+            decimal(last.realizedGrossPnlChangeInr(), "5", "settlement realized change includes both signed positions");
+            decimal(last.feesPaidInr(), "4.38", "execution and rounded settlement charges counted once");
+            decimal(last.netPnlChangeInr(), "0.62", "session ends after both timed settlements");
+            decimal(last.sessionReturn(), "0.0000062", "settlement net divided by fixed capital");
+            decimal(first.totalNetPnlInr(), "27.62", "settlement is included in validation totals");
+            decimal(report.trials().getLast().sessions().getLast().netPnlChangeInr(), "10.62", "short settlement gains enter returns");
+            require(first.includedSettlementCount() == 2 && first.excludedHoldoutSettlementCount() == 0
+                    && first.excludedHoldoutSessionCount() == 2, "prefix evaluates settlements and retains the frozen holdout plan");
+            require(report.toJson().contains("DEVELOPMENT_VALIDATION_ONLY") && report.toJson().equals(fixture.analyze().toJson()), "scope is explicit and output deterministic");
+            Path output = fixture.root.resolve("settlement-evaluation.json");
+            try (PrintStream sink = new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8)) {
+                require(PortfolioTrialEvaluationCli.run(new String[]{"evaluate", fixture.ledger.toString(), fixture.catalog.toString(),
+                        fixture.runs.toString(), "4", output.toString()}, sink, sink) == 0, "settlement prefix evaluates through the CLI");
+            }
+            require(Files.readString(output).equals(report.toJson()), "CLI emits the verified settlement-aware report");
+            Files.writeString(fixture.catalog, Files.readString(fixture.catalog).replace("DEVELOPMENT_VALIDATION_ONLY", "ALL_SPLIT_SESSIONS"));
+            fails(fixture::analyze, "missing holdout artifacts require an explicit prefix scope");
+            fixture.writeCatalog();
+            Path run = fixture.firstRun();
+            rewriteCsv(run.resolve("settlements.csv"), row -> { row.put("released_basis_inr", "101"); return row; });
+            refreshManifest(run, Map.of()); fixture.repinFirstRun();
+            fails(fixture::analyze, "included settlement arithmetic is fully reconciled even after rehashing");
+        }
+        try (Fixture fixture = new Fixture(project, true, true, false)) {
+            var first = fixture.analyze().trials().getFirst();
+            decimal(first.totalNetPnlInr(), "33", "flat settlement events do not change returns");
+            decimal(first.sessions().getLast().feesPaidInr(), "4", "flat settlement events do not charge fixed fees");
+            require(first.includedSettlementCount() == 2, "flat events retain audit coverage");
+        }
+        try (Fixture fixture = new Fixture(project, true, false)) {
+            var original = fixture.analyze();
+            require(original.trials().getFirst().includedSettlementCount() == 0
+                    && original.trials().getFirst().excludedHoldoutSettlementCount() == 2, "full-split terminal settlements belong to excluded holdout");
+            decimal(original.trials().getFirst().totalNetPnlInr(), "33", "holdout settlement cannot change evaluated returns");
+            for (var catalogRow : fixture.rows) {
+                Path run = fixture.runs.resolve((String) catalogRow.get("run_id"));
+                rewriteCsv(run.resolve("equity.csv"), row -> {
+                    if (row.get("timestamp_utc").startsWith(fixture.dates.get(8).toString())
+                            || row.get("timestamp_utc").startsWith(fixture.dates.get(9).toString())) {
+                        for (String key : List.of("average_open_price", "realized_gross_pnl_inr", "fees_inr", "unrealized_pnl_inr",
+                                "total_realized_gross_pnl_inr", "total_fees_inr", "total_unrealized_pnl_inr", "net_pnl_inr")) row.put(key, "SEALED_HOLDOUT");
+                    }
+                    return row;
+                });
+                rewriteCsv(run.resolve("settlements.csv"), row -> {
+                    for (String key : List.of("settlement_value_per_unit_inr", "charge_turnover_per_unit_inr", "released_basis_inr", "signed_proceeds_inr",
+                            "realized_gross_pnl_inr", "expiry_settlement_fees_inr", "option_exercise_fees_inr", "total_fee_inr")) row.put(key, "SEALED_HOLDOUT");
+                    return row;
+                });
+                rewriteCsv(run.resolve("settlement-cost-lines.csv"), row -> {
+                    for (String key : List.of("rate", "gst_bps", "calculation_base", "charge_inr", "gst_taxable_base_inr", "gst_inr", "total_fee_inr")) row.put(key, "SEALED_HOLDOUT");
+                    return row;
+                });
+                refreshManifest(run, Map.of());
+                catalogRow.put("run_manifest_sha256", PortfolioTrialIdentity.fileSha256(run.resolve("run-manifest.properties")));
+            }
+            fixture.writeCatalog();
+            var sealed = fixture.analyze();
+            require(sealed.statistics().equals(original.statistics()) && sealed.trials().getFirst().sessions().equals(original.trials().getFirst().sessions()), "holdout settlement values, fees, and equity are never numerically interpreted");
+            Files.writeString(fixture.catalog, Files.readString(fixture.catalog).replace("ALL_SPLIT_SESSIONS", "DEVELOPMENT_VALIDATION_ONLY"));
+            fails(fixture::analyze, "prefix scope cannot contain holdout artifacts");
+            fixture.writeCatalog();
+            Path run = fixture.firstRun();
+            String originalSettlements = Files.readString(run.resolve("settlements.csv"));
+            String originalDatasets = Files.readString(run.resolve("datasets.csv"));
+            rewriteCsv(run.resolve("datasets.csv"), row -> {
+                if (row.get("instrument_id").equals(A)) row.put("final_bar_close_timestamp_utc",
+                        Instant.parse(row.get("final_bar_close_timestamp_utc")).minusSeconds(1).toString());
+                return row;
+            });
+            refreshManifest(run, Map.of()); fixture.repinFirstRun();
+            fails(fixture::analyze, "sealed holdout still requires final bar metadata to match actual checkpoints");
+            Files.writeString(run.resolve("datasets.csv"), originalDatasets);
+            Files.writeString(run.resolve("settlements.csv"), originalSettlements + originalSettlements.lines().skip(1).findFirst().orElseThrow() + "\n");
+            refreshManifest(run, Map.of()); fixture.repinFirstRun();
+            fails(fixture::analyze, "duplicate held-out settlement rows still fail structural validation");
+            Files.writeString(run.resolve("settlements.csv"), originalSettlements);
+            rewriteCsv(run.resolve("settlements.csv"), row -> { row.put("settlement_timestamp", fixture.dates.get(8) + "T03:49:00Z"); return row; });
+            refreshManifest(run, Map.of()); fixture.repinFirstRun();
+            fails(fixture::analyze, "holdout exclusion still enforces event dates and checkpoint linkage");
+        }
     }
 
     private static void aggregateReturnsAndDeterminism(Path project) throws Exception {
@@ -85,6 +175,12 @@ public final class PortfolioTrialEvaluationTest {
             require(!report.performanceClaimEligible() && report.trials().stream()
                     .noneMatch(PortfolioTrialEvaluationAnalyzer.TrialReport::performanceClaimEligible), "eligibility remains false");
             String json = report.toJson();
+            Files.writeString(fixture.catalog, PortfolioEvaluationJson.write(object("schema", PortfolioTrialCatalog.SCHEMA, "trials", fixture.rows)));
+            var defaultScope = fixture.analyze();
+            require(report.statistics().equals(defaultScope.statistics())
+                    && defaultScope.artifactScope() == PortfolioTrialCatalog.ArtifactScope.ALL_SPLIT_SESSIONS,
+                    "omitted scope preserves full-split catalog compatibility while catalog byte hashes differ");
+            fixture.writeCatalog();
             var parsed = PortfolioEvaluationJson.parsedObject(
                     com.mscient.intrapaper.data.StrictJsonParser.parse(json), "report");
             require(PortfolioTrialEvaluationAnalyzer.REPORT_SCHEMA.equals(parsed.get("schema")), "dedicated report schema");
@@ -390,8 +486,16 @@ public final class PortfolioTrialEvaluationTest {
         private final Path outcomes;
         private final List<LocalDate> dates = new ArrayList<>();
         private final List<Map<String, Object>> rows = new ArrayList<>();
+        private final boolean prefixOnly;
 
         private Fixture(Path project) throws Exception {
+            this(project, false, false);
+        }
+        private Fixture(Path project, boolean settle, boolean prefixOnly) throws Exception {
+            this(project, settle, prefixOnly, true);
+        }
+        private Fixture(Path project, boolean settle, boolean prefixOnly, boolean holdAtSettlement) throws Exception {
+            this.prefixOnly = prefixOnly;
             root = Files.createTempDirectory("portfolio-trial-evaluation-check-").toAbsolutePath().normalize();
             ledger = root.resolve("trials.ledger");
             catalog = root.resolve("catalog.json");
@@ -402,6 +506,8 @@ public final class PortfolioTrialEvaluationTest {
             for (LocalDate date = firstDate; dates.size() < 10; date = date.plusDays(1)) {
                 if (date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY) dates.add(date);
             }
+            int runSessions = prefixOnly ? 8 : 10;
+            LocalDate finalSession = dates.get(runSessions - 1);
             String masterHeader = Files.readAllLines(project.resolve("examples/synthetic-instrument-master.csv")).getFirst();
             StringBuilder master = new StringBuilder(masterHeader).append('\n');
             for (String id : List.of(A, B)) {
@@ -412,7 +518,7 @@ public final class PortfolioTrialEvaluationTest {
             Files.writeString(root.resolve("rules.csv"), Files.readString(
                     project.resolve("examples/synthetic-market-rule-regimes.csv")).replace("09:45", "09:19"));
             StringBuilder calendar = new StringBuilder("session_date,session_status,first_bar_timestamp,last_bar_timestamp,market_rule_regime_id,regime_source_reference\n");
-            for (LocalDate date = firstDate; !date.isAfter(dates.getLast()); date = date.plusDays(1)) {
+            for (LocalDate date = firstDate; !date.isAfter(finalSession); date = date.plusDays(1)) {
                 if (dates.contains(date)) calendar.append(date).append(",OPEN,").append(date)
                         .append("T09:15:00+05:30,").append(date).append("T09:18:00+05:30,SYNTHETIC_V1,")
                         .append(RULE_REFERENCE).append('\n');
@@ -433,7 +539,7 @@ public final class PortfolioTrialEvaluationTest {
                 Files.writeString(config, template.replace("synthetic-demo-future-v1", "synthetic-" + id));
                 Path bars = root.resolve(id + ".csv");
                 StringBuilder content = new StringBuilder(barsHeader).append('\n');
-                for (int session = 0; session < dates.size(); session++) {
+                for (int session = 0; session < runSessions; session++) {
                     int change = (id.equals(A) ? aChanges : bChanges)[session];
                     LocalDate date = dates.get(session);
                     for (int bar = 0; bar < 4; bar++) {
@@ -450,6 +556,24 @@ public final class PortfolioTrialEvaluationTest {
                 inputs.put(id, new ValidatedPortfolioDataset.Input(bars, config));
             }
             var dataset = ValidatedPortfolioDataset.load(inputs);
+            Optional<PortfolioSettlementEvents> settlementEvents = Optional.empty();
+            Optional<PortfolioSettlementCostSchedule> settlementCosts = Optional.empty();
+            if (settle) {
+                var events = new StringBuilder(String.join(",", PortfolioSettlementEvents.HEADERS)).append('\n');
+                var costs = new StringBuilder(String.join(",", PortfolioSettlementCostSchedule.HEADERS)).append('\n');
+                for (String id : List.of(A, B)) {
+                    String identity = id + ",SYN,FUT," + id + "," + id + ",FUTURE,SYNTHETIC,2030-12-26,,,1,0.05";
+                    events.append("SET-").append(id).append(',').append(identity).append(',').append(finalSession).append(',')
+                            .append(finalSession).append(id.equals(A) ? "T03:49:00Z,110" : "T03:50:00Z,95").append(",false,,,synthetic settlement\n");
+                    for (String side : List.of("LONG", "SHORT")) costs.append("SYNTHETIC,C-").append(id).append('-').append(side)
+                            .append(',').append(finalSession).append(",,").append(identity).append(',').append(side)
+                            .append(",EXPIRY_SETTLEMENT,FIXED,FIXED_PER_SETTLEMENT,1.005,2,HALF_UP,1800,true,2,HALF_UP,synthetic cost\n");
+                }
+                Path eventFile = root.resolve("replay-events.csv"), costFile = root.resolve("settlement-costs.csv");
+                Files.writeString(eventFile, events); Files.writeString(costFile, costs);
+                settlementEvents = Optional.of(PortfolioSettlementEvents.load(eventFile));
+                settlementCosts = Optional.of(PortfolioSettlementCostSchedule.load(costFile));
+            }
             StringBuilder splitText = new StringBuilder("session_date,partition\n");
             for (int index = 0; index < dates.size(); index++) splitText.append(dates.get(index)).append(',')
                     .append(index < 4 ? "DEVELOPMENT" : index < 8 ? "VALIDATION" : "HOLDOUT").append('\n');
@@ -458,7 +582,9 @@ public final class PortfolioTrialEvaluationTest {
             String cardHash = RunConfig.sha256("Synthetic fixture card; no performance evidence.\n".getBytes(StandardCharsets.UTF_8));
             var config = new PortfolioReplayEngine.Config(Map.of(A, 2, B, 2),
                     PortfolioReplayEngine.PendingIntentBoundaryPolicy.CANCEL_AT_SESSION_BOUNDARY,
-                    CrossSessionPositionPolicy.REQUIRE_FLAT, true);
+                    CrossSessionPositionPolicy.REQUIRE_FLAT, true,
+                    settle ? PortfolioSettlementPolicy.EXPLICIT_FINAL_SESSION : PortfolioSettlementPolicy.NONE,
+                    settle ? java.util.Set.of(A, B) : java.util.Set.of());
             var fill = new OpeningPriceIocFillModel(0, BigDecimal.ONE);
             for (int index = 0; index < 2; index++) {
                 int sideB = index == 0 ? 1 : -1;
@@ -467,15 +593,24 @@ public final class PortfolioTrialEvaluationTest {
                     @Override public Map<String, String> parameters() { return Map.of("side_b", Integer.toString(sideB)); }
                     @Override public PortfolioTarget evaluate(List<SynchronizedBarFrameBuilder.Frame> frames,
                             Instant time, PortfolioAccountingLedger.Snapshot completed) {
-                        boolean enter = (frames.size() - 1) % 4 == 0;
+                        boolean enter = (frames.size() - 1) % 4 == 0 || (settle && holdAtSettlement && frames.getLast().sessionDate().equals(finalSession));
                         return new PortfolioTarget(Map.of(A, enter ? 1 : 0, B, enter ? sideB : 0), "synthetic turn");
                     }
                 };
-                String parameters = PortfolioTrialIdentity.parameterConfigSha256(config, strategy, fill, Optional.empty());
+                String parameters = PortfolioTrialIdentity.parameterConfigSha256(config, strategy, fill, Optional.empty(), settlementEvents, settlementCosts);
+                if (settle) {
+                    var supplied = settlementEvents.orElseThrow();
+                    require(!parameters.equals(PortfolioTrialIdentity.parameterConfigSha256(config, strategy, fill, Optional.empty(),
+                            Optional.of(new PortfolioSettlementEvents(supplied.events(), "f".repeat(64))), settlementCosts)), "registration binds settlement event input hash");
+                    var costs = settlementCosts.orElseThrow();
+                    require(!parameters.equals(PortfolioTrialIdentity.parameterConfigSha256(config, strategy, fill, Optional.empty(), settlementEvents,
+                            Optional.of(new PortfolioSettlementCostSchedule(costs.scheduleId(), costs.entries(), "e".repeat(64))))), "registration binds settlement cost input hash");
+                    fails(() -> PortfolioTrialIdentity.parameterConfigSha256(config, strategy, fill, Optional.empty()), "settlement registration cannot omit its source inputs");
+                }
                 var trial = new ResearchTrialLedger.Trial(index == 0 ? "portfolio-A" : "portfolio-B", strategy.id(), "v1",
                         index == 0 ? "LONG_BOTH" : "LONG_SHORT", cardHash, dataset.datasetsSha256(), splitHash, parameters);
                 var registration = ResearchTrialLedger.register(ledger, trial);
-                var result = new PortfolioReplayEngine(config, strategy, fill).run(dataset);
+                var result = new PortfolioReplayEngine(config, strategy, fill, Optional.empty(), settlementEvents, settlementCosts).run(dataset);
                 var written = new PortfolioReplayArtifactWriter().write(runs, dataset, result);
                 var frozen = PortfolioTrialIdentity.inspect(written.path());
                 require(parameters.equals(frozen.parameterConfigSha256()), "prereplay and artifact parameter identity agree");
@@ -490,7 +625,8 @@ public final class PortfolioTrialEvaluationTest {
         }
 
         private void writeCatalog() throws IOException {
-            Files.writeString(catalog, PortfolioEvaluationJson.write(object("schema", PortfolioTrialCatalog.SCHEMA, "trials", rows)));
+            Files.writeString(catalog, PortfolioEvaluationJson.write(object("schema", PortfolioTrialCatalog.SCHEMA,
+                    "artifact_scope", prefixOnly ? "DEVELOPMENT_VALIDATION_ONLY" : "ALL_SPLIT_SESSIONS", "trials", rows)));
         }
         private PortfolioTrialEvaluationAnalyzer.Report analyze() throws IOException {
             return PortfolioTrialEvaluationAnalyzer.analyze(ledger, catalog, runs, 4);
