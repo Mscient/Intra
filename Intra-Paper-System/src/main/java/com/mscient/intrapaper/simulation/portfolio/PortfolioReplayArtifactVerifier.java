@@ -39,6 +39,17 @@ public final class PortfolioReplayArtifactVerifier {
     private PortfolioReplayArtifactVerifier() { }
 
     public static Verification verify(Path folder) throws IOException {
+        return verify(folder, true);
+    }
+
+    /** Layout, manifest, output hashes and execution-fee linkage only. Does not read equity P&L.
+     * Partitioned evaluation must validate its selected financial rows separately; this is not
+     * a substitute for full settlement/accounting verification or deterministic replay. */
+    public static Verification verifyIntegrity(Path folder) throws IOException {
+        return verify(folder, false);
+    }
+
+    private static Verification verify(Path folder, boolean reconcileAccounting) throws IOException {
         Path runFolder = folder.toAbsolutePath().normalize();
         if (!Files.isDirectory(runFolder, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(runFolder)) {
             throw new IOException("Portfolio run folder must be a real directory");
@@ -136,7 +147,7 @@ public final class PortfolioReplayArtifactVerifier {
         }
         Map<String, BigDecimal> executionFees = readExecutionFees(runFolder.resolve("executions.csv"));
         verifyFeeBreakdowns(runFolder.resolve("execution-fees.csv"), values, scheduleEnabled, executionFees);
-        PortfolioSettlementArtifactVerifier.verify(runFolder, values);
+        if (reconcileAccounting) PortfolioSettlementArtifactVerifier.verify(runFolder, values);
         return new Verification(folderName, values.get("validated_datasets_sha256"), outputHashes);
     }
 

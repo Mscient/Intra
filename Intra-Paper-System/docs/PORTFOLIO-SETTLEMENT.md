@@ -112,3 +112,7 @@ The sample buys one future at 103 and one option at 13, then settles at 110 and 
 The workflow does not implement independently expiring instrument universes, sliced settlement quantities, physical delivery, daily variation margin, collateral, broker account reconciliation, early-exercise decisions, price discovery, or exchange matching. No network or broker order route is added.
 
 The separate portfolio risk-audit command currently accepts bar-open/bar-close snapshots only and rejects settlement-bearing replays. Settlement arithmetic and final equity are verified by the portfolio artifact and deterministic verifiers; risk-limit auditing at settlement checkpoints is a separate integration task.
+
+The registered portfolio trial evaluator also retains bar-only session-return boundaries. It accepts v3 artifacts with settlement disabled and explicitly rejects settlement-enabled registration or evaluation until settlement-aware return boundaries are implemented. It cannot silently omit settlement P&L or fees from evaluation.
+
+The evaluator uses the explicitly limited verifyIntegrity API before its split-aware reader, so holdout equity P&L is not interpreted during its integrity check. Full verify and deterministic replay continue to reconcile all settlement/equity rows; the integrity-only API is not equivalent to those checks.

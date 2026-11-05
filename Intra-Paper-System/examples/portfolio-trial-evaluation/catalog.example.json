@@ -1,0 +1,35 @@
+{
+  "schema": "INTRA_PORTFOLIO_TRIAL_CATALOG_V1",
+  "trials": [
+    {
+      "trial_id": "portfolio-A",
+      "strategy_id": "EXAMPLE_PORTFOLIO_STRATEGY",
+      "strategy_version": "v1",
+      "variant_id": "variant-A",
+      "strategy_card_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "dataset_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "split_plan_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "parameter_config_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "registration_record_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "run_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "run_manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "split_plan_csv": "split.example.csv",
+      "starting_capital_inr": "100000"
+    },
+    {
+      "trial_id": "portfolio-B",
+      "strategy_id": "EXAMPLE_PORTFOLIO_STRATEGY",
+      "strategy_version": "v1",
+      "variant_id": "variant-B",
+      "strategy_card_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "dataset_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "split_plan_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "parameter_config_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "registration_record_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "run_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "run_manifest_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "split_plan_csv": "split.example.csv",
+      "starting_capital_inr": "100000"
+    }
+  ]
+}
