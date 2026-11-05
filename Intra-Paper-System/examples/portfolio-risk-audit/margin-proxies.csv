@@ -1,0 +1,3 @@
+instrument_id,effective_from,effective_to,long_proxy_inr_per_unit,short_proxy_inr_per_unit,source_id
+SYN-NIFTY-FUT-2030,2030-05-06,2030-05-06,5,7,synthetic-risk
+SYN-SECOND-FUT-2030,2030-05-06,2030-05-06,5,7,synthetic-risk
