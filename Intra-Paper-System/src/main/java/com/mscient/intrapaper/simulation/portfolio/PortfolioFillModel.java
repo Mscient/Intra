@@ -44,6 +44,9 @@ public interface PortfolioFillModel {
 
     Map<String, String> parameters();
 
-    /** Empty denotes an IOC miss. Returned partial fills are treated as cancelled IOC residuals. */
+    /**
+     * Empty denotes an IOC miss. Returned partial fills are treated as cancelled IOC residuals.
+     * The fee must be zero when the replay engine has an execution-cost schedule.
+     */
     Optional<Fill> fill(OrderIntent intent, OpeningMarketPoint marketAtOpen);
 }

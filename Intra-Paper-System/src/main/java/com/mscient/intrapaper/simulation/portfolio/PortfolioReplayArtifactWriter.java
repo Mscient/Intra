@@ -25,7 +25,7 @@ import java.util.UUID;
 /** Atomically publishes diagnostic-only portfolio replay artifacts under the replay fingerprint. */
 public final class PortfolioReplayArtifactWriter {
     private static final List<String> OUTPUT_NAMES = List.of(
-            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "equity.csv");
+            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "execution-fees.csv", "equity.csv");
 
     public record WrittenRun(String runId, Path path) { }
 
@@ -79,6 +79,7 @@ public final class PortfolioReplayArtifactWriter {
             writeNew(staging.resolve("decisions.csv"), decisionsCsv(result));
             writeNew(staging.resolve("orders.csv"), ordersCsv(result));
             writeNew(staging.resolve("executions.csv"), executionsCsv(result));
+            writeNew(staging.resolve("execution-fees.csv"), executionFeesCsv(result));
             writeNew(staging.resolve("equity.csv"), equityCsv(result));
             Map<String, String> hashes = new TreeMap<>();
             for (String name : OUTPUT_NAMES) hashes.put(name, RunConfig.sha256(Files.readAllBytes(staging.resolve(name))));
@@ -106,7 +107,7 @@ public final class PortfolioReplayArtifactWriter {
 
     private static String manifest(PortfolioReplayEngine.Result result, Map<String, String> hashes) {
         StringBuilder out = new StringBuilder();
-        put(out, "schema_version", "1");
+        put(out, "schema_version", "2");
         put(out, "run_id", result.replayFingerprintSha256());
         put(out, "validated_datasets_sha256", result.validatedDatasetsSha256());
         put(out, "frame_inputs_sha256", result.frameInputsSha256());
@@ -114,12 +115,17 @@ public final class PortfolioReplayArtifactWriter {
         put(out, "strategy_fingerprint_sha256", result.strategyFingerprintSha256());
         put(out, "fill_model_id_base64", b64(result.fillModelId()));
         put(out, "fill_model_fingerprint_sha256", result.fillModelFingerprintSha256());
+        put(out, "execution_cost_schedule_enabled", Boolean.toString(result.executionCostScheduleId().isPresent()));
+        put(out, "execution_cost_schedule_id_base64", b64(result.executionCostScheduleId().orElse("")));
+        put(out, "execution_cost_schedule_source_file_sha256",
+                result.executionCostScheduleSourceFileSha256().orElse("NONE"));
         put(out, "build_commit", result.buildCommit());
         put(out, "classification", result.classification());
         put(out, "performance_claim_eligible", "false");
         put(out, "decision_count", Integer.toString(result.decisions().size()));
         put(out, "order_count", Integer.toString(result.orders().size()));
         put(out, "execution_count", Integer.toString(result.executions().size()));
+        put(out, "execution_fee_breakdown_count", Integer.toString(result.executions().size()));
         put(out, "snapshot_count", Integer.toString(result.snapshots().size()));
         put(out, "position_boundary_policy", result.config().positionBoundaryPolicy().name());
         put(out, "pending_intent_boundary_policy", result.config().pendingIntentBoundaryPolicy().name());
@@ -179,6 +185,23 @@ public final class PortfolioReplayArtifactWriter {
         for (PortfolioExecution execution : result.executions()) {
             rows.add(csv(execution.executionId(), execution.sequence(), execution.instrumentId(), execution.timestamp(),
                     execution.side(), execution.quantityUnits(), decimal(execution.price()), decimal(execution.feeInr())));
+        }
+        return String.join("\n", rows) + "\n";
+    }
+
+    private static String executionFeesCsv(PortfolioReplayEngine.Result result) {
+        List<String> rows = new ArrayList<>();
+        rows.add("execution_id,cost_model,schedule_id,schedule_entry_id,schedule_source_file_sha256,source_reference,execution_date,contract_kind,traded_value_inr,legacy_fill_model_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr");
+        for (PortfolioExecution execution : result.executions()) {
+            PortfolioExecutionFeeBreakdown fee = execution.feeBreakdown().orElseThrow(() ->
+                    new IllegalArgumentException("Replay execution has no fee audit breakdown: " + execution.executionId()));
+            rows.add(csv(execution.executionId(), fee.costModel(), fee.scheduleId(), fee.scheduleEntryId(),
+                    fee.scheduleSourceFileSha256(), fee.sourceReference(), fee.executionDate(), fee.contractKind(),
+                    decimal(fee.tradedValueInr()), decimal(fee.legacyFillModelFeeInr()),
+                    decimal(fee.brokerageInr()), decimal(fee.exchangeTransactionInr()),
+                    decimal(fee.ipftContributionInr()), decimal(fee.sebiTurnoverInr()),
+                    decimal(fee.sttInr()), decimal(fee.stampDutyInr()),
+                    decimal(fee.gstTaxableBaseInr()), decimal(fee.gstInr()), decimal(fee.totalFeeInr())));
         }
         return String.join("\n", rows) + "\n";
     }

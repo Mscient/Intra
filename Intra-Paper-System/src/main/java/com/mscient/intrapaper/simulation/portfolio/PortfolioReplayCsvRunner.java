@@ -10,16 +10,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 /** Strict local-file CLI workflow for validated multi-contract diagnostic portfolio replay. */
 public final class PortfolioReplayCsvRunner {
     private static final List<String> INPUT_HEADERS = List.of("instrument_id", "bars_csv", "run_properties", "max_abs_lots");
-    private static final List<String> SETTING_KEYS = List.of(
+    private static final List<String> REQUIRED_SETTING_KEYS = List.of(
             "portfolio.pending_intent_boundary_policy", "portfolio.position_boundary_policy",
             "portfolio.require_contiguous_frames_within_session", "strategy.fast_bars",
             "strategy.slow_bars", "strategy.long_lots", "fill.slippage_ticks",
             "fill.fee_per_execution_inr");
+    private static final String COST_SCHEDULE_KEY = "portfolio.execution_cost_schedule_csv";
 
     public record Replay(ValidatedPortfolioDataset dataset, PortfolioReplayEngine.Result result) { }
 
@@ -62,6 +64,13 @@ public final class PortfolioReplayCsvRunner {
         }
         int slippageTicks = nonNegativeInteger(settings.get("fill.slippage_ticks"), "fill.slippage_ticks");
         BigDecimal fee = nonNegativeDecimal(settings.get("fill.fee_per_execution_inr"), "fill.fee_per_execution_inr");
+        String scheduleSetting = settings.getOrDefault(COST_SCHEDULE_KEY, "NONE");
+        Optional<PortfolioExecutionCostSchedule> costSchedule = scheduleSetting.equals("NONE")
+                ? Optional.empty()
+                : Optional.of(PortfolioExecutionCostSchedule.load(resolve(settingsPath.getParent(), scheduleSetting)));
+        if (costSchedule.isPresent() && fee.signum() != 0) {
+            throw new IllegalArgumentException("fill.fee_per_execution_inr must be zero when portfolio.execution_cost_schedule_csv is enabled");
+        }
         PortfolioReplayEngine.PendingIntentBoundaryPolicy pendingPolicy = enumValue(
                 PortfolioReplayEngine.PendingIntentBoundaryPolicy.class,
                 settings.get("portfolio.pending_intent_boundary_policy"), "pending intent boundary policy");
@@ -74,7 +83,7 @@ public final class PortfolioReplayCsvRunner {
                 positionPolicy, contiguous);
         PortfolioStrategy strategy = new PortfolioSmaCrossoverStrategy(fast, slow, longLots);
         PortfolioFillModel fillModel = new OpeningPriceIocFillModel(slippageTicks, fee);
-        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel).run(dataset);
+        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel, costSchedule).run(dataset);
         return new Replay(dataset, result);
     }
 
@@ -100,9 +109,12 @@ public final class PortfolioReplayCsvRunner {
                 throw new IllegalArgumentException("Empty or duplicate portfolio setting on line " + (index + 1));
             }
         }
-        if (!values.keySet().equals(new java.util.TreeSet<>(SETTING_KEYS))) {
-            throw new IllegalArgumentException("Portfolio settings keys must be exactly " + SETTING_KEYS
-                    + "; found " + values.keySet());
+        java.util.TreeSet<String> required = new java.util.TreeSet<>(REQUIRED_SETTING_KEYS);
+        java.util.TreeSet<String> withOptionalSchedule = new java.util.TreeSet<>(required);
+        withOptionalSchedule.add(COST_SCHEDULE_KEY);
+        if (!values.keySet().equals(required) && !values.keySet().equals(withOptionalSchedule)) {
+            throw new IllegalArgumentException("Portfolio settings keys must be exactly " + REQUIRED_SETTING_KEYS
+                    + " with optional " + COST_SCHEDULE_KEY + "; found " + values.keySet());
         }
         return Map.copyOf(values);
     }

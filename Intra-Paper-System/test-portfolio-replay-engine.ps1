@@ -29,16 +29,24 @@ New-Item -ItemType Directory -Force -Path $mainClasses, $testClasses | Out-Null
 try {
     $mainSources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' |
         ForEach-Object { $_.FullName })
-    $testSource = Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayEngineTest.java'
-    if ($mainSources.Count -eq 0 -or -not (Test-Path -LiteralPath $testSource)) {
-        throw 'Main sources and portfolio-replay test source are required.'
+    $testSources = @(
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayEngineTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioExecutionCostScheduleTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java')
+    )
+    if ($mainSources.Count -eq 0 -or @($testSources | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -ne 0) {
+        throw 'Main sources and portfolio-replay/cost test sources are required.'
     }
     & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
-    & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSource
+    & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses @testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused-check compilation failed with exit code $LASTEXITCODE" }
     & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.simulation.portfolio.PortfolioReplayEngineTest
     if ($LASTEXITCODE -ne 0) { throw "Portfolio-replay checks failed with exit code $LASTEXITCODE" }
+    & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.simulation.portfolio.PortfolioExecutionCostScheduleTest
+    if ($LASTEXITCODE -ne 0) { throw "Portfolio execution-cost checks failed with exit code $LASTEXITCODE" }
+    & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifierTest
+    if ($LASTEXITCODE -ne 0) { throw "Portfolio artifact-verifier checks failed with exit code $LASTEXITCODE" }
 } finally {
     $resolvedRunRoot = [System.IO.Path]::GetFullPath($runRootAbsolute)
     if (-not $resolvedRunRoot.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {

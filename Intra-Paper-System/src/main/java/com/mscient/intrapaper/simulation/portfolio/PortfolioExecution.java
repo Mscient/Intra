@@ -3,6 +3,7 @@ package com.mscient.intrapaper.simulation.portfolio;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Caller-supplied simulated fill for portfolio accounting; it cannot submit an order. */
 public record PortfolioExecution(
@@ -13,7 +14,8 @@ public record PortfolioExecution(
         Side side,
         long quantityUnits,
         BigDecimal price,
-        BigDecimal feeInr) {
+        BigDecimal feeInr,
+        Optional<PortfolioExecutionFeeBreakdown> feeBreakdown) {
 
     public enum Side { BUY, SELL }
 
@@ -26,8 +28,17 @@ public record PortfolioExecution(
         if (quantityUnits < 1) throw new IllegalArgumentException("quantityUnits must be positive");
         price = Objects.requireNonNull(price, "price").stripTrailingZeros();
         feeInr = Objects.requireNonNull(feeInr, "feeInr").stripTrailingZeros();
+        feeBreakdown = Objects.requireNonNull(feeBreakdown, "feeBreakdown");
         if (price.signum() <= 0) throw new IllegalArgumentException("price must be positive");
         if (feeInr.signum() < 0) throw new IllegalArgumentException("feeInr must be non-negative");
+        if (feeBreakdown.isPresent() && feeBreakdown.orElseThrow().totalFeeInr().compareTo(feeInr) != 0) {
+            throw new IllegalArgumentException("execution fee must equal its audit breakdown total");
+        }
+    }
+
+    public PortfolioExecution(String executionId, long sequence, String instrumentId, Instant timestamp,
+            Side side, long quantityUnits, BigDecimal price, BigDecimal feeInr) {
+        this(executionId, sequence, instrumentId, timestamp, side, quantityUnits, price, feeInr, Optional.empty());
     }
 
     private static String required(String value, String field) {

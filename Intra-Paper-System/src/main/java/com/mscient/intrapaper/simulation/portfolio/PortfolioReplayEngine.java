@@ -118,6 +118,8 @@ public final class PortfolioReplayEngine {
             String fillModelId, Map<String, String> fillModelParameters,
             String buildCommit, Config config,
             String validatedDatasetsSha256,
+            Optional<String> executionCostScheduleId,
+            Optional<String> executionCostScheduleSourceFileSha256,
             String frameInputsSha256, String strategyFingerprintSha256,
             String fillModelFingerprintSha256, String replayFingerprintSha256,
             List<DecisionRecord> decisions, List<OrderOutcome> orders,
@@ -125,6 +127,15 @@ public final class PortfolioReplayEngine {
             String classification) {
         public Result {
             Objects.requireNonNull(config, "config");
+            Objects.requireNonNull(executionCostScheduleId, "executionCostScheduleId");
+            Objects.requireNonNull(executionCostScheduleSourceFileSha256, "executionCostScheduleSourceFileSha256");
+            if (executionCostScheduleId.isPresent() != executionCostScheduleSourceFileSha256.isPresent()) {
+                throw new IllegalArgumentException("cost schedule identity and source hash must be present together");
+            }
+            executionCostScheduleId.ifPresent(id -> requireIdentifier(id, "execution cost schedule ID"));
+            executionCostScheduleSourceFileSha256.ifPresent(hash -> {
+                if (!hash.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("Invalid cost schedule source hash");
+            });
             strategyParameters = immutableSorted(strategyParameters);
             fillModelParameters = immutableSorted(fillModelParameters);
             decisions = List.copyOf(decisions);
@@ -142,11 +153,18 @@ public final class PortfolioReplayEngine {
     private final Config config;
     private final PortfolioStrategy strategy;
     private final PortfolioFillModel fillModel;
+    private final Optional<PortfolioExecutionCostSchedule> executionCostSchedule;
 
     public PortfolioReplayEngine(Config config, PortfolioStrategy strategy, PortfolioFillModel fillModel) {
+        this(config, strategy, fillModel, Optional.empty());
+    }
+
+    public PortfolioReplayEngine(Config config, PortfolioStrategy strategy, PortfolioFillModel fillModel,
+            Optional<PortfolioExecutionCostSchedule> executionCostSchedule) {
         this.config = Objects.requireNonNull(config, "config");
         this.strategy = Objects.requireNonNull(strategy, "strategy");
         this.fillModel = Objects.requireNonNull(fillModel, "fillModel");
+        this.executionCostSchedule = Objects.requireNonNull(executionCostSchedule, "executionCostSchedule");
         requireIdentifier(strategy.id(), "strategy ID");
         requireIdentifier(fillModel.id(), "fill model ID");
         immutableSorted(strategy.parameters());
@@ -178,9 +196,13 @@ public final class PortfolioReplayEngine {
         String strategyHash = hashIdentity("INTRA_PORTFOLIO_STRATEGY_V1", strategy.id(), strategyParameters);
         String fillHash = hashIdentity("INTRA_PORTFOLIO_FILL_MODEL_V1", fillModel.id(), fillParameters);
         String buildCommit = BuildInfo.commitId();
-        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V1", List.of(buildCommit,
+        String scheduleId = executionCostSchedule.map(PortfolioExecutionCostSchedule::scheduleId)
+                .orElse("NO_EXECUTION_COST_SCHEDULE");
+        String scheduleHash = executionCostSchedule.map(PortfolioExecutionCostSchedule::sourceFileSha256)
+                .orElse("NO_EXECUTION_COST_SCHEDULE");
+        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V2", List.of(buildCommit,
                 validatedDatasetsSha256, framesHash, strategyHash,
-                fillHash, config.maxAbsLotsByInstrument().toString(), config.pendingIntentBoundaryPolicy().name(),
+                fillHash, scheduleId, scheduleHash, config.maxAbsLotsByInstrument().toString(), config.pendingIntentBoundaryPolicy().name(),
                 config.positionBoundaryPolicy().name(), Boolean.toString(config.requireContiguousFramesWithinSession())));
 
         PortfolioAccountingLedger ledger = new PortfolioAccountingLedger();
@@ -247,9 +269,21 @@ public final class PortfolioReplayEngine {
                     if (Math.abs(resultingUnits) > maxUnits) {
                         throw new IllegalArgumentException("Fill would exceed configured per-instrument position limit: " + instrumentId);
                     }
+                    BigDecimal tradedValue = filled.price().multiply(BigDecimal.valueOf(filled.quantityUnits()));
+                    PortfolioExecutionFeeBreakdown feeBreakdown;
+                    if (executionCostSchedule.isPresent()) {
+                        if (filled.feeInr().signum() != 0) {
+                            throw new IllegalArgumentException("Fill-model fee must be zero when a dated execution cost schedule is enabled");
+                        }
+                        feeBreakdown = executionCostSchedule.orElseThrow().calculate(frame.sessionDate(), instrumentId,
+                                bar.contractKind(), side, filled.price(), filled.quantityUnits()).breakdown();
+                    } else {
+                        feeBreakdown = PortfolioExecutionFeeBreakdown.legacy(fillModel.id(), frame.sessionDate(),
+                                bar.contractKind(), tradedValue, filled.feeInr());
+                    }
                     PortfolioExecution execution = new PortfolioExecution("PX-" + (++executionSequence),
                             executionSequence, instrumentId, frame.timestamp(), side,
-                            filled.quantityUnits(), filled.price(), filled.feeInr());
+                            filled.quantityUnits(), filled.price(), feeBreakdown.totalFeeInr(), Optional.of(feeBreakdown));
                     frameExecutions.add(execution);
                     executions.add(execution);
                     OrderStatus status = filled.quantityUnits() == requestedUnits
@@ -294,6 +328,8 @@ public final class PortfolioReplayEngine {
 
         return new Result(strategy.id(), strategyParameters, fillModel.id(), fillParameters, buildCommit, config,
                 validatedDatasetsSha256,
+                executionCostSchedule.map(PortfolioExecutionCostSchedule::scheduleId),
+                executionCostSchedule.map(PortfolioExecutionCostSchedule::sourceFileSha256),
                 framesHash, strategyHash, fillHash, replayHash, decisions, orderOutcomes,
                 executions, snapshots, "REPLAY_DIAGNOSTIC_ONLY");
     }

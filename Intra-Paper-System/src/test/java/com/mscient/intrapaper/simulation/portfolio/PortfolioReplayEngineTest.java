@@ -8,6 +8,9 @@ import com.mscient.intrapaper.reference.OptionRight;
 import com.mscient.intrapaper.reference.TimestampRole;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -23,7 +26,7 @@ public final class PortfolioReplayEngineTest {
 
     private PortfolioReplayEngineTest() { }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         executesNextFrameOpenWithoutPassingFutureOhlcToFillModel();
         handlesPartialAndMissedIocOutcomes();
         cancelsOrCarriesPendingTargetsOnlyByExplicitPolicy();
@@ -31,6 +34,7 @@ public final class PortfolioReplayEngineTest {
         enforcesFlatSessionAndDataBoundaries();
         rejectsBarEndAndUnapprovedIntrasessionGaps();
         fingerprintsAndSequenceAssignmentAreDeterministic();
+        appliesDatedScheduleWithoutDoubleCountingFillFee();
         System.out.println("PortfolioReplayEngine checks passed");
     }
 
@@ -184,6 +188,37 @@ public final class PortfolioReplayEngineTest {
         require(first.executions().getFirst().executionId().equals("PX-1")
                 && first.executions().getFirst().sequence() == 1,
                 "execution identity and sequence assignment must be deterministic");
+    }
+
+    private static void appliesDatedScheduleWithoutDoubleCountingFillFee() throws Exception {
+        String header = "schedule_id,entry_id,effective_from,effective_until,instrument_id,contract_kind,side,brokerage_per_order_inr,brokerage_per_unit_inr,brokerage_bps,exchange_inr_per_crore,ipft_inr_per_crore,sebi_inr_per_crore,stt_bps,stamp_duty_bps,gst_bps,gst_on_brokerage,gst_on_exchange,gst_on_ipft,gst_on_sebi,gst_on_stt,gst_on_stamp_duty,source_reference";
+        String row = "fixture-costs,fut-buy,2026-11-03,2026-11-04,FUT,FUTURE,BUY,2,0,0,0,0,0,0,0,0,false,false,false,false,false,false,fixture-source";
+        Path csv = Files.createTempFile("portfolio-engine-cost-", ".csv");
+        Files.writeString(csv, header + "\n" + row + "\n", StandardCharsets.UTF_8);
+        csv.toFile().deleteOnExit();
+        PortfolioExecutionCostSchedule schedule = PortfolioExecutionCostSchedule.load(csv);
+        List<SynchronizedBarFrameBuilder.Frame> frames = frames(DAY_ONE,
+                "2026-11-03T03:45:00Z", "2026-11-03T03:46:00Z");
+        PortfolioStrategy strategy = strategy(index -> target(1));
+        PortfolioFillModel zeroFee = fillModel((intent, open) -> Optional.of(new PortfolioFillModel.Fill(
+                intent.requestedUnits(), open.openPrice(), BigDecimal.ZERO)));
+        PortfolioReplayEngine.Config config = new PortfolioReplayEngine.Config(Map.of("FUT", 2, "CALL", 2),
+                PortfolioReplayEngine.PendingIntentBoundaryPolicy.CANCEL_AT_SESSION_BOUNDARY,
+                CrossSessionPositionPolicy.ALLOW_OVERNIGHT, true);
+        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, zeroFee,
+                Optional.of(schedule)).run(frames);
+        PortfolioExecution execution = result.executions().getFirst();
+        require(execution.feeInr().compareTo(new BigDecimal("2.00")) == 0,
+                "dated schedule must replace the fill-model fee");
+        require(execution.feeBreakdown().orElseThrow().scheduleEntryId().equals("fut-buy"),
+                "execution must retain the resolved schedule row");
+        require(result.executionCostScheduleId().orElseThrow().equals("fixture-costs")
+                        && result.executionCostScheduleSourceFileSha256().orElseThrow().equals(schedule.sourceFileSha256()),
+                "result identity must retain schedule provenance");
+        PortfolioFillModel nonZeroFee = fillModel((intent, open) -> Optional.of(new PortfolioFillModel.Fill(
+                intent.requestedUnits(), open.openPrice(), BigDecimal.ONE)));
+        expectFailure(() -> new PortfolioReplayEngine(config, strategy, nonZeroFee, Optional.of(schedule)).run(frames),
+                "schedule-enabled replay must reject a nonzero fill-model fee");
     }
 
     private static PortfolioReplayEngine engine(PortfolioStrategy strategy, PortfolioFillModel fillModel,
