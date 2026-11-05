@@ -122,6 +122,8 @@
 
 ## Source-derived backtesting decisions
 
+Task 3 adds a separate registered portfolio evaluator with a strict complete-family catalog, fixed-capital aggregate session returns, shared Sharpe/DSR sensitivity/chronological-block CSCV, optional verified outcome history, artifact/ledger hashes and trial counts, and create-new JSON output. Focused JDK 21 checks cover identities, partitions, missing sessions, holdout exclusion, determinism, provenance and tampering. Replay outputs and the shared CLI remain unchanged; G0 and downstream evidence gates remain open. See [the dedicated evaluator guide](docs/PORTFOLIO-TRIAL-EVALUATION.md).
+
 - The offline MVP is a dated single-contract futures/option-premium replay simulator. Its statistical evaluator is diagnostic-only; it does not establish a strategy edge or performance eligibility.
 - Keep session-level chronological splits and a sealed holdout for strategy research. A DSR approximation and CSCV diagnostic now operate on development/validation sessions; the holdout is excluded from those calculations but is not sealed by the software.
 - For bar-only decisions, the earliest simulated fill is the next eligible bar. A candle touching a passive limit does not prove a fill.
