@@ -22,6 +22,8 @@ public final class PortfolioReplayCsvRunner {
             "strategy.slow_bars", "strategy.long_lots", "fill.slippage_ticks",
             "fill.fee_per_execution_inr");
     private static final String COST_SCHEDULE_KEY = "portfolio.execution_cost_schedule_csv";
+    private static final List<String> SETTLEMENT_KEYS = List.of("portfolio.settlement_policy", "portfolio.settlement_instruments",
+            "portfolio.settlement_events_csv", "portfolio.settlement_cost_schedule_csv");
 
     public record Replay(ValidatedPortfolioDataset dataset, PortfolioReplayEngine.Result result) { }
 
@@ -78,12 +80,33 @@ public final class PortfolioReplayCsvRunner {
                 settings.get("portfolio.position_boundary_policy"), "position boundary policy");
         boolean contiguous = strictBoolean(settings.get("portfolio.require_contiguous_frames_within_session"));
 
-        ValidatedPortfolioDataset dataset = ValidatedPortfolioDataset.load(inputs);
+        PortfolioSettlementPolicy settlementPolicy = enumValue(PortfolioSettlementPolicy.class,
+                settings.getOrDefault("portfolio.settlement_policy", "NONE"), "settlement policy");
+        java.util.Set<String> settlementTargets = new java.util.TreeSet<>();
+        String eventsPath = settings.getOrDefault("portfolio.settlement_events_csv", "NONE");
+        String settlementCostPath = settings.getOrDefault("portfolio.settlement_cost_schedule_csv", "NONE");
+        if (settlementPolicy == PortfolioSettlementPolicy.NONE) {
+            if (settings.containsKey("portfolio.settlement_instruments") || !eventsPath.equals("NONE") || !settlementCostPath.equals("NONE"))
+                throw new IllegalArgumentException("Settlement targets/files require EXPLICIT_FINAL_SESSION policy");
+        } else {
+            String declared = settings.get("portfolio.settlement_instruments");
+            if (declared == null || eventsPath.equals("NONE")) throw new IllegalArgumentException("Explicit settlement requires instruments and events CSV");
+            for (String target : declared.split(",", -1)) {
+                PortfolioSettlementContract.id(target, "settlement instrument");
+                if (!settlementTargets.add(target)) throw new IllegalArgumentException("Duplicate settlement target: " + target);
+            }
+        }
+        Optional<PortfolioSettlementEvents> settlementEvents = eventsPath.equals("NONE") ? Optional.empty()
+                : Optional.of(PortfolioSettlementEvents.load(resolve(settingsPath.getParent(), eventsPath)));
+        Optional<PortfolioSettlementCostSchedule> settlementCosts = settlementCostPath.equals("NONE") ? Optional.empty()
+                : Optional.of(PortfolioSettlementCostSchedule.load(resolve(settingsPath.getParent(), settlementCostPath)));
+        ValidatedPortfolioDataset dataset = ValidatedPortfolioDataset.load(inputs, settlementTargets, settlementEvents);
         PortfolioReplayEngine.Config config = new PortfolioReplayEngine.Config(maxLots, pendingPolicy,
-                positionPolicy, contiguous);
+                positionPolicy, contiguous, settlementPolicy, settlementTargets);
         PortfolioStrategy strategy = new PortfolioSmaCrossoverStrategy(fast, slow, longLots);
         PortfolioFillModel fillModel = new OpeningPriceIocFillModel(slippageTicks, fee);
-        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel, costSchedule).run(dataset);
+        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel, costSchedule,
+                settlementEvents, settlementCosts).run(dataset);
         return new Replay(dataset, result);
     }
 
@@ -112,9 +135,10 @@ public final class PortfolioReplayCsvRunner {
         java.util.TreeSet<String> required = new java.util.TreeSet<>(REQUIRED_SETTING_KEYS);
         java.util.TreeSet<String> withOptionalSchedule = new java.util.TreeSet<>(required);
         withOptionalSchedule.add(COST_SCHEDULE_KEY);
-        if (!values.keySet().equals(required) && !values.keySet().equals(withOptionalSchedule)) {
+        withOptionalSchedule.addAll(SETTLEMENT_KEYS);
+        if (!values.keySet().containsAll(required) || !withOptionalSchedule.containsAll(values.keySet())) {
             throw new IllegalArgumentException("Portfolio settings keys must be exactly " + REQUIRED_SETTING_KEYS
-                    + " with optional " + COST_SCHEDULE_KEY + "; found " + values.keySet());
+                    + " with optional " + COST_SCHEDULE_KEY + " and " + SETTLEMENT_KEYS + "; found " + values.keySet());
         }
         return Map.copyOf(values);
     }

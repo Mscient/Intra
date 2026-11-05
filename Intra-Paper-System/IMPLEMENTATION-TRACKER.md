@@ -131,3 +131,7 @@
 ## Scope of this tracker
 
 This file tracks implementation gates and evidence. It does not authorize API credentials, market-data capture, brokerage orders, live trading, or publication of private run data. The implementation is an offline backtesting/paper-simulator increment, not completion of the full multi-stage research plan.
+
+## Portfolio final-session settlement — 2026-11-05
+
+Implemented caller-sourced final-session settlement for signed futures/options residual positions. Explicit target/event coverage, full dated identity, per-unit values, sourced turnover, separate expiry/exercise components, caller-declared rounding, and atomic ledger batches are enforced. Portfolio validation preserves the single-contract rules through a separate context. Replay/artifact schema v3 binds settlement policy and file hashes; output verification independently reconstructs basis, quantities, charges, and equity, and deterministic replay compares every output. The focused accounting, replay, execution-cost, settlement, artifact-tamper, and deterministic checks pass under JDK 21. A runnable synthetic future/call example is included. See docs/PORTFOLIO-SETTLEMENT.md. All results remain diagnostic-only; independent expiries, physical delivery, daily variation margin, source truth, tariff completeness, and account reconciliation are not established.

@@ -48,6 +48,33 @@ public record ValidatedDataset(
         long completeSessionCount) {
 
     public static ValidatedDataset load(java.nio.file.Path barsPath, RunConfig config) throws IOException {
+        return loadInternal(barsPath, config, false);
+    }
+
+    /** Only the portfolio loader may defer the legacy event requirement to its own event validation. */
+    static ValidatedDataset loadForPortfolio(java.nio.file.Path barsPath, RunConfig config) throws IOException {
+        if (config.expirySettlementPath().isPresent() || config.settlementCostSchedulePath().isPresent()) {
+            throw new IllegalArgumentException("Portfolio inputs cannot use settlement.file or settlement.cost_schedule_file; "
+                    + "migrate to portfolio.settlement_events_csv and portfolio.settlement_cost_schedule_csv");
+        }
+        return loadInternal(barsPath, config, true);
+    }
+
+    public boolean finalSessionComplete() {
+        Bar last = bars.getLast();
+        List<Bar> session = bars.stream().filter(b -> b.sessionDate().equals(last.sessionDate())).toList();
+        SessionCalendarEntry window = sessionCalendar.get(last.sessionDate());
+        Duration spacing = IntervalSupport.duration(last.interval());
+        if (window == null || !window.open() || !session.getFirst().timestamp().equals(window.firstBarTimestamp().orElseThrow())
+                || !last.timestamp().equals(window.lastBarTimestamp().orElseThrow())) return false;
+        for (int i = 1; i < session.size(); i++) {
+            if (!session.get(i).timestamp().equals(session.get(i - 1).timestamp().plus(spacing))) return false;
+        }
+        return true;
+    }
+
+    private static ValidatedDataset loadInternal(java.nio.file.Path barsPath, RunConfig config,
+            boolean portfolioValidation) throws IOException {
         BarsCsvReader.ReadResult barsRead = BarsCsvReader.readWithHash(barsPath, config);
         List<Bar> bars = barsRead.bars();
         Duration expectedSpacing = IntervalSupport.duration(config.interval());
@@ -257,7 +284,7 @@ public record ValidatedDataset(
             if (settlement.settlementTimestamp().isBefore(lastBarEnd)) {
                 throw new IllegalArgumentException("Settlement timestamp precedes the final bar end");
             }
-        } else if (last.sessionDate().equals(onlyExpiry)) {
+        } else if (!portfolioValidation && last.sessionDate().equals(onlyExpiry)) {
             throw new IllegalArgumentException("A settlement input is required when the dataset includes a contract expiry-date session");
         }
 

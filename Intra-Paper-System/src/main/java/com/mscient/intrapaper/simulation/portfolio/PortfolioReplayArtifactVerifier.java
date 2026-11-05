@@ -16,7 +16,8 @@ import java.util.TreeMap;
 /** Verifies a published portfolio artifact's fixed layout, fingerprint binding, and output hashes. */
 public final class PortfolioReplayArtifactVerifier {
     private static final List<String> OUTPUT_NAMES = List.of(
-            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "execution-fees.csv", "equity.csv");
+            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "execution-fees.csv", "equity.csv",
+            "settlements.csv", "settlement-cost-lines.csv");
     private static final List<String> BASE_KEYS = List.of(
             "schema_version", "run_id", "validated_datasets_sha256", "frame_inputs_sha256",
             "strategy_id_base64", "strategy_fingerprint_sha256", "fill_model_id_base64",
@@ -26,7 +27,9 @@ public final class PortfolioReplayArtifactVerifier {
             "performance_claim_eligible", "decision_count", "order_count", "execution_count",
             "execution_fee_breakdown_count", "snapshot_count", "position_boundary_policy", "pending_intent_boundary_policy",
             "require_contiguous_frames_within_session", "max_abs_lots_by_instrument_base64",
-            "strategy_parameters_base64", "fill_model_parameters_base64", "output_files");
+            "strategy_parameters_base64", "fill_model_parameters_base64", "settlement_policy", "settlement_instruments",
+            "settlement_events_source_file_sha256", "settlement_cost_schedule_id_base64", "settlement_cost_schedule_source_file_sha256",
+            "settlement_count", "settlement_cost_line_count", "output_files");
 
     public record Verification(String runId, String validatedDatasetsSha256,
             Map<String, String> outputSha256) {
@@ -47,6 +50,8 @@ public final class PortfolioReplayArtifactVerifier {
             throw new IOException("Portfolio run manifest is missing or not a regular file");
         }
         List<String> lines = Files.readAllLines(manifest, java.nio.charset.StandardCharsets.UTF_8);
+        if (lines.isEmpty() || !lines.getFirst().equals("schema_version=3"))
+            throw new IOException("Unsupported portfolio artifact schema; use the original build to verify older artifacts");
         if (lines.size() != BASE_KEYS.size() + OUTPUT_NAMES.size()) {
             throw new IOException("Portfolio run manifest has an unexpected number of rows");
         }
@@ -63,7 +68,7 @@ public final class PortfolioReplayArtifactVerifier {
                 throw new IOException("Portfolio run manifest keys are duplicated or out of canonical order");
             }
         }
-        if (!"2".equals(values.get("schema_version"))) throw new IOException("Unsupported portfolio artifact schema");
+        if (!"3".equals(values.get("schema_version"))) throw new IOException("Unsupported portfolio artifact schema; use the original build to verify older artifacts");
         if (!folderName.equals(values.get("run_id"))) throw new IOException("Portfolio run folder and manifest IDs differ");
         requireHash(values.get("validated_datasets_sha256"), "validated datasets hash");
         requireHash(values.get("frame_inputs_sha256"), "frame inputs hash");
@@ -131,6 +136,7 @@ public final class PortfolioReplayArtifactVerifier {
         }
         Map<String, BigDecimal> executionFees = readExecutionFees(runFolder.resolve("executions.csv"));
         verifyFeeBreakdowns(runFolder.resolve("execution-fees.csv"), values, scheduleEnabled, executionFees);
+        PortfolioSettlementArtifactVerifier.verify(runFolder, values);
         return new Verification(folderName, values.get("validated_datasets_sha256"), outputHashes);
     }
 

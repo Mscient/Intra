@@ -32,7 +32,12 @@ public final class PortfolioReplayEngine {
     public record Config(Map<String, Integer> maxAbsLotsByInstrument,
             PendingIntentBoundaryPolicy pendingIntentBoundaryPolicy,
             CrossSessionPositionPolicy positionBoundaryPolicy,
-            boolean requireContiguousFramesWithinSession) {
+            boolean requireContiguousFramesWithinSession, PortfolioSettlementPolicy settlementPolicy,
+            java.util.Set<String> settlementInstruments) {
+        public Config(Map<String, Integer> limits, PendingIntentBoundaryPolicy pending,
+                CrossSessionPositionPolicy positions, boolean contiguous) {
+            this(limits, pending, positions, contiguous, PortfolioSettlementPolicy.NONE, java.util.Set.of());
+        }
         public Config {
             Objects.requireNonNull(maxAbsLotsByInstrument, "maxAbsLotsByInstrument");
             TreeMap<String, Integer> limits = new TreeMap<>();
@@ -47,6 +52,11 @@ public final class PortfolioReplayEngine {
             });
             if (limits.size() < 2) throw new IllegalArgumentException("At least two instrument limits are required");
             maxAbsLotsByInstrument = Collections.unmodifiableMap(limits);
+            Objects.requireNonNull(settlementPolicy, "settlementPolicy");
+            settlementInstruments = Collections.unmodifiableSet(new java.util.TreeSet<>(settlementInstruments));
+            if ((settlementPolicy == PortfolioSettlementPolicy.NONE) != settlementInstruments.isEmpty()
+                    || !limits.keySet().containsAll(settlementInstruments))
+                throw new IllegalArgumentException("Settlement policy requires an explicit non-empty subset of portfolio instruments");
             Objects.requireNonNull(pendingIntentBoundaryPolicy, "pendingIntentBoundaryPolicy");
             Objects.requireNonNull(positionBoundaryPolicy, "positionBoundaryPolicy");
             if (positionBoundaryPolicy == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END) {
@@ -124,7 +134,9 @@ public final class PortfolioReplayEngine {
             String fillModelFingerprintSha256, String replayFingerprintSha256,
             List<DecisionRecord> decisions, List<OrderOutcome> orders,
             List<PortfolioExecution> executions, List<PortfolioAccountingLedger.Snapshot> snapshots,
-            String classification) {
+            String classification, Optional<String> settlementEventsSourceFileSha256,
+            Optional<String> settlementCostScheduleId, Optional<String> settlementCostScheduleSourceFileSha256,
+            List<PortfolioSettlement> settlements) {
         public Result {
             Objects.requireNonNull(config, "config");
             Objects.requireNonNull(executionCostScheduleId, "executionCostScheduleId");
@@ -142,6 +154,20 @@ public final class PortfolioReplayEngine {
             orders = List.copyOf(orders);
             executions = List.copyOf(executions);
             snapshots = List.copyOf(snapshots);
+            settlements = List.copyOf(settlements);
+            Objects.requireNonNull(settlementEventsSourceFileSha256);
+            Objects.requireNonNull(settlementCostScheduleId);
+            Objects.requireNonNull(settlementCostScheduleSourceFileSha256);
+            if ((config.settlementPolicy() != PortfolioSettlementPolicy.NONE) != settlementEventsSourceFileSha256.isPresent()
+                    || settlementCostScheduleId.isPresent() != settlementCostScheduleSourceFileSha256.isPresent()
+                    || (settlementCostScheduleId.isPresent() && settlementEventsSourceFileSha256.isEmpty()))
+                throw new IllegalArgumentException("Settlement policy and input provenance disagree");
+            settlementEventsSourceFileSha256.ifPresent(PortfolioSettlementContract::hash);
+            settlementCostScheduleSourceFileSha256.ifPresent(PortfolioSettlementContract::hash);
+            var settled = new java.util.TreeSet<String>();
+            for (var settlement : settlements) if (!settled.add(settlement.event().contract().instrumentId()))
+                throw new IllegalArgumentException("Duplicate result settlement instrument");
+            if (!settled.equals(config.settlementInstruments())) throw new IllegalArgumentException("Result settlement coverage differs from config");
         }
 
         public boolean performanceClaimEligible() { return false; }
@@ -154,6 +180,8 @@ public final class PortfolioReplayEngine {
     private final PortfolioStrategy strategy;
     private final PortfolioFillModel fillModel;
     private final Optional<PortfolioExecutionCostSchedule> executionCostSchedule;
+    private final Optional<PortfolioSettlementEvents> settlementEvents;
+    private final Optional<PortfolioSettlementCostSchedule> settlementCostSchedule;
 
     public PortfolioReplayEngine(Config config, PortfolioStrategy strategy, PortfolioFillModel fillModel) {
         this(config, strategy, fillModel, Optional.empty());
@@ -161,10 +189,21 @@ public final class PortfolioReplayEngine {
 
     public PortfolioReplayEngine(Config config, PortfolioStrategy strategy, PortfolioFillModel fillModel,
             Optional<PortfolioExecutionCostSchedule> executionCostSchedule) {
+        this(config, strategy, fillModel, executionCostSchedule, Optional.empty(), Optional.empty());
+    }
+
+    public PortfolioReplayEngine(Config config, PortfolioStrategy strategy, PortfolioFillModel fillModel,
+            Optional<PortfolioExecutionCostSchedule> executionCostSchedule,
+            Optional<PortfolioSettlementEvents> settlementEvents, Optional<PortfolioSettlementCostSchedule> settlementCostSchedule) {
         this.config = Objects.requireNonNull(config, "config");
         this.strategy = Objects.requireNonNull(strategy, "strategy");
         this.fillModel = Objects.requireNonNull(fillModel, "fillModel");
         this.executionCostSchedule = Objects.requireNonNull(executionCostSchedule, "executionCostSchedule");
+        this.settlementEvents = Objects.requireNonNull(settlementEvents);
+        this.settlementCostSchedule = Objects.requireNonNull(settlementCostSchedule);
+        if ((config.settlementPolicy() != PortfolioSettlementPolicy.NONE) != settlementEvents.isPresent()
+                || (settlementEvents.isEmpty() && settlementCostSchedule.isPresent()))
+            throw new IllegalArgumentException("Settlement inputs conflict with settlement policy");
         requireIdentifier(strategy.id(), "strategy ID");
         requireIdentifier(fillModel.id(), "fill model ID");
         immutableSorted(strategy.parameters());
@@ -172,12 +211,14 @@ public final class PortfolioReplayEngine {
     }
 
     public Result run(List<SynchronizedBarFrameBuilder.Frame> inputFrames) {
+        if (settlementEvents.isPresent()) throw new IllegalArgumentException("Settlement requires ValidatedPortfolioDataset input");
         return run(inputFrames, "");
     }
 
     /** Replays only frames backed by individually validated datasets and records their provenance hash. */
     public Result run(ValidatedPortfolioDataset dataset) {
         Objects.requireNonNull(dataset, "dataset");
+        PortfolioSettlementEvents.validateSelection(dataset, config.settlementInstruments(), settlementEvents);
         return run(dataset.frames(), dataset.datasetsSha256());
     }
 
@@ -200,15 +241,20 @@ public final class PortfolioReplayEngine {
                 .orElse("NO_EXECUTION_COST_SCHEDULE");
         String scheduleHash = executionCostSchedule.map(PortfolioExecutionCostSchedule::sourceFileSha256)
                 .orElse("NO_EXECUTION_COST_SCHEDULE");
-        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V2", List.of(buildCommit,
+        String replayHash = hashStrings("INTRA_PORTFOLIO_REPLAY_V3", List.of(buildCommit,
                 validatedDatasetsSha256, framesHash, strategyHash,
                 fillHash, scheduleId, scheduleHash, config.maxAbsLotsByInstrument().toString(), config.pendingIntentBoundaryPolicy().name(),
-                config.positionBoundaryPolicy().name(), Boolean.toString(config.requireContiguousFramesWithinSession())));
+                config.positionBoundaryPolicy().name(), Boolean.toString(config.requireContiguousFramesWithinSession()),
+                config.settlementPolicy().name(), String.join(",", config.settlementInstruments()),
+                settlementEvents.map(PortfolioSettlementEvents::sourceFileSha256).orElse("NONE"),
+                settlementCostSchedule.map(PortfolioSettlementCostSchedule::scheduleId).orElse("NONE"),
+                settlementCostSchedule.map(PortfolioSettlementCostSchedule::sourceFileSha256).orElse("NONE")));
 
         PortfolioAccountingLedger ledger = new PortfolioAccountingLedger();
         List<DecisionRecord> decisions = new ArrayList<>();
         List<OrderOutcome> orderOutcomes = new ArrayList<>();
         List<PortfolioExecution> executions = new ArrayList<>();
+        List<PortfolioSettlement> settlements = new ArrayList<>();
         List<PortfolioAccountingLedger.Snapshot> snapshots = new ArrayList<>(frames.size());
         PortfolioAccountingLedger.Snapshot previousSnapshot = null;
         Pending pending = null;
@@ -298,10 +344,20 @@ public final class PortfolioReplayEngine {
             snapshots.add(closeSnapshot);
             previousSnapshot = closeSnapshot;
 
+            if (frameIndex + 1 == frames.size()) {
+                if (settlementEvents.isPresent()) {
+                    var batch = ledger.settleFinalSession(frame, settlementEvents.orElseThrow(), settlementCostSchedule);
+                    settlements.addAll(batch.settlements()); snapshots.addAll(batch.snapshots());
+                    previousSnapshot = batch.snapshots().getLast();
+                } else if (frame.barsByInstrument().values().stream().anyMatch(b -> b.sessionDate().equals(b.expiry()))) {
+                    throw new IllegalArgumentException("Expiry-date replay requires explicit settlement events");
+                }
+            }
+
             boolean sessionEndsHere = frameIndex + 1 == frames.size()
                     || !frame.sessionDate().equals(frames.get(frameIndex + 1).sessionDate());
             if (sessionEndsHere && config.positionBoundaryPolicy() == CrossSessionPositionPolicy.REQUIRE_FLAT
-                    && closeSnapshot.positions().values().stream().anyMatch(position -> position.signedUnits() != 0)) {
+                    && previousSnapshot.positions().values().stream().anyMatch(position -> position.signedUnits() != 0)) {
                 throw new IllegalStateException("Portfolio must be flat at the session/data boundary under REQUIRE_FLAT");
             }
 
@@ -331,7 +387,9 @@ public final class PortfolioReplayEngine {
                 executionCostSchedule.map(PortfolioExecutionCostSchedule::scheduleId),
                 executionCostSchedule.map(PortfolioExecutionCostSchedule::sourceFileSha256),
                 framesHash, strategyHash, fillHash, replayHash, decisions, orderOutcomes,
-                executions, snapshots, "REPLAY_DIAGNOSTIC_ONLY");
+                executions, snapshots, "REPLAY_DIAGNOSTIC_ONLY", settlementEvents.map(PortfolioSettlementEvents::sourceFileSha256),
+                settlementCostSchedule.map(PortfolioSettlementCostSchedule::scheduleId),
+                settlementCostSchedule.map(PortfolioSettlementCostSchedule::sourceFileSha256), settlements);
     }
 
     private List<String> validateFrames(List<SynchronizedBarFrameBuilder.Frame> frames) {
@@ -356,6 +414,7 @@ public final class PortfolioReplayEngine {
             }
             for (String instrumentId : instruments) {
                 Bar bar = frame.barsByInstrument().get(instrumentId);
+                if (bar.sessionDate().isAfter(bar.expiry())) throw new IllegalArgumentException("Portfolio bars cannot follow supplied expiry");
                 if (bar.timestampRole() != TimestampRole.BAR_START) {
                     throw new IllegalArgumentException("Portfolio next-frame-open replay requires BAR_START inputs");
                 }
@@ -461,7 +520,7 @@ public final class PortfolioReplayEngine {
         });
     }
 
-    private static String hashStrings(String domain, List<String> values) {
+    static String hashStrings(String domain, List<String> values) {
         return hash(domain, output -> {
             output.writeInt(values.size());
             for (String value : values) write(output, value);

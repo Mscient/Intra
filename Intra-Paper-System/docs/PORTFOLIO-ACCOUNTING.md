@@ -1,6 +1,6 @@
 # Offline portfolio accounting ledger
 
-`PortfolioAccountingLedger` aggregates signed positions and P&L across the exact-time frames produced by `SynchronizedBarFrameBuilder`. It is a reusable portfolio accounting component; it is not yet wired to a strategy, execution model, or CLI replay command.
+`PortfolioAccountingLedger` aggregates signed positions and P&L across the exact-time frames produced by `SynchronizedBarFrameBuilder`. It is a reusable portfolio accounting component; it is used by the diagnostic portfolio strategy replay and CLI.
 
 ## Input and ordering contract
 
@@ -22,6 +22,8 @@ Any slippage embedded in the supplied execution price affects gross P&L; the led
 
 ## Limits
 
-This component does not establish input rights or completeness, validate source timestamps/calendars, generate signals or orders, infer fills, handle pending orders, calculate cash/margin/capital, apply costs or taxes, settle expiry, or produce a performance-eligible backtest. It does not replace the current single-contract engine's ledgers or the separate independent-risk-gateway workstream. No network or broker order route is present.
+`settleFinalSession` consumes explicit dated events and optional source-attributed cost terms after the final completed frame. It closes each selected instrument's entire signed residual position using its exact remaining basis, with atomic batch validation and separate settlement audit records. Flat events are retained without charges. See [the settlement contract](PORTFOLIO-SETTLEMENT.md) for calculations, CSV schemas, rounding, and examples. This terminal operation does not manufacture ordinary executions or permit further frame opens.
+
+This component does not establish input rights or completeness, validate source timestamps/calendars, generate signals or orders, infer fills, handle pending orders, calculate cash/margin/capital, infer costs or taxes, or produce a performance-eligible backtest. It does not replace the current single-contract engine's ledgers or the separate independent-risk-gateway workstream. No network or broker order route is present.
 
 Run focused checks with `.\test-portfolio-accounting.ps1` in PowerShell under JDK 21.

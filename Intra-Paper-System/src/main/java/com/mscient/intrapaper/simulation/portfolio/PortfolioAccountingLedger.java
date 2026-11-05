@@ -19,7 +19,7 @@ import java.util.TreeMap;
  * It consumes caller-supplied simulated executions and exact-time synchronized bars only.
  */
 public final class PortfolioAccountingLedger {
-    public enum MarkPhase { BAR_OPEN, BAR_CLOSE }
+    public enum MarkPhase { BAR_OPEN, BAR_CLOSE, SETTLEMENT }
 
     public record PositionSnapshot(long signedUnits, BigDecimal averageOpenPrice,
             BigDecimal realizedGrossPnlInr, BigDecimal feesInr, BigDecimal unrealizedPnlInr) { }
@@ -57,6 +57,7 @@ public final class PortfolioAccountingLedger {
             java.util.List<PortfolioExecution> executionsAtFrame) {
         Objects.requireNonNull(frame, "frame");
         Objects.requireNonNull(executionsAtFrame, "executionsAtFrame");
+        if (lastMarkPhase == MarkPhase.SETTLEMENT) throw new IllegalStateException("Cannot open frames after final settlement");
         if (lastOpenedFrameTimestamp != null && !frame.timestamp().isAfter(lastOpenedFrameTimestamp)) {
             throw new IllegalArgumentException("Portfolio frames must be strictly chronological");
         }
@@ -148,6 +149,47 @@ public final class PortfolioAccountingLedger {
         lastMarkTimestamp = closeTimestamp;
         lastMarkPhase = MarkPhase.BAR_CLOSE;
         return snapshot;
+    }
+
+    public record SettlementBatch(java.util.List<PortfolioSettlement> settlements, java.util.List<Snapshot> snapshots) {
+        public SettlementBatch { settlements = java.util.List.copyOf(settlements); snapshots = java.util.List.copyOf(snapshots); }
+    }
+
+    /** Transactional terminal operation: validates every event and charge before publishing any state. */
+    public SettlementBatch settleFinalSession(SynchronizedBarFrameBuilder.Frame frame,
+            PortfolioSettlementEvents events, java.util.Optional<PortfolioSettlementCostSchedule> schedule) {
+        Objects.requireNonNull(frame); Objects.requireNonNull(events); Objects.requireNonNull(schedule);
+        if (lastMarkPhase != MarkPhase.BAR_CLOSE || !frame.timestamp().equals(lastOpenedFrameTimestamp))
+            throw new IllegalStateException("Settlement requires the most recently completed final frame");
+        Map<String, Position> staged = copyPositions(positions);
+        var results = new java.util.ArrayList<PortfolioSettlement>();
+        var snapshots = new java.util.ArrayList<Snapshot>();
+        Instant groupTimestamp = null;
+        for (var event : events.events()) {
+            Bar bar = frame.barsByInstrument().get(event.contract().instrumentId());
+            if (bar == null || !event.contract().equals(PortfolioSettlementContract.from(bar))
+                    || !event.settlementDate().equals(frame.sessionDate()) || event.timestamp().isBefore(lastMarkTimestamp))
+                throw new IllegalArgumentException("Settlement identity/date/timestamp does not match completed frame");
+            if (groupTimestamp != null && !groupTimestamp.equals(event.timestamp()))
+                snapshots.add(buildSnapshot(frame, groupTimestamp, MarkPhase.SETTLEMENT, staged));
+            groupTimestamp = event.timestamp();
+            Position position = staged.computeIfAbsent(bar.instrumentId(), ignored -> new Position());
+            long units = position.signedUnits;
+            var charges = schedule.map(s -> s.calculate(event, units)).orElseGet(java.util.List::of);
+            BigDecimal proceeds = event.valuePerUnit().multiply(BigDecimal.valueOf(units));
+            BigDecimal gross = proceeds.subtract(position.remainingBasis.multiply(BigDecimal.valueOf(Long.signum(units))));
+            PortfolioSettlement settlement = new PortfolioSettlement(event, units, position.remainingBasis, proceeds, gross,
+                    schedule.isPresent() ? "DATED_SCHEDULE" : "NOT_MODELED", charges);
+            results.add(settlement);
+            position.realizedGrossPnlInr = position.realizedGrossPnlInr.add(gross);
+            position.feesInr = position.feesInr.add(settlement.feesInr());
+            position.signedUnits = 0;
+            position.remainingBasis = BigDecimal.ZERO;
+        }
+        snapshots.add(buildSnapshot(frame, groupTimestamp, MarkPhase.SETTLEMENT, staged));
+        positions.clear(); positions.putAll(staged);
+        lastMarkTimestamp = groupTimestamp; lastMarkPhase = MarkPhase.SETTLEMENT;
+        return new SettlementBatch(results, snapshots);
     }
 
     private static Snapshot buildSnapshot(SynchronizedBarFrameBuilder.Frame frame, Instant timestamp,

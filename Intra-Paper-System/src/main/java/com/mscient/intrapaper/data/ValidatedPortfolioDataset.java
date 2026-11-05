@@ -62,6 +62,12 @@ public record ValidatedPortfolioDataset(
 
     /** Loads every contract through the existing single-contract validator, then requires exact frame alignment. */
     public static ValidatedPortfolioDataset load(Map<String, Input> inputsByInstrument) throws IOException {
+        return load(inputsByInstrument, java.util.Set.of(), java.util.Optional.empty());
+    }
+
+    public static ValidatedPortfolioDataset load(Map<String, Input> inputsByInstrument,
+            java.util.Set<String> settlementTargets,
+            java.util.Optional<com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementEvents> settlementEvents) throws IOException {
         Objects.requireNonNull(inputsByInstrument, "inputsByInstrument");
         if (inputsByInstrument.size() < 2) throw new IllegalArgumentException("At least two contract inputs are required");
         TreeMap<String, Input> inputs = new TreeMap<>();
@@ -80,7 +86,7 @@ public record ValidatedPortfolioDataset(
             if (config.timestampRole() != TimestampRole.BAR_START) {
                 throw new IllegalArgumentException("Multi-instrument portfolio replay requires BAR_START data: " + instrumentId);
             }
-            ValidatedDataset dataset = ValidatedDataset.load(entry.getValue().barsCsv(), config);
+            ValidatedDataset dataset = ValidatedDataset.loadForPortfolio(entry.getValue().barsCsv(), config);
             if (dataset.bars().stream().anyMatch(bar -> !bar.instrumentId().equals(instrumentId))) {
                 throw new IllegalArgumentException("Portfolio input key does not match its validated contract identity: " + instrumentId);
             }
@@ -89,7 +95,9 @@ public record ValidatedPortfolioDataset(
         }
 
         List<SynchronizedBarFrameBuilder.Frame> frames = SynchronizedBarFrameBuilder.build(barsByInstrument);
-        return new ValidatedPortfolioDataset(datasets, frames, hashDatasets(datasets));
+        ValidatedPortfolioDataset result = new ValidatedPortfolioDataset(datasets, frames, hashDatasets(datasets));
+        com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementEvents.validateSelection(result, settlementTargets, settlementEvents);
+        return result;
     }
 
     private static String hashDatasets(Map<String, ValidatedDataset> datasets) {

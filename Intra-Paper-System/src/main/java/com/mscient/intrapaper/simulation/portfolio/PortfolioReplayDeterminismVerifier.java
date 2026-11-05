@@ -16,7 +16,7 @@ public final class PortfolioReplayDeterminismVerifier {
         PortfolioReplayCsvRunner.Replay replay = PortfolioReplayCsvRunner.replay(inputManifest, propertiesPath);
         if (!saved.runId().equals(replay.result().replayFingerprintSha256())
                 || !saved.validatedDatasetsSha256().equals(replay.dataset().datasetsSha256())) {
-            throw new IOException("Replayed portfolio identity differs from the published run; check input files, build, strategy, fill, or settings");
+            throw new IOException("Replayed portfolio identity differs from the published run; check input files, settlement events/costs/policy, build, strategy, fill, or settings");
         }
         Path tempRoot = Files.createTempDirectory("intra-portfolio-replay-verify-");
         try {
@@ -28,6 +28,10 @@ public final class PortfolioReplayDeterminismVerifier {
             PortfolioReplayArtifactVerifier.Verification rebuilt = PortfolioReplayArtifactVerifier.verify(regenerated.path());
             if (!saved.outputSha256().equals(rebuilt.outputSha256())) {
                 throw new IOException("Published portfolio outputs differ from deterministic replay output");
+            }
+            for (String name : saved.outputSha256().keySet()) {
+                if (Files.mismatch(runFolder.resolve(name), regenerated.path().resolve(name)) != -1)
+                    throw new IOException("Portfolio deterministic replay bytes differ: " + name);
             }
             return saved;
         } finally {

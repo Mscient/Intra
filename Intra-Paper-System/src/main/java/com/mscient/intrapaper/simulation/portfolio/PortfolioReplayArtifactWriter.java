@@ -25,7 +25,8 @@ import java.util.UUID;
 /** Atomically publishes diagnostic-only portfolio replay artifacts under the replay fingerprint. */
 public final class PortfolioReplayArtifactWriter {
     private static final List<String> OUTPUT_NAMES = List.of(
-            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "execution-fees.csv", "equity.csv");
+            "datasets.csv", "decisions.csv", "orders.csv", "executions.csv", "execution-fees.csv", "equity.csv",
+            "settlements.csv", "settlement-cost-lines.csv");
 
     public record WrittenRun(String runId, Path path) { }
 
@@ -81,6 +82,8 @@ public final class PortfolioReplayArtifactWriter {
             writeNew(staging.resolve("executions.csv"), executionsCsv(result));
             writeNew(staging.resolve("execution-fees.csv"), executionFeesCsv(result));
             writeNew(staging.resolve("equity.csv"), equityCsv(result));
+            writeNew(staging.resolve("settlements.csv"), PortfolioSettlementArtifacts.settlementsCsv(result));
+            writeNew(staging.resolve("settlement-cost-lines.csv"), PortfolioSettlementArtifacts.costsCsv(result));
             Map<String, String> hashes = new TreeMap<>();
             for (String name : OUTPUT_NAMES) hashes.put(name, RunConfig.sha256(Files.readAllBytes(staging.resolve(name))));
             writeNew(staging.resolve("run-manifest.properties"), manifest(result, hashes));
@@ -107,7 +110,7 @@ public final class PortfolioReplayArtifactWriter {
 
     private static String manifest(PortfolioReplayEngine.Result result, Map<String, String> hashes) {
         StringBuilder out = new StringBuilder();
-        put(out, "schema_version", "2");
+        put(out, "schema_version", "3");
         put(out, "run_id", result.replayFingerprintSha256());
         put(out, "validated_datasets_sha256", result.validatedDatasetsSha256());
         put(out, "frame_inputs_sha256", result.frameInputsSha256());
@@ -133,6 +136,13 @@ public final class PortfolioReplayArtifactWriter {
         put(out, "max_abs_lots_by_instrument_base64", b64(canonicalMap(result.config().maxAbsLotsByInstrument())));
         put(out, "strategy_parameters_base64", b64(canonicalMap(result.strategyParameters())));
         put(out, "fill_model_parameters_base64", b64(canonicalMap(result.fillModelParameters())));
+        put(out, "settlement_policy", result.config().settlementPolicy().name());
+        put(out, "settlement_instruments", String.join(",", result.config().settlementInstruments()));
+        put(out, "settlement_events_source_file_sha256", result.settlementEventsSourceFileSha256().orElse("NONE"));
+        put(out, "settlement_cost_schedule_id_base64", b64(result.settlementCostScheduleId().orElse("")));
+        put(out, "settlement_cost_schedule_source_file_sha256", result.settlementCostScheduleSourceFileSha256().orElse("NONE"));
+        put(out, "settlement_count", Integer.toString(result.settlements().size()));
+        put(out, "settlement_cost_line_count", Long.toString(result.settlements().stream().mapToLong(s -> s.chargeLines().size()).sum()));
         put(out, "output_files", String.join(",", OUTPUT_NAMES));
         for (String name : OUTPUT_NAMES) put(out, "sha256." + name, hashes.get(name));
         return out.toString();
@@ -140,7 +150,8 @@ public final class PortfolioReplayArtifactWriter {
 
     private static String datasetsCsv(ValidatedPortfolioDataset dataset) {
         List<String> rows = new ArrayList<>();
-        rows.add("instrument_id,dataset_id,source_name,acquired_at_utc,timezone,data_rights_status,data_rights_reference,bars_sha256,config_sha256,calendar_sha256,instrument_master_snapshot_id,instrument_master_sha256,market_rule_sha256,input_file_hashes_base64,validated_bar_count,complete_session_count");
+        rows.add("instrument_id,dataset_id,source_name,acquired_at_utc,timezone,data_rights_status,data_rights_reference,bars_sha256,config_sha256,calendar_sha256,instrument_master_snapshot_id,instrument_master_sha256,market_rule_sha256,input_file_hashes_base64,validated_bar_count,complete_session_count,"
+                + String.join(",", PortfolioSettlementArtifacts.DATASET_HEADERS));
         for (Map.Entry<String, ValidatedDataset> entry : new TreeMap<>(dataset.datasetsByInstrument()).entrySet()) {
             ValidatedDataset data = entry.getValue();
             rows.add(csv(entry.getKey(), data.manifest().datasetId(), data.manifest().sourceName(),
@@ -148,7 +159,8 @@ public final class PortfolioReplayArtifactWriter {
                     data.manifest().dataRightsReference().orElse(""), data.barsSha256(), data.configSha256(),
                     data.calendarSha256(), data.manifest().instrumentMasterSnapshotId(),
                     data.manifest().instrumentMasterSha256(), data.marketRuleRegimeSchedule().sha256(),
-                    b64(canonicalMap(data.manifest().inputFileSha256())), data.bars().size(), data.completeSessionCount()));
+                    b64(canonicalMap(data.manifest().inputFileSha256())), data.bars().size(), data.completeSessionCount())
+                    + "," + PortfolioSettlementArtifacts.datasetTail(data));
         }
         return String.join("\n", rows) + "\n";
     }
@@ -222,7 +234,7 @@ public final class PortfolioReplayArtifactWriter {
         return String.join("\n", rows) + "\n";
     }
 
-    private static String csv(Object... values) {
+    static String csv(Object... values) {
         List<String> cells = new ArrayList<>(values.length);
         for (Object value : values) {
             String raw = value == null ? "" : value.toString();

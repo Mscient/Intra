@@ -32,7 +32,9 @@ try {
     $testSources = @(
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayEngineTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioExecutionCostScheduleTest.java'),
-        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java')
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioSettlementFixtures.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioSettlementTest.java')
     )
     if ($mainSources.Count -eq 0 -or @($testSources | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -ne 0) {
         throw 'Main sources and portfolio-replay/cost test sources are required.'
@@ -47,6 +49,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Portfolio execution-cost checks failed with exit code $LASTEXITCODE" }
     & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifierTest
     if ($LASTEXITCODE -ne 0) { throw "Portfolio artifact-verifier checks failed with exit code $LASTEXITCODE" }
+    & $java -cp "$mainClasses;$testClasses" com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementTest
+    if ($LASTEXITCODE -ne 0) { throw "Portfolio settlement checks failed with exit code $LASTEXITCODE" }
 } finally {
     $resolvedRunRoot = [System.IO.Path]::GetFullPath($runRootAbsolute)
     if (-not $resolvedRunRoot.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
