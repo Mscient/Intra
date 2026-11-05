@@ -129,12 +129,13 @@ public final class PortfolioReplayArtifactVerifier {
             if (!expectedHash.equals(actualHash)) throw new IOException("Portfolio output hash mismatch: " + name);
             outputHashes.put(name, actualHash);
         }
-        verifyFeeBreakdowns(runFolder.resolve("execution-fees.csv"), values, scheduleEnabled);
+        Map<String, BigDecimal> executionFees = readExecutionFees(runFolder.resolve("executions.csv"));
+        verifyFeeBreakdowns(runFolder.resolve("execution-fees.csv"), values, scheduleEnabled, executionFees);
         return new Verification(folderName, values.get("validated_datasets_sha256"), outputHashes);
     }
 
     private static void verifyFeeBreakdowns(Path path, Map<String, String> manifest,
-            boolean scheduleEnabled) throws IOException {
+            boolean scheduleEnabled, Map<String, BigDecimal> executionFees) throws IOException {
         CsvTable table = CsvTable.read(path);
         List<String> expectedHeaders = List.of("execution_id", "cost_model", "schedule_id",
                 "schedule_entry_id", "schedule_source_file_sha256", "source_reference",
@@ -148,8 +149,14 @@ public final class PortfolioReplayArtifactVerifier {
         }
         String scheduleId = new String(java.util.Base64.getDecoder().decode(
                 manifest.get("execution_cost_schedule_id_base64")), java.nio.charset.StandardCharsets.UTF_8);
+        java.util.Set<String> seenExecutionIds = new java.util.HashSet<>();
         for (Map<String, String> row : table.rows()) {
             try {
+                String executionId = row.get("execution_id");
+                if (executionId == null || executionId.isBlank() || !executionId.equals(executionId.strip())
+                        || !seenExecutionIds.add(executionId)) {
+                    throw new IllegalArgumentException("execution ID is blank, untrimmed, or duplicated");
+                }
                 boolean dated = "DATED_SCHEDULE".equals(row.get("cost_model"));
                 if (!dated && !"CALLER_FILL_MODEL".equals(row.get("cost_model"))) {
                     throw new IllegalArgumentException("unknown cost model");
@@ -174,10 +181,41 @@ public final class PortfolioReplayArtifactVerifier {
                 if (calculated.compareTo(decimal(row, "total_fee_inr")) != 0) {
                     throw new IllegalArgumentException("itemized fee total mismatch");
                 }
+                BigDecimal executionFee = executionFees.get(executionId);
+                if (executionFee == null || executionFee.compareTo(decimal(row, "total_fee_inr")) != 0) {
+                    throw new IllegalArgumentException("fee breakdown does not match its execution ledger row");
+                }
             } catch (RuntimeException invalid) {
                 throw new IOException("Invalid execution fee breakdown row for " + row.get("execution_id"), invalid);
             }
         }
+        if (!seenExecutionIds.equals(executionFees.keySet())) {
+            throw new IOException("Execution ledger and fee breakdown execution IDs do not match");
+        }
+    }
+
+    private static Map<String, BigDecimal> readExecutionFees(Path path) throws IOException {
+        CsvTable table = CsvTable.read(path);
+        List<String> expectedHeaders = List.of("execution_id", "sequence", "instrument_id", "timestamp_utc",
+                "side", "quantity_units", "price", "fee_inr");
+        if (!table.headers().equals(expectedHeaders)) throw new IOException("Unexpected portfolio execution schema");
+        Map<String, BigDecimal> feesByExecution = new TreeMap<>();
+        for (Map<String, String> row : table.rows()) {
+            try {
+                String executionId = row.get("execution_id");
+                if (executionId == null || executionId.isBlank() || !executionId.equals(executionId.strip())) {
+                    throw new IllegalArgumentException("execution ID must be non-empty and trimmed");
+                }
+                BigDecimal fee = new BigDecimal(row.get("fee_inr"));
+                if (fee.signum() < 0) throw new IllegalArgumentException("execution fee cannot be negative");
+                if (feesByExecution.putIfAbsent(executionId, fee) != null) {
+                    throw new IllegalArgumentException("duplicate execution ID");
+                }
+            } catch (RuntimeException invalid) {
+                throw new IOException("Invalid portfolio execution row for " + row.get("execution_id"), invalid);
+            }
+        }
+        return feesByExecution;
     }
 
     private static BigDecimal decimal(Map<String, String> row, String key) {

@@ -24,6 +24,10 @@ public final class PortfolioReplayArtifactVerifierTest {
             String scheduleHash = "b".repeat(64);
             Path run = Files.createDirectory(root.resolve(runId));
             for (String output : OUTPUTS) Files.writeString(run.resolve(output), "header\n", StandardCharsets.UTF_8);
+            Files.writeString(run.resolve("executions.csv"),
+                    "execution_id,sequence,instrument_id,timestamp_utc,side,quantity_units,price,fee_inr\n"
+                    + "\"PX-1\",\"1\",\"FUT\",\"2026-11-03T03:45:00Z\",\"BUY\",\"25\",\"100\",\"3.74\"\n",
+                    StandardCharsets.UTF_8);
             Files.writeString(run.resolve("execution-fees.csv"),
                     "execution_id,cost_model,schedule_id,schedule_entry_id,schedule_source_file_sha256,source_reference,execution_date,contract_kind,traded_value_inr,legacy_fill_model_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr\n"
                     + "\"PX-1\",\"DATED_SCHEDULE\",\"schedule-1\",\"entry-1\",\"" + scheduleHash
@@ -35,6 +39,13 @@ public final class PortfolioReplayArtifactVerifierTest {
                     StandardCharsets.UTF_8);
             var verified = PortfolioReplayArtifactVerifier.verify(run);
             require(verified.outputSha256().size() == OUTPUTS.size(), "all outputs must be verified");
+            Path feeFile = run.resolve("execution-fees.csv");
+            String validFees = Files.readString(feeFile, StandardCharsets.UTF_8);
+            Files.writeString(feeFile, validFees.replace("PX-1", "PX-2"), StandardCharsets.UTF_8);
+            refreshManifest(run, runId, scheduleHash);
+            expectFailure(() -> PortfolioReplayArtifactVerifier.verify(run));
+            Files.writeString(feeFile, validFees, StandardCharsets.UTF_8);
+            refreshManifest(run, runId, scheduleHash);
             Files.writeString(run.resolve("execution-fees.csv"), "tamper\n", StandardCharsets.UTF_8,
                     java.nio.file.StandardOpenOption.APPEND);
             expectFailure(() -> PortfolioReplayArtifactVerifier.verify(run));
@@ -76,6 +87,13 @@ public final class PortfolioReplayArtifactVerifierTest {
         put(out, "output_files", String.join(",", OUTPUTS));
         for (String output : OUTPUTS) put(out, "sha256." + output, hashes.get(output));
         return out.toString();
+    }
+
+    private static void refreshManifest(Path run, String runId, String scheduleHash) throws Exception {
+        TreeMap<String, String> hashes = new TreeMap<>();
+        for (String output : OUTPUTS) hashes.put(output, RunConfig.sha256(Files.readAllBytes(run.resolve(output))));
+        Files.writeString(run.resolve("run-manifest.properties"), manifest(runId, scheduleHash, hashes),
+                StandardCharsets.UTF_8);
     }
 
     private static void expectFailure(Throwing action) throws Exception {
