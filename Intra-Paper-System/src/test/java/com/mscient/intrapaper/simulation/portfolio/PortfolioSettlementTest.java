@@ -4,6 +4,8 @@ import com.mscient.intrapaper.data.*;
 import com.mscient.intrapaper.provenance.*;
 import com.mscient.intrapaper.reference.*;
 import java.math.*;
+import java.nio.charset.MalformedInputException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.*;
 import java.util.*;
@@ -14,8 +16,8 @@ public final class PortfolioSettlementTest {
     private static final String HASH = "a".repeat(64);
     private PortfolioSettlementTest() { }
     public static void main(String[] args) throws Exception {
-        signedAccounting(); partialBasisAndFlat(); chargesAndAtomicFailure(); strictInputs();
-        System.out.println("PortfolioSettlement signed accounting, inputs, dates, charges, and atomicity checks passed");
+        signedAccounting(); partialBasisAndFlat(); chargesAndAtomicFailure(); strictInputs(); strictUtf8();
+        System.out.println("PortfolioSettlement signed accounting, inputs, UTF-8, dates, charges, and atomicity checks passed");
     }
     static Bar bar(String id, ContractKind kind, OptionRight right, Instant time) {
         BigDecimal price = new BigDecimal(kind == ContractKind.FUTURE ? "100" : "10");
@@ -109,6 +111,59 @@ public final class PortfolioSettlementTest {
         var retried = ledger.settleFinalSession(frame, events(event, be), Optional.empty());
         require(retried.settlements().stream().allMatch(s -> s.signedUnits() == 1), "failed batch must not mutate first position");
         equal("2.4", retried.snapshots().getLast().netPnlInr());
+    }
+    private static void strictUtf8() throws Exception {
+        Path root = Files.createTempDirectory("portfolio-settlement-utf8-");
+        try {
+            create(root);
+            byte[][] malformed = {
+                    {(byte) 0xc3, 0x28},                    // Invalid continuation.
+                    {(byte) 0x80},                          // Stray continuation.
+                    {(byte) 0xc0, (byte) 0xaf},             // Overlong encoding.
+                    {(byte) 0xed, (byte) 0xa0, (byte) 0x80}, // Encoded surrogate.
+                    {(byte) 0xf4, (byte) 0x90, (byte) 0x80, (byte) 0x80}, // Above U+10FFFF.
+                    {(byte) 0xe2, (byte) 0x82}              // Truncated at EOF.
+            };
+            for (String name : List.of("settlement-events.csv", "settlement-costs.csv")) {
+                Path path = root.resolve(name);
+                String original = Files.readString(path);
+                String prefix = original.substring(0, original.lastIndexOf(',') + 1);
+                boolean eventFile = name.equals("settlement-events.csv");
+                Throwing load = () -> {
+                    if (eventFile) PortfolioSettlementEvents.load(path);
+                    else PortfolioSettlementCostSchedule.load(path);
+                };
+                for (byte[] invalid : malformed) {
+                    byte[] start = prefix.getBytes(StandardCharsets.UTF_8);
+                    byte[] corrupted = Arrays.copyOf(start, start.length + invalid.length);
+                    System.arraycopy(invalid, 0, corrupted, start.length, invalid.length);
+                    Files.write(path, corrupted);
+                    try {
+                        load.run();
+                        throw new AssertionError("Malformed UTF-8 accepted in " + name + ": " + HexFormat.of().formatHex(invalid));
+                    } catch (MalformedInputException expected) { /* Reject bytes, do not replace source text. */ }
+                }
+                // A literal U+FFFD encoded correctly is valid text; decoding must not reject Unicode sources.
+                String source = "करार € 📄 \uFFFD";
+                String previousHash = null;
+                for (String text : List.of(prefix + source + "\n", "\uFEFF" + prefix.replace("\n", "\r\n") + source + "\r\n")) {
+                    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+                    Files.write(path, bytes);
+                    String actualSource, actualHash;
+                    if (eventFile) {
+                        var loaded = PortfolioSettlementEvents.load(path);
+                        actualSource = loaded.events().getLast().sourceReference(); actualHash = loaded.sourceFileSha256();
+                    } else {
+                        var loaded = PortfolioSettlementCostSchedule.load(path);
+                        actualSource = loaded.entries().getLast().sourceReference(); actualHash = loaded.sourceFileSha256();
+                    }
+                    require(source.equals(actualSource), "Unicode source reference must be preserved in " + name);
+                    require(RunConfig.sha256(bytes).equals(actualHash), "Hash must bind exact original bytes in " + name);
+                    require(!actualHash.equals(previousHash), "BOM/line-ending byte changes must change provenance");
+                    previousHash = actualHash;
+                }
+            }
+        } finally { cleanup(root); }
     }
     private static void strictInputs() throws Exception {
         Path root = Files.createTempDirectory("portfolio-settlement-inputs-");

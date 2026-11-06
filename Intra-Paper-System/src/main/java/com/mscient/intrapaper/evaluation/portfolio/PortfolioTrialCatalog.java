@@ -17,7 +17,8 @@ import static com.mscient.intrapaper.evaluation.portfolio.PortfolioEvaluationJso
 import static com.mscient.intrapaper.evaluation.portfolio.PortfolioEvaluationJson.string;
 
 /** Strict, externally supplied binding between a registration, one portfolio run, and frozen split dates. */
-public record PortfolioTrialCatalog(List<Entry> trials, String sha256, Path path) {
+public record PortfolioTrialCatalog(List<Entry> trials, String sha256, Path path, ArtifactScope artifactScope) {
+    public enum ArtifactScope { ALL_SPLIT_SESSIONS, DEVELOPMENT_VALIDATION_ONLY }
     public static final String SCHEMA = "INTRA_PORTFOLIO_TRIAL_CATALOG_V1";
     private static final int MAX_BYTES = 16 * 1024 * 1024;
     private static final Set<String> TRIAL_KEYS = Set.of("trial_id", "strategy_id", "strategy_version",
@@ -36,9 +37,12 @@ public record PortfolioTrialCatalog(List<Entry> trials, String sha256, Path path
         byte[] bytes = PortfolioTrialIdentity.readRegular(absolute);
         if (bytes.length == 0 || bytes.length > MAX_BYTES) throw new IOException("Unsupported trial catalog size");
         var root = parsedObject(StrictJsonParser.parse(PortfolioTrialIdentity.utf8(bytes)), "trial catalog");
-        if (!root.keySet().equals(Set.of("schema", "trials"))) {
-            throw new IOException("Trial catalog keys must be exactly schema and trials");
+        if (!root.keySet().equals(Set.of("schema", "trials")) && !root.keySet().equals(Set.of("schema", "trials", "artifact_scope"))) {
+            throw new IOException("Trial catalog requires schema and trials, with optional artifact_scope");
         }
+        ArtifactScope scope;
+        try { scope = root.containsKey("artifact_scope") ? ArtifactScope.valueOf(string(root, "artifact_scope")) : ArtifactScope.ALL_SPLIT_SESSIONS; }
+        catch (IllegalArgumentException invalid) { throw new IOException("Invalid portfolio artifact_scope", invalid); }
         if (!SCHEMA.equals(string(root, "schema"))) throw new IOException("Unsupported portfolio trial catalog schema");
         if (!(root.get("trials") instanceof List<?> rows) || rows.isEmpty()) {
             throw new IOException("Trial catalog must contain trial rows");
@@ -79,7 +83,7 @@ public record PortfolioTrialCatalog(List<Entry> trials, String sha256, Path path
             entries.add(new Entry(trial, registrationHash, runId, manifestHash,
                     split.toAbsolutePath().normalize(), capital));
         }
-        return new PortfolioTrialCatalog(entries, RunConfig.sha256(bytes), absolute);
+        return new PortfolioTrialCatalog(entries, RunConfig.sha256(bytes), absolute, scope);
     }
 
     private static String hash(String text, String label) throws IOException {

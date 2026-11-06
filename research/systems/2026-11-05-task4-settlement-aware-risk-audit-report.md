@@ -82,3 +82,5 @@ The initial status above describes the delivery before review. The change was re
 After rebasing, JDK 21 focused validation passed again: **79 portfolio risk-audit checks and 274 settlement-risk checks**; portfolio replay, execution-cost schedule, artifact verifier v3, signed portfolio settlement, accounting, standalone settlement-audit (88 checks), and portfolio trial-evaluation (114 checks) regressions also passed. These runners compiled the Java sources. No clean production JAR build or hosted CI run was performed during this review.
 
 The audit remains an offline diagnostic. Settlement and cost inputs are caller supplied and unauthenticated, margin remains caller supplied proxies, and this work does not close G2 or establish live risk, account collateral release, source rights, or trading readiness.
+
+The same audit implementation was also retained in local commit `c1ed5c6` alongside the settlement-aware evaluator and UTF-8 follow-up; see [the local commit review](../sessions/cb3ba092-6af2-4fde-95e9-d9a0b149ac9f.md). The published implementation and review evidence above remain unchanged.

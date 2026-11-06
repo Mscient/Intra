@@ -40,7 +40,7 @@ public record PortfolioSettlementContract(String instrumentId, String exchange, 
                 bar.optionRight(), bar.lotSize(), bar.tickSize());
     }
 
-    static PortfolioSettlementContract parse(Map<String, String> row) {
+    public static PortfolioSettlementContract parse(Map<String, String> row) {
         String strike = optional(row, "strike"), right = optional(row, "option_right");
         return new PortfolioSettlementContract(required(row, "instrument_id"), required(row, "exchange"),
                 required(row, "segment"), required(row, "source_token"), required(row, "trading_symbol"),

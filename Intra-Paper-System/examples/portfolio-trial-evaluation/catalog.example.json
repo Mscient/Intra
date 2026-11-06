@@ -1,5 +1,6 @@
 {
   "schema": "INTRA_PORTFOLIO_TRIAL_CATALOG_V1",
+  "artifact_scope": "ALL_SPLIT_SESSIONS",
   "trials": [
     {
       "trial_id": "portfolio-A",

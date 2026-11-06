@@ -7,11 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Canonical v3 settlement artifact layouts. */
-final class PortfolioSettlementArtifacts {
-    static final List<String> SETTLEMENT_HEADERS = concat(PortfolioSettlementEvents.HEADERS, List.of(
+public final class PortfolioSettlementArtifacts {
+    public static final List<String> SETTLEMENT_HEADERS = concat(PortfolioSettlementEvents.HEADERS, List.of(
             "event_source_file_sha256", "signed_units_settled", "released_basis_inr", "signed_proceeds_inr",
             "realized_gross_pnl_inr", "cost_model", "expiry_settlement_fees_inr", "option_exercise_fees_inr", "total_fee_inr"));
-    static final List<String> COST_HEADERS = concat(List.of("event_id", "schedule_source_file_sha256"),
+    public static final List<String> COST_HEADERS = concat(List.of("event_id", "schedule_source_file_sha256"),
             concat(PortfolioSettlementCostSchedule.HEADERS, List.of("calculation_base", "charge_inr", "gst_taxable_base_inr", "gst_inr", "total_fee_inr")));
     static final List<String> DATASET_HEADERS = concat(PortfolioSettlementContract.HEADERS.subList(1, PortfolioSettlementContract.HEADERS.size()),
             List.of("final_session_date", "final_bar_close_timestamp_utc", "final_session_complete"));

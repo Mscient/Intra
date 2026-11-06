@@ -6,6 +6,9 @@ import com.mscient.intrapaper.simulation.portfolio.PortfolioFillModel;
 import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifier;
 import com.mscient.intrapaper.simulation.portfolio.PortfolioReplayEngine;
 import com.mscient.intrapaper.simulation.portfolio.PortfolioStrategy;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementPolicy;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementEvents;
+import com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementCostSchedule;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -22,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
-/** Registration parameter identity for v3 portfolio artifacts with bar-only evaluation boundaries. */
+/** Registration parameter identity for v3 portfolio artifacts, including explicit settlement inputs. */
 public final class PortfolioTrialIdentity {
     private static final List<String> PARAMETER_KEYS = List.of(
             "strategy_id_base64", "strategy_fingerprint_sha256", "strategy_parameters_base64",
@@ -31,6 +34,8 @@ public final class PortfolioTrialIdentity {
             "execution_cost_schedule_source_file_sha256", "max_abs_lots_by_instrument_base64",
             "pending_intent_boundary_policy", "position_boundary_policy",
             "require_contiguous_frames_within_session");
+    private static final List<String> SETTLEMENT_KEYS = List.of("settlement_policy", "settlement_instruments",
+            "settlement_events_source_file_sha256", "settlement_cost_schedule_id_base64", "settlement_cost_schedule_source_file_sha256");
 
     public record FrozenRun(PortfolioReplayArtifactVerifier.Verification verification,
             String manifestSha256, String strategyId, String parameterConfigSha256,
@@ -44,8 +49,19 @@ public final class PortfolioTrialIdentity {
     public static String parameterConfigSha256(PortfolioReplayEngine.Config config,
             PortfolioStrategy strategy, PortfolioFillModel fillModel,
             Optional<PortfolioExecutionCostSchedule> costSchedule) {
-        if (config.settlementPolicy() != com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementPolicy.NONE)
-            throw new IllegalArgumentException("Portfolio trial evaluation does not yet support settlement checkpoints");
+        return parameterConfigSha256(config, strategy, fillModel, costSchedule, Optional.empty(), Optional.empty());
+    }
+
+    /** Settlement-enabled registrations bind policy, targets, and the exact event/cost input bytes. */
+    public static String parameterConfigSha256(PortfolioReplayEngine.Config config,
+            PortfolioStrategy strategy, PortfolioFillModel fillModel, Optional<PortfolioExecutionCostSchedule> costSchedule,
+            Optional<PortfolioSettlementEvents> events, Optional<PortfolioSettlementCostSchedule> settlementCosts) {
+        if ((config.settlementPolicy() != PortfolioSettlementPolicy.NONE) != events.isPresent()
+                || (settlementCosts.isPresent() && events.isEmpty()))
+            throw new IllegalArgumentException("Settlement registration requires inputs matching its policy");
+        var instruments = new java.util.TreeSet<String>();
+        events.ifPresent(e -> e.events().forEach(row -> instruments.add(row.contract().instrumentId())));
+        if (!instruments.equals(config.settlementInstruments())) throw new IllegalArgumentException("Settlement registration target/event mismatch");
         TreeMap<String, String> values = new TreeMap<>();
         values.put("strategy_id_base64", b64(strategy.id()));
         values.put("strategy_fingerprint_sha256", identityHash(
@@ -65,6 +81,11 @@ public final class PortfolioTrialIdentity {
         values.put("position_boundary_policy", config.positionBoundaryPolicy().name());
         values.put("require_contiguous_frames_within_session",
                 Boolean.toString(config.requireContiguousFramesWithinSession()));
+        values.put("settlement_policy", config.settlementPolicy().name());
+        values.put("settlement_instruments", String.join(",", config.settlementInstruments()));
+        values.put("settlement_events_source_file_sha256", events.map(PortfolioSettlementEvents::sourceFileSha256).orElse("NONE"));
+        values.put("settlement_cost_schedule_id_base64", b64(settlementCosts.map(PortfolioSettlementCostSchedule::scheduleId).orElse("")));
+        values.put("settlement_cost_schedule_source_file_sha256", settlementCosts.map(PortfolioSettlementCostSchedule::sourceFileSha256).orElse("NONE"));
         return parameterHash(values);
     }
 
@@ -83,14 +104,31 @@ public final class PortfolioTrialIdentity {
             }
         }
         String strategyId = decode(values.get("strategy_id_base64"));
-        if (!"NONE".equals(values.get("settlement_policy")))
-            throw new IOException("Portfolio trial evaluation does not yet support settlement checkpoints");
-        if (!values.get("settlement_instruments").isEmpty()
+        PortfolioSettlementPolicy policy;
+        try { policy = PortfolioSettlementPolicy.valueOf(values.get("settlement_policy")); }
+        catch (RuntimeException invalid) { throw new IOException("Invalid settlement policy", invalid); }
+        if (policy == PortfolioSettlementPolicy.NONE && (!values.get("settlement_instruments").isEmpty()
                 || !"NONE".equals(values.get("settlement_events_source_file_sha256"))
                 || !decode(values.get("settlement_cost_schedule_id_base64")).isEmpty()
                 || !"NONE".equals(values.get("settlement_cost_schedule_source_file_sha256"))
-                || !"0".equals(values.get("settlement_count")) || !"0".equals(values.get("settlement_cost_line_count")))
+                || !"0".equals(values.get("settlement_count")) || !"0".equals(values.get("settlement_cost_line_count"))))
             throw new IOException("Disabled settlement metadata is inconsistent");
+        if (policy != PortfolioSettlementPolicy.NONE) {
+            var targets = new java.util.TreeSet<String>();
+            for (String target : values.get("settlement_instruments").split(",", -1)) {
+                if (!target.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}") || !targets.add(target))
+                    throw new IOException("Invalid/duplicate settlement target");
+            }
+            if (!String.join(",", targets).equals(values.get("settlement_instruments"))
+                    || !Integer.toString(targets.size()).equals(values.get("settlement_count"))
+                    || !values.get("settlement_events_source_file_sha256").matches("[0-9a-f]{64}"))
+                throw new IOException("Settlement registration coverage/provenance mismatch");
+            String settlementCostId = decode(values.get("settlement_cost_schedule_id_base64"));
+            String costHash = values.get("settlement_cost_schedule_source_file_sha256");
+            if (settlementCostId.isEmpty() ? !"NONE".equals(costHash)
+                    : !settlementCostId.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}") || !costHash.matches("[0-9a-f]{64}"))
+                throw new IOException("Settlement cost provenance mismatch");
+        }
         Map<String, String> strategyParameters = parseMap(decode(values.get("strategy_parameters_base64")));
         String fillId = decode(values.get("fill_model_id_base64"));
         Map<String, String> fillParameters = parseMap(decode(values.get("fill_model_parameters_base64")));
@@ -158,10 +196,13 @@ public final class PortfolioTrialIdentity {
     }
 
     private static String parameterHash(Map<String, String> values) {
+        boolean settlement = !"NONE".equals(values.get("settlement_policy"));
+        var keys = new java.util.ArrayList<>(PARAMETER_KEYS);
+        if (settlement) keys.addAll(SETTLEMENT_KEYS);
         return hash(output -> {
-            write(output, "INTRA_PORTFOLIO_TRIAL_PARAMETERS_V1");
-            output.writeInt(PARAMETER_KEYS.size());
-            for (String key : PARAMETER_KEYS) {
+            write(output, settlement ? "INTRA_PORTFOLIO_TRIAL_PARAMETERS_V2" : "INTRA_PORTFOLIO_TRIAL_PARAMETERS_V1");
+            output.writeInt(keys.size());
+            for (String key : keys) {
                 String value = values.get(key);
                 if (value == null) throw new IllegalArgumentException("Missing parameter identity field: " + key);
                 write(output, key);
