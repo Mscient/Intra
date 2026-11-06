@@ -56,3 +56,5 @@
 3. Review the new cross-session policy and define a realistic end-of-session liquidation model before intraday deployment.
 4. Independently validate the standalone BSM/Black-76 valuation/Greeks helpers, then integrate sourced model inputs with replay and portfolio risk accounting; validate the explicit settlement path against authorized source rows.
 5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.
+
+Reviewed local-only integration against fetched GitHub main `fe552d2` on 2026-11-06: separate durability commit `2b762e5` and missing settlement/evaluation commit `b25426f`. JDK 21 checks passed: 447 durability, 162 evaluator, 79 audit, 274 settlement fixtures, 84 risk replay and 88 settlement sidecar, plus replay/accounting/UTF-8 regressions. The clean implementation JAR and packaged example were verified; no push or gate closure. See [the integration review](../sessions/a3cc55bf-4c93-4dfb-bc58-a2fd14035dcf.md).
