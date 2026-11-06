@@ -24,6 +24,8 @@
 - Added `raw-capture-clock-report` to compare captured wall-clock and monotonic elapsed-time deltas per source/connection using an explicit diagnostic tolerance. It reports wall regressions and clock divergence but does not verify UTC offset/accuracy, feed time, completeness, or order-path latency.
 - Added a GitHub Actions Java 21 build-only workflow for pushes and pull requests to `main`, plus manual dispatch. It compiles and packages the CLI on Windows and retains the JAR artifact for 14 days. The first hosted run succeeded for `14f2e0771d8149dd0c36e4e55a3c2c4a3285f636` ([run 41628715122](https://github.com/Mscient/Intra/actions/runs/41628715122)); tests are not part of this workflow.
 
+- Completed Task 2's focused risk gateway durability/recovery verification: **447 checks in 13 offline groups** passed against a dedicated packaged JAR on Microsoft JDK **21.0.13.0.2+1-LTS**, with exact JDK/source/package hashes archived. Fixed exposure-clearing error recovery, fail-closed write/force uncertainty, configuration-bound restart checkpoints and lifetime writer ownership. Reservations, partial fills, cancels, halts, IDs, ordering, same-JVM writers, corruption and size limits were verified. See [the report](2026-11-05-risk-gateway-durability-verification.md) and [operating notes](../../Intra-Paper-System/docs/INDEPENDENT-RISK-GATEWAY.md). Trusted checkpoint storage, independent account reconciliation, cross-process/power-loss/full-disk verification and process isolation remain open; this evidence does not close G0/G2 or authorize a live route.
+
 ## Gate tracker
 
 | Stage / gate | Status | Evidence needed to close |

@@ -1,0 +1,16 @@
+JAVA_HOME=C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1
+COMPILER=javac 21.0.13.0.2
+IMPLEMENTOR="Microsoft"
+IMPLEMENTOR_VERSION="Microsoft-15780113"
+JAVA_RUNTIME_VERSION="21.0.13.0.2+1-LTS"
+JAVA_VERSION="21.0.13.0.2"
+JAVA_VERSION_DATE="2026-10-22"
+LIBC="default"
+MODULES="java.base java.compiler java.datatransfer java.xml java.prefs java.desktop java.instrument java.logging java.management java.security.sasl java.naming java.rmi java.management.rmi java.net.http java.scripting java.security.jgss java.transaction.xa java.sql java.sql.rowset java.xml.crypto java.se java.smartcardio jdk.accessibility jdk.internal.jvmstat jdk.attach jdk.charsets jdk.internal.opt jdk.zipfs jdk.compiler jdk.crypto.ec jdk.crypto.cryptoki jdk.crypto.mscapi jdk.dynalink jdk.internal.ed jdk.editpad jdk.hotspot.agent jdk.httpserver jdk.incubator.vector jdk.internal.le jdk.internal.vm.ci jdk.internal.vm.compiler jdk.internal.vm.compiler.management jdk.jartool jdk.javadoc jdk.jcmd jdk.management jdk.management.agent jdk.jconsole jdk.jdeps jdk.jdwp.agent jdk.jdi jdk.jfr jdk.jlink jdk.jpackage jdk.jshell jdk.jsobject jdk.jstatd jdk.localedata jdk.management.jfr jdk.naming.dns jdk.naming.rmi jdk.net jdk.nio.mapmode jdk.random jdk.sctp jdk.security.auth jdk.security.jgss jdk.unsupported jdk.unsupported.desktop jdk.xml.dom"
+OS_ARCH="x86_64"
+OS_NAME="Windows"
+SOURCE=".:git:86770f4f323a"
+SHA256 f5cc58569a90397a90899f0d02ec76bfedb7d208224e7d964b5e6d72c4c04924 C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1\release
+SHA256 65d23a3b6e1dfbfe2ae268899278bc1bdb63917c5ccd7094337ba8b242e4d77f C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1\bin\java.exe
+SHA256 9d385fd280a0f8a9421ff870b894c5ff78dd094b9a36027d8f114e363e1fc4cb C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1\bin\javac.exe
+SHA256 db0cd1babb32b58e316f1850bfbd4756566e089bcfc8e4d315c92f37bd8b8c07 C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1\bin\jar.exe

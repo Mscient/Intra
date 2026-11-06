@@ -19,6 +19,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
@@ -53,10 +54,40 @@ public final class RiskGatewayJournal {
 
     private RiskGatewayJournal() { }
 
+    /** Package-private deterministic fault seam; production always writes fully and forces. */
+    @FunctionalInterface
+    interface AppendIO {
+        void writeAndForce(FileChannel channel, ByteBuffer row) throws IOException;
+    }
+
+    static final AppendIO FORCED_WRITE = (channel, row) -> {
+        while (row.hasRemaining()) channel.write(row);
+        channel.force(true);
+    };
+
     /** Appends and fsyncs one event. An identical existing event ID is an idempotent no-op. */
     public static Verification append(Path journalPath, RiskEvent event) throws IOException {
         if (journalPath == null || event == null) throw new NullPointerException("journalPath/event");
         Path path = journalPath.toAbsolutePath().normalize();
+        try (FileChannel runtime = openRuntimeLock(path); FileLock lease = acquire(runtime)) {
+            return appendOwned(path, event, null, FORCED_WRITE);
+        }
+    }
+
+    static FileChannel openRuntimeLock(Path path) throws IOException {
+        Path parent = path.getParent();
+        if (parent == null) throw new IOException("Risk journal requires a parent directory");
+        Files.createDirectories(parent);
+        if (!Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(parent)) {
+            throw new IOException("Risk journal parent must be a real directory");
+        }
+        Path lockPath = parent.resolve("." + path.getFileName() + ".runtime.lock");
+        rejectSymlink(lockPath, "risk gateway runtime lock");
+        return FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+    }
+
+    /** Caller must hold the lifetime lease; comparison and append share the journal lock. */
+    static Verification appendOwned(Path path, RiskEvent event, Verification expected, AppendIO io) throws IOException {
         Path parent = path.getParent();
         if (parent == null) throw new IOException("Risk journal requires a parent directory");
         Files.createDirectories(parent);
@@ -69,7 +100,11 @@ public final class RiskGatewayJournal {
             FileLock lock = acquire(lockChannel);
             try (lock) {
                 rejectJournalPath(path);
-                Parsed current = parse(readBytes(path));
+                byte[] currentBytes = readBytes(path);
+                Parsed current = parse(currentBytes);
+                if (expected != null && !expected.equals(current.verification())) {
+                    throw new IOException("Risk journal does not match the acknowledged checkpoint");
+                }
                 byte[] payload = encode(event);
                 byte[] priorPayload = current.payloadsByEventId().get(event.eventId());
                 if (priorPayload != null) {
@@ -87,14 +122,12 @@ public final class RiskGatewayJournal {
                 String hash = eventHash(sequence, current.verification().finalHash(), encoded);
                 String row = sequence + "\t" + current.verification().finalHash() + "\t" + encoded + "\t" + hash + "\n";
                 byte[] rowBytes = row.getBytes(StandardCharsets.US_ASCII);
-                if ((long) readBytes(path).length + rowBytes.length > MAX_FILE_BYTES) {
+                if ((long) currentBytes.length + rowBytes.length > MAX_FILE_BYTES) {
                     throw new IOException("Risk journal exceeds the configured 256 MiB limit");
                 }
                 try (FileChannel journal = FileChannel.open(path, StandardOpenOption.CREATE,
                         StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
-                    ByteBuffer buffer = ByteBuffer.wrap(rowBytes);
-                    while (buffer.hasRemaining()) journal.write(buffer);
-                    journal.force(true);
+                    io.writeAndForce(journal, ByteBuffer.wrap(rowBytes));
                 }
                 return new Verification(sequence, hash, Optional.of(event.occurredAt()));
             }
@@ -129,7 +162,7 @@ public final class RiskGatewayJournal {
         return RiskGateway.restore(configuration, read.events());
     }
 
-    private static FileLock acquire(FileChannel channel) throws IOException {
+    static FileLock acquire(FileChannel channel) throws IOException {
         try {
             FileLock lock = channel.tryLock();
             if (lock == null) throw new IOException("Risk journal is already locked by another process");
@@ -178,11 +211,14 @@ public final class RiskGatewayJournal {
             long sequence;
             try { sequence = Long.parseLong(fields[0]); }
             catch (NumberFormatException invalid) { throw new IOException("Invalid risk journal sequence", invalid); }
-            if (sequence != index + 1L || !fields[1].equals(head)) {
+            if (sequence != index + 1L || !Long.toString(sequence).equals(fields[0]) || !fields[1].equals(head)) {
                 throw new IOException("Risk journal sequence or previous hash mismatch at row " + (index + 1));
             }
             byte[] payload;
             try {
+                if (fields[2].length() > 4 * ((MAX_EVENT_BYTES + 2) / 3)) {
+                    throw new IOException("Risk event exceeds the 1 MiB size limit");
+                }
                 payload = Base64.getDecoder().decode(fields[2]);
                 if (!Base64.getEncoder().encodeToString(payload).equals(fields[2])) {
                     throw new IllegalArgumentException("noncanonical base64");
@@ -272,6 +308,9 @@ public final class RiskGatewayJournal {
                 default -> throw new IOException("Unknown risk event type code: " + type);
             };
             if (in.available() != 0) throw new IOException("Trailing bytes in risk event payload");
+            if (!java.util.Arrays.equals(payload, encode(event))) {
+                throw new IOException("Risk event payload is not canonical");
+            }
             return event;
         } catch (EOFException invalid) {
             throw new IOException("Malformed risk event payload", invalid);
@@ -335,8 +374,22 @@ public final class RiskGatewayJournal {
     }
 
     private static void write(DataOutputStream out, String value) throws IOException {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        if (bytes.length > 65_536) throw new IOException("Risk event text field exceeds 64 KiB");
+        if (value.length() > 65_536) throw new IOException("Risk event text field exceeds 64 KiB");
+        ByteBuffer encoded;
+        try {
+            encoded = StandardCharsets.UTF_8.newEncoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .encode(CharBuffer.wrap(value));
+        } catch (java.nio.charset.CharacterCodingException invalidText) {
+            throw new IOException("Risk event text is not valid Unicode", invalidText);
+        }
+        if (encoded.remaining() > 65_536) throw new IOException("Risk event text field exceeds 64 KiB");
+        if ((long) out.size() + Integer.BYTES + encoded.remaining() > MAX_EVENT_BYTES) {
+            throw new IOException("Risk event exceeds the 1 MiB size limit");
+        }
+        byte[] bytes = new byte[encoded.remaining()];
+        encoded.get(bytes);
         out.writeInt(bytes.length);
         out.write(bytes);
     }
