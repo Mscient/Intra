@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "use_id": "SYNTHETIC-RESEARCH-USE",
+  "manifest_sha256": "337a43e820d48ba58a7c56e704641a3a16ea961c5beed43633050eeb00de6164",
+  "source_id": "SYNTHETIC-SOURCE",
+  "product_id": "SYNTHETIC-HISTORICAL-BARS",
+  "data_type": "OHLCV",
+  "instruments": ["SYNTH-FUT-202611"],
+  "data_start": "2026-11-01",
+  "data_end": "2026-11-06",
+  "purposes": ["SIMULATION", "BACKTEST"],
+  "use_start": "2026-11-07",
+  "use_end": "2026-11-08",
+  "storage_locations": ["SYNTHETIC-LOCAL-RESEARCH", "SYNTHETIC-LOCAL-BACKUP"],
+  "retention_start": "2026-11-07",
+  "delete_by": "2026-11-09",
+  "derived_outputs": ["AGGREGATE_METRICS", "CHARTS"],
+  "sharing_mode": "NONE",
+  "sharing_recipients": ["NONE"],
+  "shared_material": ["NONE"]
+}

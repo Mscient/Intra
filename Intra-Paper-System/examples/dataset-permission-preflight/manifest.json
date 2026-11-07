@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "dataset_id": "SYNTHETIC-PREFLIGHT-ONLY",
+  "dataset_sha256": "88839266b4fa6f9440b76c09ff52b6f2b2f56537fa3f8530877ada12c3d0e9f3",
+  "classification": "SYNTHETIC",
+  "candidate_status": "CANDIDATE",
+  "source_id": "SYNTHETIC-SOURCE",
+  "product_id": "SYNTHETIC-HISTORICAL-BARS",
+  "data_type": "OHLCV",
+  "instruments": ["SYNTH-FUT-202611"],
+  "data_start": "2026-11-01",
+  "data_end": "2026-11-06"
+}

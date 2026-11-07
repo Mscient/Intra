@@ -47,11 +47,12 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-portfolio-settlement-audit.ps1` | `PortfolioSettlementAuditTest` |
 | `test-portfolio-trial-evaluation.ps1` | `PortfolioTrialEvaluationTest`, `PortfolioReplayEngineTest`, `PortfolioExecutionCostScheduleTest`, `PortfolioReplayArtifactVerifierTest` |
 | `test-daily-ops-evidence.ps1` | `DailyOpsEvidenceCheckerTest` over committed synthetic evidence bundles |
+| `test-dataset-intended-use-preflight.ps1` | `PermissionPreflightTest` over synthetic permission evidence |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
-also runs the packaged daily-operations evidence checker and its nine-case
-synthetic drill after the production JAR is built. It does not invoke the
+also runs the packaged daily-operations and dataset intended-use checkers and their
+nine-case and ten-check synthetic drills after the production JAR is built. It does not invoke the
 option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
 runners. It does not establish full repository test coverage, power-loss safety,
 statistical validity, data rights, or trading performance. The process harness
