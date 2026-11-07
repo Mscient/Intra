@@ -1,0 +1,8 @@
+"path","sha256","observed_utc","scope"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/riskgateway/RiskGateway.java","308815f3e0e900fc571dd0cf431c7054785a44389666e14ee784ad656ef5f92d","2026-11-05T09:30:04.2949028Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/riskgateway/RiskGatewayJournal.java","a86379ff0bffd94b73e2983622e8de8f2a7d7373dc5e745fa64e23faef38bc04","2026-11-05T09:30:04.3148928Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/riskgateway/DurableRiskGateway.java","c0ff91eb0769e8828dc8aacf538794eb90c0c8d0cb664f969c3145e580981a32","2026-11-05T09:30:04.3156813Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/simulation/BacktestCheckpoint.java","1c964d1f8e4b29e1a2df7cbbc60cc461cd6d9aaeb8d516a21638fd09f62f780b","2026-11-05T09:30:04.3167204Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/simulation/BacktestCheckpointStore.java","8eb761235f5a28926d7692b2264910e0bed15e93b0595604bd06df882859a7b4","2026-11-05T09:30:04.3348505Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/src/main/java/com/mscient/intrapaper/simulation/OmsRunRecovery.java","278664b1d129755e15f5187ab9637fc5ec6ba5156411aa69d84a3200de81911e","2026-11-05T09:30:04.3488411Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
+"Intra-Paper-System/docs/OPERATIONAL-KILL-CONTROLLER.md","939422e44949edc621048184c7b88a9cd0abbd120d623ea64bbacb3b3e8e43a7","2026-11-05T09:30:04.3626028Z","LOCAL_REVIEW_SNAPSHOT_NOT_RELEASE_CERTIFICATION"
