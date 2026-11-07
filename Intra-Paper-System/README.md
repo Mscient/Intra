@@ -47,11 +47,11 @@ The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PL
 
 ## Build and run
 
-The [Windows Java 21 CI workflow](docs/WINDOWS-JAVA21-CI.md) runs ten selected offline PowerShell runners, builds the production JAR, runs packaged daily operations and dataset permission checks, and verifies that the JAR manifest matches the checkout. It
+The [Windows Java 21 CI workflow](docs/WINDOWS-JAVA21-CI.md) runs eleven selected offline PowerShell runners, builds the production JAR, runs packaged daily operations and dataset permission checks, tests standalone and packaged multi-record permission coverage, and verifies that the JAR manifest matches the checkout. It
 pins Microsoft JDK 21.0.13.0.2 and retains concise logs and the verified JAR for
 14 days. The complete test list and local reproduction commands are in the guide.
 
-The [dataset permission preflight](docs/DATASET-INTENDED-USE-PREFLIGHT.md) checks declared evidence against a specific intended use; ALLOWED is not legal approval, and G2 remains open.
+The [dataset permission preflight](docs/DATASET-INTENDED-USE-PREFLIGHT.md) checks declared evidence against intended use; ALLOWED is not legal approval. The [multi-record permission coverage checker](docs/DATA-PERMISSION-COVERAGE.md) reports scope cells and record conflicts. Both operate on caller-supplied declarations, do not grant permission, and leave G2 open.
 
 The [daily operations evidence checker](docs/DAILY-OPS-EVIDENCE.md) validates a
 caller-prepared local session bundle and reports PASS, FAIL, or INCOMPLETE across

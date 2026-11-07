@@ -41,7 +41,8 @@ $suites = @(
     'portfolio-settlement-audit',
     'portfolio-trial-evaluation',
     'daily-ops-evidence',
-    'dataset-intended-use-preflight'
+    'dataset-intended-use-preflight',
+    'data-permission-coverage'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -50,6 +51,9 @@ $results['daily-ops-packaged'] = 'NOT_RUN'
 $results['daily-ops-drill'] = 'NOT_RUN'
 $results['dataset-intended-use-packaged'] = 'NOT_RUN'
 $results['dataset-intended-use-drill'] = 'NOT_RUN'
+$results['data-permission-coverage-standalone-build'] = 'NOT_RUN'
+$results['data-permission-coverage-standalone-test'] = 'NOT_RUN'
+$results['data-permission-coverage-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -120,6 +124,7 @@ try {
         if ($suite -eq 'risk-gateway-process') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'risk-gateway-process')) }
         if ($suite -eq 'daily-ops-evidence') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'daily-ops-evidence')) }
         if ($suite -eq 'dataset-intended-use-preflight') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'dataset-intended-use-preflight')) }
+        if ($suite -eq 'data-permission-coverage') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -144,6 +149,18 @@ try {
     Invoke-LoggedScript 'dataset-intended-use-drill' (Join-Path $projectRoot 'synthetic-dataset-intended-use-drill.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'dataset-intended-use-drill'))
     if ($results['dataset-intended-use-drill'] -ne 'PASS') { throw 'Packaged dataset intended-use drill failed.' }
+    $coverageStandaloneRoot = Join-Path $OutputRoot 'data-permission-coverage-standalone'
+    Invoke-LoggedScript 'data-permission-coverage-standalone-build' (Join-Path $projectRoot 'build-data-permission-coverage.ps1') @(
+        '-OutputRoot', $coverageStandaloneRoot)
+    if ($results['data-permission-coverage-standalone-build'] -ne 'PASS') { throw 'Standalone data-permission coverage build failed.' }
+    $coverageStandaloneJar = Get-ChildItem -LiteralPath $coverageStandaloneRoot -Recurse -File -Filter 'data-permission-coverage.jar' | Select-Object -First 1
+    if (-not $coverageStandaloneJar) { throw 'Standalone data-permission coverage JAR missing.' }
+    Invoke-LoggedScript 'data-permission-coverage-standalone-test' (Join-Path $projectRoot 'test-data-permission-coverage.ps1') @(
+        '-JarPath', $coverageStandaloneJar.FullName, '-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage-standalone-test'))
+    if ($results['data-permission-coverage-standalone-test'] -ne 'PASS') { throw 'Standalone data-permission coverage checks failed.' }
+    Invoke-LoggedScript 'data-permission-coverage-packaged' (Join-Path $projectRoot 'test-data-permission-coverage.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage-packaged'))
+    if ($results['data-permission-coverage-packaged'] -ne 'PASS') { throw 'Packaged data-permission coverage checks failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8
