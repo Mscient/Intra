@@ -1,13 +1,13 @@
 # Portfolio Sharpe HAC diagnostic implementation
 
-**Branch:** `codex/portfolio-sharpe-hac-20261107`  
-**Base:** `07e5483b8bd5afe744fed9712198aabea91b02b3` (`codex/local-integration-reviewed-20261106`)  
-**State:** implementation completed and locally validated before consolidation; no push or merge had occurred at report time.  
+**Branch:** `codex/portfolio-sharpe-hac-20261107`\
+**Base:** `07e5483b8bd5afe744fed9712198aabea91b02b3` (`codex/local-integration-reviewed-20261106`)\
+**State:** implementation completed and locally validated before consolidation; no push or merge had occurred at report time.\
 **Original checkout:** left unchanged.
 
 ## Delivered
 
-- Added the frozen content-addressed protocol in `Intra-Paper-System/docs/PORTFOLIO-SHARPE-HAC-PROTOCOL.md`. Protocol SHA-256: `d2bdae583cd7a9e71eac454c40476910500c57e938ef30ea850d27ce7c814a10`.
+- Added the frozen content-addressed protocol in `Intra-Paper-System/docs/PORTFOLIO-SHARPE-HAC-PROTOCOL.md`. Protocol SHA-256: `dc4d71687a830ceba16d4849771dc1a497e14e45c847d1585d4d57aeed36b73c`.
 - Added a separate fixed-candidate, original-frequency Sharpe HAC standard error using population moment influence values, global centering, denominator `T`, Bartlett weights, `c_T=sqrt((T-1)/T)`, no prewhitening, and the protocol's sorted bandwidth grid. Matrix projection is checked against the scalar influence-series calculation.
 - Added return, squared-centered-return, and influence ACFs with lag pair counts. They are descriptive and do not screen the HAC calculation.
 - Added the `T >= 60` operational floor. Below the floor, the V3 JSON reports HAC `INCOMPLETE` with null HAC estimates while preserving legacy outputs. Invalid/incomplete verified session series fail closed with `INCOMPLETE: VERIFIED_SESSION_SERIES_UNAVAILABLE` and do not publish family scores.

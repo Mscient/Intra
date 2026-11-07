@@ -8,7 +8,7 @@ import java.util.TreeSet;
 /** Frozen fixed-candidate HAC standard-error diagnostic; does not alter legacy DSR/PBO statistics. */
 final class PortfolioSharpeHac {
     static final String PROTOCOL_ID = "INTRA_PORTFOLIO_SHARPE_HAC_V1";
-    static final String PROTOCOL_SHA256 = "d2bdae583cd7a9e71eac454c40476910500c57e938ef30ea850d27ce7c814a10";
+    static final String PROTOCOL_SHA256 = "dc4d71687a830ceba16d4849771dc1a497e14e45c847d1585d4d57aeed36b73c";
     static final String SOURCE_REVIEW_COMMIT = "263e435f6daf3986267aae1e3d9b3ef45d3e707b";
     static final String SOURCE_REVIEW_BLOB = "e56d0b9b3f3ccc56004303de871c45e008bc40bd";
     static final int MINIMUM_SESSIONS = 60;

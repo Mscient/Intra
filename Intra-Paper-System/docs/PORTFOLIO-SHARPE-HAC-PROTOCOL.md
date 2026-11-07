@@ -1,8 +1,8 @@
 # Portfolio Sharpe HAC diagnostic protocol
 
-**Protocol ID:** `INTRA_PORTFOLIO_SHARPE_HAC_V1`  
-**Frozen:** 2026-11-07, before HAC implementation qualification runs.  
-**Status:** engineering diagnostic; independent preregistration **UNVERIFIED** and prior exposure **UNKNOWN**.  
+**Protocol ID:** `INTRA_PORTFOLIO_SHARPE_HAC_V1`\
+**Frozen:** 2026-11-07, before HAC implementation qualification runs.\
+**Status:** engineering diagnostic; independent preregistration **UNVERIFIED** and prior exposure **UNKNOWN**.\
 **Decision record:** user-approved protocol choices in the Codex conversation dated 2026-11-07.
 
 This protocol adds a fixed-candidate, original-session-frequency HAC standard error to

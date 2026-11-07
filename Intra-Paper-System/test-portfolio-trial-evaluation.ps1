@@ -9,7 +9,7 @@ if (-not $javac -or -not (Test-Path -LiteralPath $javac) -or -not (Test-Path -Li
 $compilerVersion = (& $javac -version 2>&1 | Out-String).Trim()
 if ($compilerVersion -notmatch '^javac 21(?:\.|$)') { throw "Expected JDK 21, found: $compilerVersion" }
 $protocolHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'docs\PORTFOLIO-SHARPE-HAC-PROTOCOL.md') -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($protocolHash -ne 'd2bdae583cd7a9e71eac454c40476910500c57e938ef30ea850d27ce7c814a10') {
+if ($protocolHash -ne 'dc4d71687a830ceba16d4849771dc1a497e14e45c847d1585d4d57aeed36b73c') {
     throw "Portfolio Sharpe HAC protocol bytes do not match the implementation pin: $protocolHash"
 }
 
