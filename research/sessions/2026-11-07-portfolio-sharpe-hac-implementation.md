@@ -1,5 +1,7 @@
 # Portfolio Sharpe HAC diagnostic implementation
 
+**Session UUID:** 96545274-3185-4f72-9de0-17888deb9a06\
+
 **Branch:** `codex/portfolio-sharpe-hac-20261107`\
 **Base:** `07e5483b8bd5afe744fed9712198aabea91b02b3` (`codex/local-integration-reviewed-20261106`)\
 **State:** implementation completed and locally validated before consolidation; no push or merge had occurred at report time.\
