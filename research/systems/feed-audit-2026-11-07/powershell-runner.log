@@ -1,0 +1,30 @@
+PASS: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS complete verify exit=0
+PASS: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS complete run exit=0
+VERIFIED artifact hashes, schema, and deterministic re-audit
+PASS complete verify-artifact exit=0
+FAIL: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS missing-window verify exit=2
+FAIL: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS missing-window run exit=2
+VERIFIED artifact hashes, schema, and deterministic re-audit
+PASS missing-window verify-artifact exit=0
+PASS: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS closed-pause verify exit=0
+PASS: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS closed-pause run exit=0
+VERIFIED artifact hashes, schema, and deterministic re-audit
+PASS closed-pause verify-artifact exit=0
+FAIL: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS heartbeat-absence verify exit=2
+FAIL: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS heartbeat-absence run exit=2
+VERIFIED artifact hashes, schema, and deterministic re-audit
+PASS heartbeat-absence verify-artifact exit=0
+INCOMPLETE: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS missing-policy verify exit=3
+INCOMPLETE: Caller-supplied unauthenticated evidence. PASS means only no configured anomaly detected. No exchange/vendor guarantee, packet-loss proof, market-activity inference, or feed-completeness claim. G2/G4 remain open.
+PASS missing-policy run exit=3
+VERIFIED artifact hashes, schema, and deterministic re-audit
+PASS missing-policy verify-artifact exit=0

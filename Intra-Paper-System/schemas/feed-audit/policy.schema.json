@@ -57,7 +57,7 @@
                       {
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 9223372036854776000
+                        "maximum": 9223372036854775807
                       },
                       {
                         "type": "null"
@@ -106,7 +106,7 @@
                       {
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 9223372036854776000
+                        "maximum": 9223372036854775807
                       },
                       {
                         "type": "null"
@@ -155,7 +155,7 @@
                       {
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 9223372036854776000
+                        "maximum": 9223372036854775807
                       },
                       {
                         "type": "null"
@@ -204,7 +204,7 @@
                       {
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 9223372036854776000
+                        "maximum": 9223372036854775807
                       },
                       {
                         "type": "null"

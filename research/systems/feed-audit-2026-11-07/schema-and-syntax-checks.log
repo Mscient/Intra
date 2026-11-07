@@ -1,0 +1,3 @@
+PASS 15 committed schedule/policy/evidence files against Draft 2020-12 JSON schemas
+PASS 2 representative report/artifact files against Draft 2020-12 JSON schemas
+PASS 5 PowerShell runner/build/CI scripts parsed without syntax errors
