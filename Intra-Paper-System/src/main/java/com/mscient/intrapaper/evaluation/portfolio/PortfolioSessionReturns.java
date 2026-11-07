@@ -41,7 +41,8 @@ final class PortfolioSessionReturns {
 
     record Series(List<Session> sessions, BigDecimal totalNetPnlInr, int instrumentCount,
             int developmentSessionCount, int validationSessionCount, int excludedHoldoutSessionCount,
-            int includedSettlementCount, int excludedHoldoutSettlementCount) {
+            int includedSettlementCount, int excludedHoldoutSettlementCount,
+            String sessionAxisSha256, String includedReturnSeriesSha256, List<String> calendarSha256) {
         Series { sessions = List.copyOf(sessions); }
         double[] returns() { return sessions.stream().mapToDouble(s -> s.sessionReturn().doubleValue()).toArray(); }
     }
@@ -214,10 +215,44 @@ final class PortfolioSessionReturns {
             priorUnrealized = end.unrealized();
             priorFees = end.fees();
         }
+        List<String> calendarHashes = instruments.values().stream().map(row -> row.get("calendar_sha256"))
+                .distinct().sorted().toList();
+        String axisHash = sessionAxisHash(sessions, calendarHashes);
+        String returnHash = includedReturnSeriesHash(sessions);
         return new Series(sessions, totalPnl, instrumentCount, split.sessions().get(Partition.DEVELOPMENT).size(),
                 split.sessions().get(Partition.VALIDATION).size(), split.sessions().get(Partition.HOLDOUT).size(),
                 prefixOnly ? Integer.parseInt(run.manifest().get("settlement_count")) : 0,
-                prefixOnly ? 0 : Integer.parseInt(run.manifest().get("settlement_count")));
+                prefixOnly ? 0 : Integer.parseInt(run.manifest().get("settlement_count")),
+                axisHash, returnHash, calendarHashes);
+    }
+
+    private static String sessionAxisHash(List<Session> sessions, List<String> calendarHashes) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream output = new DataOutputStream(bytes)) {
+            write(output, "INTRA_PORTFOLIO_SESSION_AXIS_V1");
+            output.writeInt(calendarHashes.size());
+            for (String hash : calendarHashes) write(output, hash);
+            output.writeInt(sessions.size());
+            for (Session session : sessions) {
+                write(output, session.date().toString());
+                write(output, session.partition().name());
+            }
+        }
+        return com.mscient.intrapaper.provenance.RunConfig.sha256(bytes.toByteArray());
+    }
+
+    private static String includedReturnSeriesHash(List<Session> sessions) throws IOException {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (DataOutputStream output = new DataOutputStream(bytes)) {
+            write(output, "INTRA_PORTFOLIO_INCLUDED_RETURN_SERIES_V1");
+            output.writeInt(sessions.size());
+            for (Session session : sessions) {
+                write(output, session.date().toString());
+                write(output, session.partition().name());
+                write(output, session.sessionReturn().stripTrailingZeros().toPlainString());
+            }
+        }
+        return com.mscient.intrapaper.provenance.RunConfig.sha256(bytes.toByteArray());
     }
 
     private static String datasetFingerprint(TreeMap<String, Map<String, String>> instruments) throws IOException {

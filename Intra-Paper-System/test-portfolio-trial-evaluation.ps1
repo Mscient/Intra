@@ -8,6 +8,10 @@ if (-not $javac -or -not (Test-Path -LiteralPath $javac) -or -not (Test-Path -Li
 }
 $compilerVersion = (& $javac -version 2>&1 | Out-String).Trim()
 if ($compilerVersion -notmatch '^javac 21(?:\.|$)') { throw "Expected JDK 21, found: $compilerVersion" }
+$protocolHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'docs\PORTFOLIO-SHARPE-HAC-PROTOCOL.md') -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($protocolHash -ne 'd2bdae583cd7a9e71eac454c40476910500c57e938ef30ea850d27ce7c814a10') {
+    throw "Portfolio Sharpe HAC protocol bytes do not match the implementation pin: $protocolHash"
+}
 
 $testRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'build\portfolio-trial-evaluation-tests'))
 New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
@@ -29,6 +33,7 @@ try {
         ForEach-Object { $_.FullName })
     $testSources = @(
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\evaluation\portfolio\PortfolioTrialEvaluationTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\evaluation\portfolio\PortfolioSharpeHacTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayEngineTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioExecutionCostScheduleTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
@@ -40,6 +45,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Focused check compilation failed with exit code $LASTEXITCODE" }
     $testNames = @(
         'com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialEvaluationTest',
+        'com.mscient.intrapaper.evaluation.portfolio.PortfolioSharpeHacTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioReplayEngineTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioExecutionCostScheduleTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifierTest'

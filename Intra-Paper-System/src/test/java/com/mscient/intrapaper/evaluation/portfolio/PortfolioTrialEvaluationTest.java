@@ -126,7 +126,9 @@ public final class PortfolioTrialEvaluationTest {
             }
             fixture.writeCatalog();
             var sealed = fixture.analyze();
-            require(sealed.statistics().equals(original.statistics()) && sealed.trials().getFirst().sessions().equals(original.trials().getFirst().sessions()), "holdout settlement values, fees, and equity are never numerically interpreted");
+            require(sealed.statistics().equals(original.statistics()) && sealed.trials().getFirst().sessions().equals(original.trials().getFirst().sessions())
+                    && sealed.trials().getFirst().sharpeHac().equals(original.trials().getFirst().sharpeHac()),
+                    "holdout settlement values, fees, and equity are never numerically interpreted by legacy or HAC statistics");
             Files.writeString(fixture.catalog, Files.readString(fixture.catalog).replace("ALL_SPLIT_SESSIONS", "DEVELOPMENT_VALIDATION_ONLY"));
             fails(fixture::analyze, "prefix scope cannot contain holdout artifacts");
             fixture.writeCatalog();
@@ -144,7 +146,8 @@ public final class PortfolioTrialEvaluationTest {
                 fixture.analyze();
                 throw new AssertionError("Rehashed final bar metadata must match actual checkpoints");
             } catch (IOException expected) {
-                require(expected.getMessage().equals("Identity mismatch: portfolio final bar close timestamp for " + A),
+                require(expected.getMessage().startsWith("INCOMPLETE: VERIFIED_SESSION_SERIES_UNAVAILABLE;")
+                        && expected.getMessage().contains("Identity mismatch: portfolio final bar close timestamp for " + A),
                         "rehashed sealed holdout is rejected specifically for the final BAR_CLOSE mismatch");
             }
             Files.writeString(run.resolve("datasets.csv"), originalDatasets);
@@ -174,6 +177,13 @@ public final class PortfolioTrialEvaluationTest {
             close(first.statistics().meanSessionReturn(), 0.00004125, 1e-18, "session mean");
             close(first.statistics().sampleSessionReturnStandardDeviation(), Math.sqrt(2855.0 / 56.0) / 100000.0,
                     1e-18, "sample session standard deviation");
+            require(first.sharpeHac().status().equals("INCOMPLETE")
+                    && first.sharpeHac().reason().equals("INSUFFICIENT_SESSIONS")
+                    && first.sharpeHac().bandwidths().stream().allMatch(value -> value.standardError() == null),
+                    "short synthetic portfolio history receives incomplete HAC without affecting legacy diagnostics");
+            require(first.sessionAxisSha256().matches("[0-9a-f]{64}")
+                    && first.includedReturnSeriesSha256().matches("[0-9a-f]{64}"),
+                    "hashed validated session axis and included returns are emitted");
             require(report.statistics().pbo().combinations() == 6, "four-block CSCV enumerates choose(4,2)");
             require(first.statistics().deflatedSharpeProbability()
                     == first.statistics().dsrProbabilityAtRawFamilyTrialCount(), "raw-count DSR definition retained");
@@ -191,6 +201,8 @@ public final class PortfolioTrialEvaluationTest {
             var parsed = PortfolioEvaluationJson.parsedObject(
                     com.mscient.intrapaper.data.StrictJsonParser.parse(json), "report");
             require(PortfolioTrialEvaluationAnalyzer.REPORT_SCHEMA.equals(parsed.get("schema")), "dedicated report schema");
+            require("UNVERIFIED".equals(PortfolioEvaluationJson.parsedObject(parsed.get("sharpe_hac_protocol"), "HAC protocol").get("preregistration_status")),
+                    "independent preregistration remains unverified");
             require(json.equals(fixture.analyze().toJson()), "same inputs produce identical output bytes");
             Locale savedLocale = Locale.getDefault();
             TimeZone savedZone = TimeZone.getDefault();
@@ -328,7 +340,9 @@ public final class PortfolioTrialEvaluationTest {
             }
             fixture.writeCatalog();
             var sealed = fixture.analyze();
-            require(original.statistics().equals(sealed.statistics()), "holdout P&L cannot affect Sharpe, DSR, or CSCV");
+            require(original.statistics().equals(sealed.statistics())
+                    && original.trials().getFirst().sharpeHac().equals(sealed.trials().getFirst().sharpeHac()),
+                    "holdout P&L cannot affect Sharpe, HAC, DSR, or CSCV");
             for (int index = 0; index < original.trials().size(); index++) {
                 require(original.trials().get(index).sessions().equals(sealed.trials().get(index).sessions()),
                         "holdout P&L cannot enter session returns");

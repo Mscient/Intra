@@ -24,7 +24,7 @@ import static com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialIdentity
 
 /** Separate offline evaluator over registered, verified multi-instrument portfolio replay artifacts. */
 public final class PortfolioTrialEvaluationAnalyzer {
-    public static final String REPORT_SCHEMA = "INTRA_PORTFOLIO_TRIAL_EVALUATION_V2";
+    public static final String REPORT_SCHEMA = "INTRA_PORTFOLIO_TRIAL_EVALUATION_V3";
 
     public record SessionReturn(java.time.LocalDate sessionDate, EvaluationSplitPlan.Partition partition,
             BigDecimal realizedGrossPnlChangeInr, BigDecimal unrealizedPnlChangeInr, BigDecimal feesPaidInr,
@@ -35,8 +35,10 @@ public final class PortfolioTrialEvaluationAnalyzer {
             Map<String, String> outputSha256, BigDecimal startingCapitalInr, int instrumentCount,
             int developmentSessionCount, int validationSessionCount, int excludedHoldoutSessionCount,
             BigDecimal totalNetPnlInr, List<SessionReturn> sessions,
-            SessionReturnStatistics.TrialStatistics statistics, int includedSettlementCount, int excludedHoldoutSettlementCount) {
-        public TrialReport { outputSha256 = Map.copyOf(outputSha256); sessions = List.copyOf(sessions); }
+            SessionReturnStatistics.TrialStatistics statistics, int includedSettlementCount, int excludedHoldoutSettlementCount,
+            PortfolioSharpeHac.Result sharpeHac, String sessionAxisSha256,
+            String includedReturnSeriesSha256, List<String> calendarSha256) {
+        public TrialReport { outputSha256 = Map.copyOf(outputSha256); sessions = List.copyOf(sessions); calendarSha256 = List.copyOf(calendarSha256); }
         public boolean performanceClaimEligible() { return false; }
     }
 
@@ -81,6 +83,15 @@ public final class PortfolioTrialEvaluationAnalyzer {
                             "trial_dependence_estimated", false, "raw_family_count_is_upper_scenario", true,
                             "interpretation", "one-trial and raw-family endpoints are assumptions; no fitted effective count or confidence interval"),
                     "sharpe_serial_dependence_adjusted", false,
+                    "sharpe_hac_protocol", object("protocol_id", PortfolioSharpeHac.PROTOCOL_ID,
+                            "protocol_sha256", PortfolioSharpeHac.PROTOCOL_SHA256,
+                            "estimator_version", PortfolioSharpeHac.ESTIMATOR_VERSION,
+                            "minimum_sessions", PortfolioSharpeHac.MINIMUM_SESSIONS,
+                            "preregistration_status", "UNVERIFIED", "prior_exposure", "UNKNOWN",
+                            "source_review_commit", PortfolioSharpeHac.SOURCE_REVIEW_COMMIT,
+                            "source_review_git_blob", PortfolioSharpeHac.SOURCE_REVIEW_BLOB,
+                            "analysis_build_commit", BuildInfo.commitId(),
+                            "interpretation", "fixed-candidate original-frequency Sharpe standard error only; no interval, p-value, or profitability probability"),
                     "outcome_history", outcomeJson(outcomeHistory, trials),
                     "pbo", object("method", "combinatorially symmetric cross-validation over chronological blocks",
                             "chronological_block_count", pbo.chronologicalBlockCount(),
@@ -145,7 +156,13 @@ public final class PortfolioTrialEvaluationAnalyzer {
             requireEqual(row.trial().strategyId(), run.strategyId(), "registered portfolio strategy");
             requireEqual(row.trial().datasetSha256(), run.verification().validatedDatasetsSha256(), "registered portfolio dataset");
             requireEqual(row.trial().parameterConfigSha256(), run.parameterConfigSha256(), "registered portfolio parameters");
-            var series = PortfolioSessionReturns.read(folder, run, split, row.startingCapitalInr(), catalog.artifactScope());
+            PortfolioSessionReturns.Series series;
+            try {
+                series = PortfolioSessionReturns.read(folder, run, split, row.startingCapitalInr(), catalog.artifactScope());
+            } catch (IOException incompleteSeries) {
+                throw new IOException("INCOMPLETE: VERIFIED_SESSION_SERIES_UNAVAILABLE; full-family scores were not published: "
+                        + incompleteSeries.getMessage(), incompleteSeries);
+            }
             var checkedAgain = PortfolioReplayArtifactVerifier.verifyIntegrity(folder);
             if (!checkedAgain.equals(run.verification())) throw new IOException("Portfolio artifacts changed during evaluation");
             requireEqual(row.runManifestSha256(), PortfolioTrialIdentity.fileSha256(
@@ -192,7 +209,9 @@ public final class PortfolioTrialEvaluationAnalyzer {
                     trial.run().verification().outputSha256(), trial.catalog().startingCapitalInr(),
                     series.instrumentCount(), series.developmentSessionCount(), series.validationSessionCount(),
                     series.excludedHoldoutSessionCount(), series.totalNetPnlInr(), sessions,
-                    statistics.trials().get(index), series.includedSettlementCount(), series.excludedHoldoutSettlementCount()));
+                    statistics.trials().get(index), series.includedSettlementCount(), series.excludedHoldoutSettlementCount(),
+                    PortfolioSharpeHac.evaluate(series.returns()), series.sessionAxisSha256(),
+                    series.includedReturnSeriesSha256(), series.calendarSha256()));
         }
         requireEqual(ledgerFileHash, PortfolioTrialIdentity.fileSha256(registrationLedger), "registration ledger changed during evaluation");
         requireEqual(catalog.sha256(), PortfolioTrialIdentity.fileSha256(catalogPath), "catalog changed during evaluation");
@@ -221,6 +240,10 @@ public final class PortfolioTrialEvaluationAnalyzer {
                 "excluded_holdout_session_count", report.excludedHoldoutSessionCount(), "session_count", score.sessionCount(),
                 "included_settlement_count", report.includedSettlementCount(), "excluded_holdout_settlement_count", report.excludedHoldoutSettlementCount(),
                 "total_net_pnl_inr", report.totalNetPnlInr(),
+                "validated_calendar_sha256", report.calendarSha256(),
+                "session_axis_sha256", report.sessionAxisSha256(),
+                "included_session_return_series_sha256", report.includedReturnSeriesSha256(),
+                "sharpe_hac", sharpeHacJson(report.sharpeHac()),
                 "cumulative_simple_return", report.totalNetPnlInr().divide(report.startingCapitalInr(), MathContext.DECIMAL128),
                 "mean_session_return", score.meanSessionReturn(),
                 "sample_session_return_stddev", score.sampleSessionReturnStandardDeviation(),
@@ -236,6 +259,24 @@ public final class PortfolioTrialEvaluationAnalyzer {
                         "unrealized_pnl_change_inr", session.unrealizedPnlChangeInr(), "fees_paid_inr", session.feesPaidInr(),
                         "net_pnl_change_inr", session.netPnlChangeInr(), "session_return", session.sessionReturn())).toList(),
                 "performance_claim_eligible", false);
+    }
+
+    private static Map<String, Object> sharpeHacJson(PortfolioSharpeHac.Result result) {
+        return object("status", result.status(), "reason", result.reason(),
+                "session_count", result.sessionCount(), "minimum_sessions", PortfolioSharpeHac.MINIMUM_SESSIONS,
+                "frequency", "ORIGINAL_EXCHANGE_SESSION", "risk_free_session_return", 0,
+                "sharpe_point_estimate", Double.isFinite(result.sharpePointEstimate()) ? result.sharpePointEstimate() : null,
+                "bandwidth_grid", result.bandwidthGrid(),
+                "bandwidths", result.bandwidths().stream().map(bandwidth -> object(
+                        "lag", bandwidth.lag(), "status", bandwidth.status(), "reason", bandwidth.reason(),
+                        "projected_long_run_variance", bandwidth.projectedLongRunVariance(),
+                        "standard_error", bandwidth.standardError(),
+                        "scalar_projected_long_run_variance", bandwidth.scalarProjectedLongRunVariance())).toList(),
+                "autocorrelation", result.acf().stream().map(acf -> object("lag", acf.lag(),
+                        "pair_count", acf.pairCount(), "return_acf", acf.returnAcf(),
+                        "squared_centered_return_acf", acf.squaredCenteredReturnAcf(),
+                        "influence_acf", acf.influenceAcf(), "undefined_reason", acf.undefinedReason())).toList(),
+                "selection_adjusted", false);
     }
 
     private static Map<String, Object> outcomeJson(OutcomeProvenance provenance, List<TrialReport> trials) {
