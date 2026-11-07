@@ -49,10 +49,11 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-daily-ops-evidence.ps1` | `DailyOpsEvidenceCheckerTest` over committed synthetic evidence bundles |
 | `test-dataset-intended-use-preflight.ps1` | `PermissionPreflightTest` over synthetic permission evidence |
 | `test-data-permission-coverage.ps1` | `PermissionCoverageTest` over synthetic multi-record scope fixtures |
+| `test-incident-drill.ps1` | `IncidentDrillTest` over nine strict synthetic scenarios and dependency/CLI verification |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
-also runs packaged daily-operations, dataset intended-use, and multi-record data-permission checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. It does not invoke the
+also runs packaged daily-operations, dataset intended-use, multi-record data-permission, and incident-drill checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. It does not invoke the
 option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
 runners. It does not establish full repository test coverage, power-loss safety,
 statistical validity, data rights, or trading performance. The process harness

@@ -42,7 +42,8 @@ $suites = @(
     'portfolio-trial-evaluation',
     'daily-ops-evidence',
     'dataset-intended-use-preflight',
-    'data-permission-coverage'
+    'data-permission-coverage',
+    'incident-drill'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -54,6 +55,7 @@ $results['dataset-intended-use-drill'] = 'NOT_RUN'
 $results['data-permission-coverage-standalone-build'] = 'NOT_RUN'
 $results['data-permission-coverage-standalone-test'] = 'NOT_RUN'
 $results['data-permission-coverage-packaged'] = 'NOT_RUN'
+$results['incident-drill-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -125,6 +127,7 @@ try {
         if ($suite -eq 'daily-ops-evidence') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'daily-ops-evidence')) }
         if ($suite -eq 'dataset-intended-use-preflight') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'dataset-intended-use-preflight')) }
         if ($suite -eq 'data-permission-coverage') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage')) }
+        if ($suite -eq 'incident-drill') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'incident-drill')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -161,6 +164,9 @@ try {
     Invoke-LoggedScript 'data-permission-coverage-packaged' (Join-Path $projectRoot 'test-data-permission-coverage.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage-packaged'))
     if ($results['data-permission-coverage-packaged'] -ne 'PASS') { throw 'Packaged data-permission coverage checks failed.' }
+    Invoke-LoggedScript 'incident-drill-packaged' (Join-Path $projectRoot 'test-incident-drill.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'incident-drill-packaged'))
+    if ($results['incident-drill-packaged'] -ne 'PASS') { throw 'Packaged incident drill checks failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8

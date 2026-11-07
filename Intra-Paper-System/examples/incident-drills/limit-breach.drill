@@ -1,0 +1,17 @@
+OFFLINE_INCIDENT_DRILL_V1
+scenario_id=limit-breach
+authorized_operator=DrillOperator
+max_abs_contracts=10
+max_gross_notional=10000
+max_margin_proxy=10000
+max_daily_loss=1000
+maximum_age_seconds=5
+margin_per_contract=10
+sequence,event_id,time_utc,action,order_id,side,quantity,price,position,reservations,actor,reference,expected_state,expected_result
+1,FrameA,2026-11-07T09:00:00Z,FRAME,,,,100,,,,,RUNNING,FRAME_APPLIED
+2,Limit,2026-11-07T09:00:00Z,LIMIT_BREACH,TooLarge,BUY,11,,,,,,SAFE_HALT,LIMIT_BLOCKED
+3,Retry,2026-11-07T09:00:00Z,RETRY,TooLarge,,,,,,,,SAFE_HALT,RETRY_REJECTED
+4,Early,2026-11-07T09:00:00Z,RESET,,,,,,,DrillOperator,NoEvidence,SAFE_HALT,RESET_DENIED
+5,Reconciled,2026-11-07T09:00:00Z,RECONCILE,,,,,0,-,,,RECONCILED,RECONCILED
+6,WrongReference,2026-11-07T09:00:00Z,RESET,,,,,,,DrillOperator,Unrelated,RECONCILED,RESET_DENIED
+7,Reset,2026-11-07T09:00:00Z,RESET,,,,,,,DrillOperator,Reconciled,RUNNING,RESET_AUTHORIZED
