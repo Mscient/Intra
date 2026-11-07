@@ -39,20 +39,24 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | Runner under `Intra-Paper-System/` | Java entrypoints executed |
 | --- | --- |
 | `test-risk-gateway.ps1` | `RiskGatewayDurabilityTest` |
+| `test-risk-gateway-process.ps1` | `RiskGatewayProcessTest` |
 | `test-portfolio-replay-engine.ps1` | `PortfolioReplayEngineTest`, `PortfolioExecutionCostScheduleTest`, `PortfolioReplayArtifactVerifierTest`, `PortfolioSettlementTest` |
 | `test-portfolio-risk-replay.ps1` | `PortfolioRiskReplayTest`, plus the four replay/cost/artifact/settlement entrypoints above |
 | `test-portfolio-accounting.ps1` | `PortfolioAccountingLedgerTest` |
 | `test-portfolio-risk-audit.ps1` | `PortfolioRiskAuditTest`, `PortfolioRiskSettlementFixtures` |
 | `test-portfolio-settlement-audit.ps1` | `PortfolioSettlementAuditTest` |
 | `test-portfolio-trial-evaluation.ps1` | `PortfolioTrialEvaluationTest`, `PortfolioReplayEngineTest`, `PortfolioExecutionCostScheduleTest`, `PortfolioReplayArtifactVerifierTest` |
+| `test-daily-ops-evidence.ps1` | `DailyOpsEvidenceCheckerTest` over committed synthetic evidence bundles |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
-does not invoke the option-pricer, instrument-sequence, mapping-registry,
-operational-kill-controller, synchronized-bar-frame, or risk-gateway-process
-runners. It does not establish full repository test coverage, process-crash or
-power-loss safety, statistical validity, data rights, or trading performance.
-Statistical formulas are unchanged.
+also runs the packaged daily-operations evidence checker and its nine-case
+synthetic drill after the production JAR is built. It does not invoke the
+option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
+runners. It does not establish full repository test coverage, power-loss safety,
+statistical validity, data rights, or trading performance. The process harness
+does not simulate power loss. The Sharpe HAC suite qualifies only its three fixed
+synthetic processes and establishes no general coverage claim.
 
 Every runner's process exit code is checked. All selected suites are attempted
 even if one fails; any failure makes the CI step fail and skips the production
@@ -61,7 +65,8 @@ build. After all suites pass, `Intra-Paper-System/build.ps1` creates
 unfolds continuation lines, and requires exactly one `Build-Commit` equal to both
 `git rev-parse HEAD` and `GITHUB_SHA`. For pull requests this is the checked-out
 GitHub merge revision, not necessarily the contributor's branch tip. Dirty or
-unknown build identities fail this check.
+unknown build identities fail this check. The daily-operations checker and its
+synthetic drill also run against the packaged JAR before the manifest is accepted.
 
 CI requires a clean checkout before testing and checks it again before the
 production build. Its output directory must be absent or empty, outside the

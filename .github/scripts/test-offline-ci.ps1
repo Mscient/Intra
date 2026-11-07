@@ -33,16 +33,20 @@ New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $pwsh = Join-Path $PSHOME 'pwsh.exe'
 $suites = @(
     'risk-gateway',
+    'risk-gateway-process',
     'portfolio-replay-engine',
     'portfolio-risk-replay',
     'portfolio-accounting',
     'portfolio-risk-audit',
     'portfolio-settlement-audit',
-    'portfolio-trial-evaluation'
+    'portfolio-trial-evaluation',
+    'daily-ops-evidence'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
 $results['production-build'] = 'NOT_RUN'
+$results['daily-ops-packaged'] = 'NOT_RUN'
+$results['daily-ops-drill'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -110,6 +114,8 @@ try {
         $scriptPath = Join-Path $projectRoot "test-$suite.ps1"
         $runnerArguments = @()
         if ($suite -eq 'risk-gateway') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'risk-gateway')) }
+        if ($suite -eq 'risk-gateway-process') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'risk-gateway-process')) }
+        if ($suite -eq 'daily-ops-evidence') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'daily-ops-evidence')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -121,10 +127,16 @@ try {
 
     Invoke-LoggedScript 'production-build' (Join-Path $projectRoot 'build.ps1')
     if ($results['production-build'] -ne 'PASS') { throw 'Production JAR build failed.' }
+    $jarPath = Join-Path $env:INTRA_PAPER_BUILD_DIR 'intra-paper-system.jar'
+    Invoke-LoggedScript 'daily-ops-packaged' (Join-Path $projectRoot 'test-daily-ops-evidence.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'daily-ops-packaged'))
+    if ($results['daily-ops-packaged'] -ne 'PASS') { throw 'Packaged daily operations evidence checks failed.' }
+    Invoke-LoggedScript 'daily-ops-drill' (Join-Path $projectRoot 'synthetic-daily-ops-drill.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'daily-ops-drill'))
+    if ($results['daily-ops-drill'] -ne 'PASS') { throw 'Packaged daily operations synthetic drill failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8
-    $jarPath = Join-Path $env:INTRA_PAPER_BUILD_DIR 'intra-paper-system.jar'
     $zip = [System.IO.Compression.ZipFile]::OpenRead($jarPath)
     try {
         $entry = $zip.GetEntry('META-INF/MANIFEST.MF')

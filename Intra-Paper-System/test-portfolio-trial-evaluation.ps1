@@ -8,8 +8,13 @@ if (-not $javac -or -not (Test-Path -LiteralPath $javac) -or -not (Test-Path -Li
 }
 $compilerVersion = (& $javac -version 2>&1 | Out-String).Trim()
 if ($compilerVersion -notmatch '^javac 21(?:\.|$)') { throw "Expected JDK 21, found: $compilerVersion" }
-$protocolHash = (Get-FileHash -LiteralPath (Join-Path $projectRoot 'docs\PORTFOLIO-SHARPE-HAC-PROTOCOL.md') -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($protocolHash -ne 'dc4d71687a830ceba16d4849771dc1a497e14e45c847d1585d4d57aeed36b73c') {
+$protocolText = [System.IO.File]::ReadAllText((Join-Path $projectRoot 'docs\PORTFOLIO-SHARPE-HAC-PROTOCOL.md'),
+    [System.Text.Encoding]::UTF8).Replace("`r`n", "`n").Replace("`r", "`n")
+$protocolBytes = [System.Text.UTF8Encoding]::new($false).GetBytes($protocolText)
+$hasher = [System.Security.Cryptography.SHA256]::Create()
+try { $protocolHash = [Convert]::ToHexString($hasher.ComputeHash($protocolBytes)).ToLowerInvariant() }
+finally { $hasher.Dispose() }
+if ($protocolHash -ne 'e7f00ce87640c69743779ee580b8eab81725ef34054a056330ae6d1757ead06b') {
     throw "Portfolio Sharpe HAC protocol bytes do not match the implementation pin: $protocolHash"
 }
 

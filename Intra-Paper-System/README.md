@@ -22,7 +22,7 @@ An isolated, offline-first Java 21 futures and options research simulator. Its e
 - Option-premium replay can opt into an exact-close-time caller-input BSM/Black-76 valuation sidecar. It requires one model-input row per bar, hashes the source into run identity, and emits a separately verified `option-valuation.csv` with per-unit and close-of-bar position-scaled Greeks; model values do not affect fills or accounting P&L.
 - Option replay can also opt into a caller-limited four-scenario pre-entry stress-loss check using the prior decision bar's valuation inputs. Its decision is recorded and independently recomputed by the run risk reconciler; it is an in-process simulator control, not a separate risk process or exchange-margin calculation.
 - `ToyLimitOrderBook` is an offline API for deterministic price/time matching, partial fills, cancellation, and bounded-by-book market IOC sweeps using integer ticks and units. It has no NSE-specific rules, price protection, latency, fees, hidden liquidity, auction behavior, or queue calibration, and is not wired into the bar strategy runner. See [the toy order-book assumptions](docs/TOY-ORDERBOOK.md).
-- `riskgateway.RiskGateway` is an isolated proposal gate and signed-position/reservation ledger with caller-supplied marks and margin inputs. `DurableRiskGateway` publishes changes after forced journal append, disables the instance after persistence uncertainty, and requires a separately retained configuration-bound checkpoint for restart. The two-argument constructor creates new journals only; rejected decisions remain process-local. The dedicated `test-risk-gateway.ps1` runner passed 447 offline checks in 13 groups on Microsoft JDK 21.0.13.0.2, with exact JDK/source/package identities recorded. See [operating notes and migration](docs/INDEPENDENT-RISK-GATEWAY.md) and [the verification report](../research/systems/2026-11-05-risk-gateway-durability-verification.md). The package has no broker/network route; concurrency evidence is within one JVM, with checkpoint storage, account reconciliation and power-loss verification still open.
+- `riskgateway.RiskGateway` is an isolated proposal gate and signed-position/reservation ledger with caller-supplied marks and margin inputs. `DurableRiskGateway` publishes changes after forced journal append, disables the instance after persistence uncertainty, and requires a separately retained configuration-bound checkpoint for restart. The two-argument constructor creates new journals only; rejected decisions remain process-local. The dedicated `test-risk-gateway.ps1` runner passed 447 offline checks in 13 groups, and the subprocess harness passed 728 checks across 308 child JVMs and 24 forced terminations on Windows/NTFS. See [operating notes and migration](docs/INDEPENDENT-RISK-GATEWAY.md), the [durability report](../research/systems/2026-11-05-risk-gateway-durability-verification.md), and the [process-recovery report](../research/systems/2026-11-06-risk-gateway-process-recovery-verification.md). The package has no broker/network route; trusted checkpoint storage, account reconciliation and power-loss verification remain open.
 - `CallAuctionEngine` provides a separate single-price clearing and matching primitive with explicit no-equilibrium behavior; it is not assigned to historical sessions or wired into replay until effective-dated exchange rules are verified. See [the call-auction assumptions](docs/CALL-AUCTION.md).
 - Strict normalized-candle CSV parsing, monotonic and same-session interval-spacing checks, OHLC/tick validation, and explicit timestamp-role handling.
 - `SynchronizedBarFrameBuilder` prepares exact-timestamp frames from multiple prevalidated dated futures/option series. It rejects missing/mismatched timestamps, duplicate or reordered bars, changed contract identity, and incompatible interval/timestamp roles; it never forward-fills. The separate portfolio accounting component below consumes these frames, but they are not wired into the existing single-contract runner. See [the multi-instrument frame contract](docs/MULTI-INSTRUMENT-BAR-FRAMES.md).
@@ -47,6 +47,19 @@ The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PL
 
 ## Build and run
 
+The [Windows Java 21 CI workflow](docs/WINDOWS-JAVA21-CI.md) runs nine selected
+offline PowerShell runners, builds the production JAR, runs packaged daily
+operations checks, and verifies that the JAR manifest matches the checkout. It
+pins Microsoft JDK 21.0.13.0.2 and retains concise logs and the verified JAR for
+14 days. The complete test list and local reproduction commands are in the guide.
+
+The [daily operations evidence checker](docs/DAILY-OPS-EVIDENCE.md) validates a
+caller-prepared local session bundle and reports PASS, FAIL, or INCOMPLETE across
+pre-session checks, input freshness/coverage, risk events, artifact identity,
+settlement/costs, closing reconciliation, and operator records. Nine synthetic
+fixtures exercise the schema. Reports remain caller-supplied diagnostics, missing
+evidence stays unknown, and G4 remains open.
+
 Requires a JDK 21 installation. The build uses `JAVA_HOME` explicitly, embeds the Git commit only when the checkout is clean, marks dirty builds `unknown-dirty`, and writes compiler output outside the OneDrive project by default. Non-synthetic runs require a full commit ID, so a dirty-build JAR cannot run non-synthetic data.
 
 ```powershell
@@ -65,7 +78,7 @@ Use `INTRA_PAPER_RUNS_DIR` to choose another local output directory. A repeated 
 
 See [the operating guide](docs/OPERATING-GUIDE.md) for the input contract and run files.
 
-The `statistical-evaluate` command reports development/validation session-return Sharpe, an independent-normal DSR approximation, and chronological-block CSCV PBO for fully preregistered, artifact-verified trials. It excludes holdout P&L from statistical calculations and always marks results performance-ineligible. It does not provide effective-trial correlation adjustment, dependence-aware Sharpe uncertainty, a one-shot sealed holdout, or chronological walk-forward/purging. See the [method audit](../research/systems/2026-11-04-dsr-pbo-audit.md) and [operating guide](docs/OPERATING-GUIDE.md).
+The `statistical-evaluate` command reports development/validation session-return Sharpe, an independent-normal DSR approximation, and chronological-block CSCV PBO for fully preregistered, artifact-verified trials. It excludes holdout P&L from statistical calculations and always marks results performance-ineligible. Portfolio evaluation schema V3 adds a separate content-pinned Sharpe HAC standard error and autocorrelation diagnostics. It includes no-trade sessions, reports INCOMPLETE below 60 sessions, leaves DSR/PBO unchanged, and emits no interval or profitability probability. Synthetic qualification is limited to three frozen processes; independent preregistration is unverified and prior exposure unknown. See the [HAC protocol](docs/PORTFOLIO-SHARPE-HAC-PROTOCOL.md), [method audit](../research/systems/2026-11-04-dsr-pbo-audit.md), and [operating guide](docs/OPERATING-GUIDE.md).
 
 ## Scope and limitations
 

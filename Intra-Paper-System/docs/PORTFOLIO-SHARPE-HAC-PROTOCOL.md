@@ -127,6 +127,10 @@ may be hash-verified, but HOLDOUT numeric values must remain unread. Every HAC r
 is separately labeled; `sharpe_serial_dependence_adjusted` remains false for legacy
 DSR/Sharpe outputs.
 
+The protocol SHA-256 pin is computed over UTF-8 bytes after normalizing CRLF and CR
+line endings to LF, with no byte-order mark. This makes the pinned protocol identity
+stable across Windows and Unix working-tree line-ending settings.
+
 ## Frozen synthetic qualification suite
 
 The suite uses only synthetic data and fixed seeds; no project or market run data are

@@ -7,7 +7,7 @@
 
 ## Delivered
 
-- Added the frozen content-addressed protocol in `Intra-Paper-System/docs/PORTFOLIO-SHARPE-HAC-PROTOCOL.md`. Protocol SHA-256: `dc4d71687a830ceba16d4849771dc1a497e14e45c847d1585d4d57aeed36b73c`.
+- Added the frozen content-addressed protocol in `Intra-Paper-System/docs/PORTFOLIO-SHARPE-HAC-PROTOCOL.md`. Canonical UTF-8/LF protocol SHA-256: `e7f00ce87640c69743779ee580b8eab81725ef34054a056330ae6d1757ead06b`.
 - Added a separate fixed-candidate, original-frequency Sharpe HAC standard error using population moment influence values, global centering, denominator `T`, Bartlett weights, `c_T=sqrt((T-1)/T)`, no prewhitening, and the protocol's sorted bandwidth grid. Matrix projection is checked against the scalar influence-series calculation.
 - Added return, squared-centered-return, and influence ACFs with lag pair counts. They are descriptive and do not screen the HAC calculation.
 - Added the `T >= 60` operational floor. Below the floor, the V3 JSON reports HAC `INCOMPLETE` with null HAC estimates while preserving legacy outputs. Invalid/incomplete verified session series fail closed with `INCOMPLETE: VERIFIED_SESSION_SERIES_UNAVAILABLE` and do not publish family scores.
