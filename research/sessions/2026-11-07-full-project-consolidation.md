@@ -40,3 +40,8 @@ The validation log root is `C:\Users\prash\AppData\Local\Temp\codex-latest-offli
 ## Publication scope and limits
 
 The user requested consolidating current systems, commits, and GitHub. This branch is a fast-forward descendant of the fetched `origin/main`. The original local `main` has unrelated concurrent history/worktree changes, which remain preserved and are not used as the publication base; reviewed equivalents and the specified current research/checker work are integrated here. No market data, broker/account credentials, live connection, or order route was used. G0/G2/G3/G4 and other evidence gates remain open.
+
+## GitHub publication
+
+- **Published `main`:** `2fb5ce9962f31a0a4790f917a5e85db93976f5ff` (fast-forward from `fe552d268f9826404610b722acd4c648501dc95f`).
+- **Hosted validation:** GitHub Actions run [42338310759](https://github.com/Mscient/Intra/actions/runs/42338310759) completed successfully on the published commit. This ran the committed Windows Java 21 offline-validation workflow. A following documentation-only commit records this result; the run validates identical production and test sources.
