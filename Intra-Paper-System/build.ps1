@@ -31,11 +31,16 @@ if (-not $classesRootAbsolute.StartsWith($buildRootPrefix, [System.StringCompari
     throw 'Temporary classes directory must be inside the configured build directory.'
 }
 New-Item -ItemType Directory -Force -Path $classesRootAbsolute | Out-Null
+$sourceArgumentPath = Join-Path $classesRootAbsolute 'javac-sources.args'
 try {
-    & $javac --release 21 -encoding UTF-8 -d $classesRootAbsolute @sources
+    # Pass source paths through a UTF-8 argument file to avoid Windows command-line limits.
+    $sourceArguments = @($sources | ForEach-Object { '"' + $_.Replace('\', '/') + '"' })
+    [System.IO.File]::WriteAllLines($sourceArgumentPath, $sourceArguments, [System.Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $classesRootAbsolute ("@" + $sourceArgumentPath)
     if ($LASTEXITCODE -ne 0) {
         throw "javac failed with exit code $LASTEXITCODE"
     }
+    Remove-Item -LiteralPath $sourceArgumentPath -Force
     $buildCommit = 'unknown'
     $gitCommand = Get-Command git -ErrorAction SilentlyContinue
     if ($gitCommand) {
@@ -58,6 +63,9 @@ try {
     }
     [System.IO.File]::Move($stagedJarPath, $jarPath, $true)
 } finally {
+    if (Test-Path -LiteralPath $sourceArgumentPath) {
+        Remove-Item -LiteralPath $sourceArgumentPath -Force
+    }
     if (Test-Path -LiteralPath $classesRootAbsolute) {
         Remove-Item -LiteralPath $classesRootAbsolute -Recurse -Force
     }
