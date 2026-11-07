@@ -43,6 +43,8 @@ Source compilation and production build used `C:\Program Files\Microsoft\jdk-21.
 
 Committed concise evidence is in [feed-audit-2026-11-07](feed-audit-2026-11-07/): source/packaged/drill logs, dedicated runner output, existing feed CLI and regression logs, cross-mode comparison, JDK identity, exact source/example/package hashes, and five example reports with their artifact manifests. The five reports can be reverified against their matching `Intra-Paper-System/examples/feed-audit/inputs/<case>/evidence.json` and the tested JAR. `evidence-sha256.txt` binds the retained evidence files (excluding itself).
 
+Retained text logs and hash inventories use LF newlines for clean Windows Git diffs. Report/artifact JSON bytes are copied unchanged. All retained evidence bytes, including the local attributes file, are pinned against checkout newline conversion.
+
 Full generated inputs, classes, repeated reports, and logs remain at:
 
 ```text
