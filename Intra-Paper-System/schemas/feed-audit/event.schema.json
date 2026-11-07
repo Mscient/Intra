@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intra:feed-audit:event:v1",
+  "$comment": "Java runtime also enforces interval partitioning, offset/zone consistency, exact identities, hashes, part order, and cross-file constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": [
+        "feed-audit-event/v1"
+      ]
+    },
+    "product": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "exchange": {
+      "type": "string",
+      "minLength": 1
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instrument_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "enum": [
+        "DATA",
+        "QUOTE",
+        "TRADE"
+      ]
+    },
+    "event_time": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "product",
+    "channel",
+    "exchange",
+    "token",
+    "instrument_id",
+    "type",
+    "event_time"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intra:feed-audit:artifact:v1",
+  "$comment": "Java runtime also enforces interval partitioning, offset/zone consistency, exact identities, hashes, part order, and cross-file constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": [
+        "feed-audit-artifact/v1"
+      ]
+    },
+    "report_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "code_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "audit_version": {
+      "enum": [
+        "feed-completeness-gap-audit/1"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "report_sha256",
+    "code_sha256",
+    "audit_version"
+  ]
+}

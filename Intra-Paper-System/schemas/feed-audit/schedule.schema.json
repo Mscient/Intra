@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intra:feed-audit:schedule:v1",
+  "$comment": "Java runtime also enforces interval partitioning, offset/zone consistency, exact identities, hashes, part order, and cross-file constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": [
+        "feed-audit-schedule/v1"
+      ]
+    },
+    "schedule_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ]
+    },
+    "interval_rule": {
+      "enum": [
+        "[start,end)"
+      ]
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "product": {
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "connection_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subscription_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exchange": {
+            "type": "string",
+            "minLength": 1
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1
+          },
+          "instrument_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "timezone": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session_end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expected_types": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "DATA",
+                "QUOTE",
+                "TRADE"
+              ]
+            },
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "heartbeat": {
+            "enum": [
+              "NONE",
+              "LIFECYCLE"
+            ]
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "window_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "enum": [
+                    "ACTIVE",
+                    "CLOSED",
+                    "PAUSE",
+                    "EXCLUDED"
+                  ]
+                },
+                "start": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "window_id",
+                "kind",
+                "start",
+                "end",
+                "reason"
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "scope_id",
+          "source",
+          "product",
+          "channel",
+          "connection_id",
+          "subscription_id",
+          "exchange",
+          "token",
+          "instrument_id",
+          "session_date",
+          "timezone",
+          "session_start",
+          "session_end",
+          "expected_types",
+          "heartbeat",
+          "windows"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema",
+    "schedule_id",
+    "revision",
+    "provenance",
+    "interval_rule",
+    "scopes"
+  ]
+}

@@ -43,7 +43,8 @@ $suites = @(
     'daily-ops-evidence',
     'dataset-intended-use-preflight',
     'data-permission-coverage',
-    'incident-drill'
+    'incident-drill',
+    'feed-completeness-audit'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -56,6 +57,8 @@ $results['data-permission-coverage-standalone-build'] = 'NOT_RUN'
 $results['data-permission-coverage-standalone-test'] = 'NOT_RUN'
 $results['data-permission-coverage-packaged'] = 'NOT_RUN'
 $results['incident-drill-packaged'] = 'NOT_RUN'
+$results['feed-audit-packaged'] = 'NOT_RUN'
+$results['feed-audit-drill'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -128,6 +131,7 @@ try {
         if ($suite -eq 'dataset-intended-use-preflight') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'dataset-intended-use-preflight')) }
         if ($suite -eq 'data-permission-coverage') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage')) }
         if ($suite -eq 'incident-drill') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'incident-drill')) }
+        if ($suite -eq 'feed-completeness-audit') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'feed-audit-source')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -167,6 +171,12 @@ try {
     Invoke-LoggedScript 'incident-drill-packaged' (Join-Path $projectRoot 'test-incident-drill.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'incident-drill-packaged'))
     if ($results['incident-drill-packaged'] -ne 'PASS') { throw 'Packaged incident drill checks failed.' }
+    Invoke-LoggedScript 'feed-audit-packaged' (Join-Path $projectRoot 'test-feed-completeness-audit.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'feed-audit-packaged'))
+    if ($results['feed-audit-packaged'] -ne 'PASS') { throw 'Packaged feed audit checks failed.' }
+    Invoke-LoggedScript 'feed-audit-drill' (Join-Path $projectRoot 'synthetic-feed-audit-drill.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'feed-audit-drill'))
+    if ($results['feed-audit-drill'] -ne 'PASS') { throw 'Synthetic feed audit drill failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8

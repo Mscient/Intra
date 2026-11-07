@@ -1,0 +1,1 @@
+AUDIT_EVENT_V1 or CANONICAL_QUOTE_V1 synthetic decoder declaration; see guide.

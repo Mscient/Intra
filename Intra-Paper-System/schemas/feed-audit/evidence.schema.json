@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intra:feed-audit:evidence:v1",
+  "$comment": "Java runtime also enforces interval partitioning, offset/zone consistency, exact identities, hashes, part order, and cross-file constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": [
+        "feed-audit-evidence/v1"
+      ]
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ]
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raw": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "order": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "file": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "sha256"
+                  ]
+                }
+              },
+              "required": [
+                "order",
+                "file"
+              ]
+            },
+            "minItems": 1
+          },
+          "lifecycle": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "order": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "file": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "sha256"
+                  ]
+                }
+              },
+              "required": [
+                "order",
+                "file"
+              ]
+            },
+            "minItems": 1
+          },
+          "decoder": {
+            "enum": [
+              "AUDIT_EVENT_V1",
+              "CANONICAL_QUOTE_V1"
+            ]
+          },
+          "decode_reference": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "path",
+              "sha256"
+            ]
+          },
+          "timestamp_roles": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "event": {
+                "enum": [
+                  "DECLARED_EVENT_UTC"
+                ]
+              },
+              "receive": {
+                "enum": [
+                  "CAPTURE_RECEIVE_UTC"
+                ]
+              },
+              "lifecycle": {
+                "enum": [
+                  "LIFECYCLE_OBSERVED_UTC"
+                ]
+              },
+              "monotonic": {
+                "enum": [
+                  "JOURNAL_ORDER_DIAGNOSTIC_ONLY"
+                ]
+              }
+            },
+            "required": [
+              "event",
+              "receive",
+              "lifecycle",
+              "monotonic"
+            ]
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quotes": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "path",
+                  "sha256"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "scope_id",
+          "raw",
+          "lifecycle",
+          "decoder",
+          "decode_reference",
+          "timestamp_roles",
+          "mapping",
+          "quotes"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema",
+    "schedule",
+    "policy",
+    "bindings"
+  ]
+}

@@ -5,6 +5,7 @@ An isolated, offline-first Java 21 futures and options research simulator. Its e
 ## Built in this increment
 
 - The [offline incident and recovery drill orchestrator](docs/OFFLINE-INCIDENT-DRILLS.md) runs strict synthetic scenarios through existing risk/replay components, enforces safe halt, exact reconciliation and scenario-authorized reset, and emits deterministic hashed PASS/FAIL/INCOMPLETE evidence. Nine fixtures cover feed loss, stale marks, uncertain orders, limit breaches, corrupted checkpoints, restart and unsafe resets. Synthetic drills do not count as G4 operating sessions or prove live recovery.
+- The standalone [feed completeness and gap audit](docs/FEED-COMPLETENESS-GAP-AUDIT.md) compares explicit expected schedules and policies with verified raw/lifecycle evidence, then publishes deterministic audit reports. `PASS` means only that no configured anomaly was detected; it does not prove feed completeness or packet-loss absence. G2/G4 remain open.
 - Portfolio risk auditing reconciles terminal settlements, exact remaining basis, charge components, and fee-inclusive session losses. Still-open positions retain the original final-close quote time; stale marks or missing nonflat settlement charges produce INCOMPLETE. See [risk auditing](docs/PORTFOLIO-RISK-AUDIT.md) and its [settlement contract](docs/PORTFOLIO-RISK-AUDIT-SETTLEMENT.md).
 - Registered portfolio evaluation binds settlement policy, targets, and event/cost hashes through parameter identity V2. Full-split artifacts exclude terminal holdout settlement financial payloads; development/validation-only artifacts include terminal validation settlements after full accounting verification. Final-bar metadata must match the actual checkpoint even when holdout financial fields are sealed. See [trial evaluation](docs/PORTFOLIO-TRIAL-EVALUATION.md).
 - Strict UTF-8 CSV decoding rejects malformed provenance bytes while preserving valid Unicode, BOM/CRLF support, and exact original-byte hashes. The [settlement example](examples/portfolio-settlement/README.md) and [completion report](../research/systems/2026-11-05-portfolio-settlement-completion-report.md) record the final checks and the separately identified pre-commit JAR.
@@ -48,7 +49,7 @@ The bundled example is synthetic. Reports are always classified as `SYNTHETIC_PL
 
 ## Build and run
 
-The [Windows Java 21 CI workflow](docs/WINDOWS-JAVA21-CI.md) runs twelve selected offline PowerShell runners, builds the production JAR, runs packaged daily operations and dataset permission checks, tests standalone and packaged multi-record permission coverage, runs the incident-drill acceptance suite against its standalone and production JARs, and verifies that the JAR manifest matches the checkout. It
+The [Windows Java 21 CI workflow](docs/WINDOWS-JAVA21-CI.md) runs thirteen selected offline PowerShell runners, builds the production JAR, runs packaged daily operations and dataset permission checks, tests standalone and packaged multi-record permission coverage and incident drills, runs the feed-audit suite and synthetic drill against the production JAR, and verifies that the JAR manifest matches the checkout. It
 pins Microsoft JDK 21.0.13.0.2 and retains concise logs and the verified JAR for
 14 days. The complete test list and local reproduction commands are in the guide.
 

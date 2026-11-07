@@ -12,12 +12,12 @@ import java.time.Instant;
 import java.util.Optional;
 
 /** Decoder paired with the version-1 canonical quote encoder. */
-final class CanonicalQuoteDecoder {
+public final class CanonicalQuoteDecoder {
     private static final int MAX_STRING_BYTES = 65_536;
 
     private CanonicalQuoteDecoder() {}
 
-    static MarketQuote decode(byte[] encoded) throws IOException {
+    public static MarketQuote decode(byte[] encoded) throws IOException {
         try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(encoded))) {
             int schemaVersion = in.readInt();
             long sequence = in.readLong();
