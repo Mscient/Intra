@@ -1,3 +1,4 @@
 *.json -text
 *.log -text
 *.txt -text
+.gitattributes -text
