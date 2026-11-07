@@ -1,0 +1,12 @@
+{
+  "session_id": "SYNTHETIC-2026-11-02",
+  "run_id": "SYNTHETIC-hash-tampering",
+  "completed_at_utc": "2026-11-02T03:48:10Z",
+  "positions": {
+    "SYNTH-FUT": 0
+  },
+  "gross_pnl": 10,
+  "fees": 2,
+  "net_pnl": 8,
+  "ending_cash": 1008
+}

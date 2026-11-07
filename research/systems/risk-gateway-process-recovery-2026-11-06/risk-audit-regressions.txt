@@ -1,0 +1,10 @@
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: PASS | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\portfolio-risk-audit-test-7965821861927104984\e2e\audits\147ad6bb2949b4f75f5c49afa4d0a06b82aa667ba7cc13e65ccec482af720c05
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: INCOMPLETE | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\portfolio-risk-audit-test-7965821861927104984\e2e\audits\ff5b2839b457027687b20a6dad0962767c9353f66efded9f2427fa199615d058
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: BREACH | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\portfolio-risk-audit-test-7965821861927104984\e2e\audits\7049020c920f9ceca81c99867ddd38e38663831a0cdf080abdc412e7274d7a06
+Portfolio risk audit rejected: Exact header required in sources.csv: source_id,effective_from,effective_to,observed_date,reference,reference_sha256
+Offline audit: INCOMPLETE | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\portfolio-risk-audit-test-7965821861927104984\settlement\audits\ac8eee0bcf2515452b4384174e7e99c87cefe3522b587407d5a437929dcf754a
+PortfolioRiskAudit: 79 focused checks passed
+PortfolioRiskSettlement: 274 focused checks passed

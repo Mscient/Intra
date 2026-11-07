@@ -1,0 +1,5 @@
+SHA256 308815f3e0e900fc571dd0cf431c7054785a44389666e14ee784ad656ef5f92d C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\Intra-Paper-System\src\main\java\com\mscient\intrapaper\riskgateway\RiskGateway.java
+SHA256 a86379ff0bffd94b73e2983622e8de8f2a7d7373dc5e745fa64e23faef38bc04 C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\Intra-Paper-System\src\main\java\com\mscient\intrapaper\riskgateway\RiskGatewayJournal.java
+SHA256 c0ff91eb0769e8828dc8aacf538794eb90c0c8d0cb664f969c3145e580981a32 C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\Intra-Paper-System\src\main\java\com\mscient\intrapaper\riskgateway\DurableRiskGateway.java
+SHA256 0c3ce341bbadf49f57c0de4932750f6a8d2850650b5931bf2273654fc3ab5502 C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\Intra-Paper-System\src\test\java\com\mscient\intrapaper\riskgateway\RiskGatewayProcessTest.java
+SHA256 d5fcee9edc60e21c139c38796dfde8e77158a617b804eba38739de7e9e3029bb C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\Intra-Paper-System\test-risk-gateway-process.ps1

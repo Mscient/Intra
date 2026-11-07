@@ -1,0 +1,8 @@
+17f40b29a6e70926c5983778b51b30daf92a155dfce5c1b2109cf2f62a8bb7b9  Intra-Paper-System/daily-ops-evidence.ps1
+51c4e9633b5c6b6d65972687a6276aa46161a5de982de18b9c087d3084c37293  Intra-Paper-System/src/main/java/com/mscient/intrapaper/ops/evidence/DailyOpsEvidenceChecker.java
+88a987a201d9d7f049aaca86255ad66111a51bd27dfa418feec063697355ea70  Intra-Paper-System/src/main/java/com/mscient/intrapaper/ops/evidence/DailyOpsEvidenceCli.java
+72cfbbe65032368999d3244605f58d17a00b11d9ee6d31d481755a7ab63e4e28  Intra-Paper-System/src/main/java/com/mscient/intrapaper/ops/evidence/DailyOpsEvidenceReport.java
+7d8d1567e00186cc3f0e6ca7ea0d02e16de3ea21a9f56eda42ecba982b4ae1a6  Intra-Paper-System/src/main/java/com/mscient/intrapaper/ops/evidence/SessionEvidenceBundle.java
+3c90783625b2770fa624c3a86f1407bbf622a7dc016ff95570748b2d83f8e880  Intra-Paper-System/src/test/java/com/mscient/intrapaper/ops/evidence/DailyOpsEvidenceCheckerTest.java
+91c725694510d4309b79de94aaa6d25745ec69d3a5186cc0346b3c54c4583d85  Intra-Paper-System/synthetic-daily-ops-drill.ps1
+93656ee5bbddef3d895d629fc3ec0f54f74b4821332e31bca02c0fc9f16617d0  Intra-Paper-System/test-daily-ops-evidence.ps1

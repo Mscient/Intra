@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "classification": "SYNTHETIC",
+  "session_id": "SYNTHETIC-2026-11-02",
+  "run_id": "SYNTHETIC-missing-acknowledgements",
+  "outcome": "COMPLETED",
+  "session_start_utc": "2026-11-02T03:45:00Z",
+  "session_end_utc": "2026-11-02T03:48:00Z",
+  "instruments": [
+    {
+      "instrument_id": "SYNTH-FUT",
+      "multiplier": 1,
+      "settlement_due": false
+    }
+  ],
+  "pre_session": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:44:10Z",
+    "expected_check_count": 6,
+    "checks": [
+      {
+        "check_id": "CLOCK",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      },
+      {
+        "check_id": "RUN_CONFIG",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      },
+      {
+        "check_id": "INPUT_PLAN",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      },
+      {
+        "check_id": "RISK_LIMITS",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      },
+      {
+        "check_id": "STARTING_RECONCILIATION",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      },
+      {
+        "check_id": "STOP_PATH",
+        "passed": true,
+        "checked_at_utc": "2026-11-02T03:44:00Z",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "evidence_path": "artifacts/config.json"
+      }
+    ]
+  },
+  "coverage": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:48:20Z",
+    "expected_window_count": 1,
+    "windows": [
+      {
+        "window_id": "W-1",
+        "instrument_id": "SYNTH-FUT",
+        "source_id": "SYNTHETIC",
+        "start_utc": "2026-11-02T03:45:00Z",
+        "end_utc": "2026-11-02T03:48:00Z",
+        "acknowledged_at_utc": "2026-11-02T03:44:00Z",
+        "max_age_ms": 5000,
+        "max_silence_ms": 30000,
+        "complete": true,
+        "expected_observation_count": 7,
+        "observations": [
+          {
+            "event_id": "Q-0",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:45:00Z",
+            "input_at_utc": "2026-11-02T03:45:00Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-1",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:45:30Z",
+            "input_at_utc": "2026-11-02T03:45:30Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-2",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:46:00Z",
+            "input_at_utc": "2026-11-02T03:46:00Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-3",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:46:30Z",
+            "input_at_utc": "2026-11-02T03:46:30Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-4",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:47:00Z",
+            "input_at_utc": "2026-11-02T03:47:00Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-5",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:47:30Z",
+            "input_at_utc": "2026-11-02T03:47:30Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          },
+          {
+            "event_id": "Q-6",
+            "instrument_id": "SYNTH-FUT",
+            "source_id": "SYNTHETIC",
+            "observed_at_utc": "2026-11-02T03:48:00Z",
+            "input_at_utc": "2026-11-02T03:48:00Z",
+            "new_risk_allowed": true,
+            "action": "ALLOW"
+          }
+        ]
+      }
+    ]
+  },
+  "risk": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:48:20Z",
+    "session_id": "SYNTHETIC-2026-11-02",
+    "run_id": "SYNTHETIC-missing-acknowledgements",
+    "config_sha256": "81bbd03740f67276ddd47349ed0949efb334e562f28e5639a9d887cbbf8c1b44",
+    "initial": {
+      "timestamp_utc": "2026-11-02T03:43:00Z",
+      "state": "ACTIVE",
+      "reserved_units": 0,
+      "working_order_count": 0,
+      "positions": {
+        "SYNTH-FUT": 0
+      }
+    },
+    "final": {
+      "timestamp_utc": "2026-11-02T03:48:00Z",
+      "state": "ACTIVE",
+      "reserved_units": 0,
+      "working_order_count": 0,
+      "positions": {
+        "SYNTH-FUT": 0
+      }
+    },
+    "expected_event_count": 4,
+    "events": [
+      {
+        "event_id": "R-BUY",
+        "kind": "RESERVE",
+        "order_id": "O-BUY",
+        "instrument_id": "SYNTH-FUT",
+        "side": "BUY",
+        "quantity": 1,
+        "timestamp_utc": "2026-11-02T03:45:01Z",
+        "coverage_window_id": "W-1",
+        "coverage_event_id": "Q-0"
+      },
+      {
+        "event_id": "F-BUY",
+        "kind": "FILL",
+        "order_id": "O-BUY",
+        "execution_id": "X-BUY",
+        "instrument_id": "SYNTH-FUT",
+        "side": "BUY",
+        "quantity": 1,
+        "timestamp_utc": "2026-11-02T03:45:02Z"
+      },
+      {
+        "event_id": "R-SELL",
+        "kind": "RESERVE",
+        "order_id": "O-SELL",
+        "instrument_id": "SYNTH-FUT",
+        "side": "SELL",
+        "quantity": 1,
+        "timestamp_utc": "2026-11-02T03:47:01Z",
+        "coverage_window_id": "W-1",
+        "coverage_event_id": "Q-4"
+      },
+      {
+        "event_id": "F-SELL",
+        "kind": "FILL",
+        "order_id": "O-SELL",
+        "execution_id": "X-SELL",
+        "instrument_id": "SYNTH-FUT",
+        "side": "SELL",
+        "quantity": 1,
+        "timestamp_utc": "2026-11-02T03:47:02Z"
+      }
+    ]
+  },
+  "run": {
+    "complete": true,
+    "session_id": "SYNTHETIC-2026-11-02",
+    "run_id": "SYNTHETIC-missing-acknowledgements",
+    "replay_run_id": "SYNTHETIC-missing-acknowledgements",
+    "completed_at_utc": "2026-11-02T03:48:10Z",
+    "expected_artifact_count": 4,
+    "artifacts": [
+      {
+        "role": "INPUT",
+        "path": "artifacts/input.json",
+        "sha256": "60e40b508c8f888e9e427e9893cc184bf8e0135ec3f8ec4701b07bcf66bee6d2"
+      },
+      {
+        "role": "CONFIG",
+        "path": "artifacts/config.json",
+        "sha256": "81bbd03740f67276ddd47349ed0949efb334e562f28e5639a9d887cbbf8c1b44"
+      },
+      {
+        "role": "OUTPUT",
+        "path": "artifacts/output.json",
+        "sha256": "308cc0ee8c02bebdbe9d808aef58ac4dfa042f5793aef125651d2f2582e7ce7d"
+      },
+      {
+        "role": "REPLAY_OUTPUT",
+        "path": "artifacts/replayed-output.json",
+        "sha256": "308cc0ee8c02bebdbe9d808aef58ac4dfa042f5793aef125651d2f2582e7ce7d"
+      }
+    ],
+    "replay_pairs": [
+      {
+        "original_path": "artifacts/output.json",
+        "replayed_path": "artifacts/replayed-output.json"
+      }
+    ]
+  },
+  "settlement": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:48:20Z",
+    "applicable": false,
+    "not_applicable_reason": "Synthetic intraday exits; the declared contract has no settlement event due.",
+    "expected_event_count": 0,
+    "events": [],
+    "costs": {
+      "complete": true,
+      "checked_at_utc": "2026-11-02T03:48:20Z",
+      "required_components": [
+        "BROKER",
+        "EXCHANGE"
+      ],
+      "expected_charge_count": 4,
+      "charges": [
+        {
+          "charge_id": "X-BUY-BROKER",
+          "target_kind": "EXECUTION",
+          "target_id": "X-BUY",
+          "component": "BROKER",
+          "amount": 0.5,
+          "source_ref": "SYNTHETIC_NOT_A_BROKER_OR_EXCHANGE_TARIFF",
+          "rounding": "EXACT_CALLER_AMOUNT",
+          "effective_from_utc": "2026-11-02T00:00:00Z",
+          "effective_to_utc": "2026-11-03T00:00:00Z"
+        },
+        {
+          "charge_id": "X-BUY-EXCHANGE",
+          "target_kind": "EXECUTION",
+          "target_id": "X-BUY",
+          "component": "EXCHANGE",
+          "amount": 0.5,
+          "source_ref": "SYNTHETIC_NOT_A_BROKER_OR_EXCHANGE_TARIFF",
+          "rounding": "EXACT_CALLER_AMOUNT",
+          "effective_from_utc": "2026-11-02T00:00:00Z",
+          "effective_to_utc": "2026-11-03T00:00:00Z"
+        },
+        {
+          "charge_id": "X-SELL-BROKER",
+          "target_kind": "EXECUTION",
+          "target_id": "X-SELL",
+          "component": "BROKER",
+          "amount": 0.5,
+          "source_ref": "SYNTHETIC_NOT_A_BROKER_OR_EXCHANGE_TARIFF",
+          "rounding": "EXACT_CALLER_AMOUNT",
+          "effective_from_utc": "2026-11-02T00:00:00Z",
+          "effective_to_utc": "2026-11-03T00:00:00Z"
+        },
+        {
+          "charge_id": "X-SELL-EXCHANGE",
+          "target_kind": "EXECUTION",
+          "target_id": "X-SELL",
+          "component": "EXCHANGE",
+          "amount": 0.5,
+          "source_ref": "SYNTHETIC_NOT_A_BROKER_OR_EXCHANGE_TARIFF",
+          "rounding": "EXACT_CALLER_AMOUNT",
+          "effective_from_utc": "2026-11-02T00:00:00Z",
+          "effective_to_utc": "2026-11-03T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "closing": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:48:20Z",
+    "expected_execution_count": 2,
+    "executions": [
+      {
+        "execution_id": "X-BUY",
+        "order_id": "O-BUY",
+        "instrument_id": "SYNTH-FUT",
+        "side": "BUY",
+        "quantity": 1,
+        "price": 100,
+        "fee": 1,
+        "timestamp_utc": "2026-11-02T03:45:02Z"
+      },
+      {
+        "execution_id": "X-SELL",
+        "order_id": "O-SELL",
+        "instrument_id": "SYNTH-FUT",
+        "side": "SELL",
+        "quantity": 1,
+        "price": 110,
+        "fee": 1,
+        "timestamp_utc": "2026-11-02T03:47:02Z"
+      }
+    ],
+    "positions": {
+      "SYNTH-FUT": 0
+    },
+    "initial_cash": 1000,
+    "gross_pnl": 10,
+    "fees": 2,
+    "net_pnl": 8,
+    "ending_cash": 1008
+  },
+  "operator": {
+    "complete": true,
+    "checked_at_utc": "2026-11-02T03:48:50Z",
+    "expected_acknowledgement_count": 4,
+    "acknowledgements": [
+      {
+        "ack_id": "PRE_SESSION_READY",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "timestamp_utc": "2026-11-02T03:44:30Z",
+        "evidence_ref": "SYNTHETIC_REHEARSAL_ONLY"
+      },
+      {
+        "ack_id": "RECONCILIATION_REVIEW",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "timestamp_utc": "2026-11-02T03:48:40Z",
+        "evidence_ref": "SYNTHETIC_REHEARSAL_ONLY"
+      },
+      {
+        "ack_id": "INCIDENT_REVIEW",
+        "operator_id": "SYNTHETIC-OPERATOR",
+        "timestamp_utc": "2026-11-02T03:48:40Z",
+        "evidence_ref": "SYNTHETIC_REHEARSAL_ONLY"
+      }
+    ],
+    "reviewed_by": "SYNTHETIC-OPERATOR",
+    "incident_reviewed_at_utc": "2026-11-02T03:48:25Z",
+    "stop_reviewed_at_utc": "2026-11-02T03:48:25Z",
+    "incident_count": 0,
+    "incidents": [],
+    "stop_count": 0,
+    "stops": [],
+    "no_incidents_confirmed": true,
+    "no_stops_confirmed": true,
+    "open_severe_incident_count": 0
+  }
+}

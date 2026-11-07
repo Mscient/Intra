@@ -1,0 +1,4 @@
+PortfolioTrialEvaluation: 161 focused checks passed
+PortfolioReplayEngine checks passed
+PortfolioExecutionCostSchedule checks passed
+PortfolioReplayArtifactVerifier v3 publication, tamper, signed partial, and deterministic replay checks passed

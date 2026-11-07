@@ -1,0 +1,40 @@
+java.version=21.0.13.0.2
+java.runtime.version=21.0.13.0.2+1-LTS
+java.vendor=Microsoft
+java.vendor.version=Microsoft-15780113
+java.home=C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1
+os.name=Windows 11
+os.version=10.0
+os.arch=amd64
+filesystem.type=NTFS
+filesystem.name=Acer
+PASS concurrent child JVMs, exclusive creation and recovery leases
+PASS matching checkpoint, complete state and idempotent accepted IDs
+PASS stale/mismatched checkpoint and configuration fail closed
+PASS truncated, malformed, reordered and corrupted tails
+PASS kill accept at before-write
+PASS kill accept at prefix
+PASS kill accept at without-lf
+PASS kill accept at complete
+PASS kill accept at forced
+PASS kill accept at acknowledged
+PASS kill fill at before-write
+PASS kill fill at prefix
+PASS kill fill at without-lf
+PASS kill fill at complete
+PASS kill fill at forced
+PASS kill fill at acknowledged
+PASS kill cancel at before-write
+PASS kill cancel at prefix
+PASS kill cancel at without-lf
+PASS kill cancel at complete
+PASS kill cancel at forced
+PASS kill cancel at acknowledged
+PASS kill halt at before-write
+PASS kill halt at prefix
+PASS kill halt at without-lf
+PASS kill halt at complete
+PASS kill halt at forced
+PASS kill halt at acknowledged
+PASS forced process termination at controlled append boundaries
+PASS: 728 checks in 5 groups; 308 child JVMs, 24 forced terminations. Process kills do not prove power-loss durability.
