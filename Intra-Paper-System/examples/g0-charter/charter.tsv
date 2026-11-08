@@ -1,0 +1,14 @@
+g0-charter-v1
+key	value
+charter_id	synthetic-g0
+classification	SYNTHETIC
+assessment_date	2026-11-08
+boundary	OFFLINE_RESEARCH_PAPER
+order_route	ABSENT
+account_access	DISABLED
+network_access	DISABLED
+spending_authorized	NO
+live_authorized	NO
+data_uses	use1
+ruleset_id	synthetic-rules
+limitations_acknowledged	YES

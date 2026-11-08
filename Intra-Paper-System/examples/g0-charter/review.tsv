@@ -1,0 +1,15 @@
+g0-review-v1
+key	value
+decision	PENDING
+reviewer	
+qualified	
+qualification	
+independent	
+evidence_kind	NONE
+authentication	UNVERIFIED
+reviewed	
+valid_until	
+pack_sha256	
+evidence	
+sha256	
+reason	No independent human review supplied

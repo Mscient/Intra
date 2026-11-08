@@ -44,7 +44,8 @@ $suites = @(
     'dataset-intended-use-preflight',
     'data-permission-coverage',
     'incident-drill',
-    'feed-completeness-audit'
+    'feed-completeness-audit',
+    'g0-charter'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -59,6 +60,7 @@ $results['data-permission-coverage-packaged'] = 'NOT_RUN'
 $results['incident-drill-packaged'] = 'NOT_RUN'
 $results['feed-audit-packaged'] = 'NOT_RUN'
 $results['feed-audit-drill'] = 'NOT_RUN'
+$results['g0-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -132,6 +134,7 @@ try {
         if ($suite -eq 'data-permission-coverage') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage')) }
         if ($suite -eq 'incident-drill') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'incident-drill')) }
         if ($suite -eq 'feed-completeness-audit') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'feed-audit-source')) }
+        if ($suite -eq 'g0-charter') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g0-source')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -144,6 +147,9 @@ try {
     Invoke-LoggedScript 'production-build' (Join-Path $projectRoot 'build.ps1')
     if ($results['production-build'] -ne 'PASS') { throw 'Production JAR build failed.' }
     $jarPath = Join-Path $env:INTRA_PAPER_BUILD_DIR 'intra-paper-system.jar'
+    Invoke-LoggedScript 'g0-packaged' (Join-Path $projectRoot 'test-g0-charter.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g0-packaged'))
+    if ($results['g0-packaged'] -ne 'PASS') { throw 'Packaged G0 checks failed.' }
     Invoke-LoggedScript 'daily-ops-packaged' (Join-Path $projectRoot 'test-daily-ops-evidence.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'daily-ops-packaged'))
     if ($results['daily-ops-packaged'] -ne 'PASS') { throw 'Packaged daily operations evidence checks failed.' }

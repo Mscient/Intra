@@ -51,6 +51,11 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-data-permission-coverage.ps1` | `PermissionCoverageTest` over synthetic multi-record scope fixtures |
 | `test-incident-drill.ps1` | `IncidentDrillTest` over nine strict synthetic scenarios and dependency/CLI verification |
 | `test-feed-completeness-audit.ps1` | `FeedAuditTest` over explicit schedules/policies, verified journals, anomaly/rejection cases, and deterministic artifacts |
+| `test-g0-charter.ps1` | `G0CheckerTest`, standalone package, exact review/rights/owner/schema checks, three child JVM runs and verifications |
+
+G0 is the fourteenth selected suite; it also runs against the production JAR,
+inspects package dependencies, and verifies exact reports across locales/timezones.
+Its evidence-pack status does not authorize access/spend/trading or close G0.
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow

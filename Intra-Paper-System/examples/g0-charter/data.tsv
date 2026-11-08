@@ -1,0 +1,3 @@
+g0-data-v1
+id	source	status	purpose	instruments	storage	retention_days	sharing	publication	deletion	allowed_purpose	allowed_instruments	allowed_storage	max_retention_days	allowed_sharing	allowed_publication	allowed_deletion	rights_source	reason
+use1	SYNTH_SOURCE	UNRESOLVED	RESEARCH	SYNTH	PRIVATE_LOCAL	30	NONE	NONE	DELETE_AT_EXPIRY	RESEARCH	SYNTH	PRIVATE_LOCAL	30	NONE	NONE	DELETE_AT_EXPIRY	s14	Synthetic rights scope only

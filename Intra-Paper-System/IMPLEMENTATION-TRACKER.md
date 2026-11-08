@@ -162,3 +162,12 @@ Implemented caller-sourced final-session settlement for signed futures/options r
 Preserved strict UTF-8 input decoding and completed settlement-aware risk auditing and registered trial evaluation, including timestamp/identity checks that keep full-split holdout financial payloads unread. Settlement-enabled registrations bind the supplied event/cost inputs; validation-prefix artifacts may include terminal settlement returns. Final verification passed 161 evaluator checks, 77 risk checks, 274 settlement-risk fixture checks, the replay/UTF-8 suite, and 88 packaged sidecar checks. JDK `21.0.13.0.2` produced the pre-commit `build/settlement-followup/intra-paper-system.jar` with `Build-Commit: unknown-dirty`; eight replay output files reproduced byte-for-byte. The synthetic risk example and semantic verification both returned the expected single settlement-loss BREACH/exit 2. The exact pre-commit build hash and source/output evidence are in the [completion report](../research/systems/2026-11-05-portfolio-settlement-completion-report.md). The user authorized a local commit of this integration and the README/tracker updates; [the commit review](../research/sessions/cb3ba092-6af2-4fde-95e9-d9a0b149ac9f.md) records scope and validation. Published baseline evidence above remains historical; no push was requested.
 
 Reviewed local-only integration against fetched GitHub main `fe552d2` on 2026-11-06: separate durability commit `2b762e5` and missing settlement/evaluation commit `b25426f`. JDK 21 checks passed: 447 durability, 162 evaluator, 79 audit, 274 settlement fixtures, 84 risk replay and 88 settlement sidecar, plus replay/accounting/UTF-8 regressions. The clean implementation JAR and packaged example were verified; no push or gate closure. See [the integration review](../research/sessions/a3cc55bf-4c93-4dfb-bc58-a2fd14035dcf.md).
+# G0 charter/evidence deliverable — 2026-11-08
+
+Separate offline `g0` package, strict versioned inputs, source/right/owner/review
+findings, redacted deterministic reports, exact run/verify and standalone runner
+implemented. Integrated source and production-JAR checks into selected Windows
+Java21 CI. See [guide](docs/G0-CHARTER-CHECKER.md) and
+[research pack](../research/systems/g0-2026-11-08/README.md). G0 remains INCOMPLETE:
+private owner decisions, rights/applicability evidence and independent human review
+are pending. No broker/account/network/order capability or trading approval added.
