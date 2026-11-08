@@ -171,3 +171,6 @@ Java21 CI. See [guide](docs/G0-CHARTER-CHECKER.md) and
 [research pack](../research/systems/g0-2026-11-08/README.md). G0 remains INCOMPLETE:
 private owner decisions, rights/applicability evidence and independent human review
 are pending. No broker/account/network/order capability or trading approval added.
+Local clean-commit validation at `efc788c`: all 14 selected source suites and 13
+build/packaged checks passed, including 551 G0 checks in each package mode and
+exact cross-JVM reconstruction. See the [validation record](../research/systems/g0-2026-11-08/VALIDATION.md).

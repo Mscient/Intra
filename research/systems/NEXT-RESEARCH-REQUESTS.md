@@ -29,6 +29,12 @@ Use primary NSE, NSE Clearing, SEBI, and Angel One SmartAPI documents wherever a
 
 ## Priority 1: compliance and broker/feed interfaces
 
+G0 progress as of 2026-11-08: the [versioned charter pack](g0-2026-11-08/README.md)
+and offline checker are locally validated. Items 5–7 remain evidence tasks: resolve
+the exact gaps in [the current primary-source matrix](g0-2026-11-08/SOURCES-AND-REQUIREMENTS.md),
+complete the private owner decisions, and obtain independent human review. This
+research queue does not authorize account access, market-data acquisition or orders.
+
 5. Read the primary SEBI retail-algo circulars, NSE implementation standards, and glide-path updates. Resolve the OPS threshold's scope and counting semantics: client/exchange/segment, new orders, modifications, cancellations, rejects, and algo tags. Confirm static-IP, Algo-ID, and kill-switch requirements from the text in force. Do not infer the rule from a broker blog.
 6. Read the current official SmartAPI rate-limit, historical-candle, WebSocket V2, and order-update documentation. Record limits and field/status definitions with version/date. Separate official documentation from forum samples; list reconnect replay, sequence numbers, duplicate handling, request counting, and idempotency as unknown where no spec exists.
 7. Verify what SmartAPI candle timestamps represent (bar start/end, timezone, treatment of empty minutes, duplicates and revisions) and its historical F&O coverage/retention terms. Confirm whether data may be retained and used for local research under the account/product terms. Do not capture a live feed until the separate G0 data-rights gate is documented.

@@ -6,7 +6,7 @@
 | D-G0-02 | Isolate from freshly fetched main on codex/g0-charter-20261108. Do not merge/cherry-pick/stash other worktree changes. |
 | D-G0-03 | Freeze this implementation to offline evidence checking. All market/account/order activity and spending remain unapproved/disabled. |
 | D-G0-04 | Primary source bytes/URLs and caller decisions are different evidence types. No compliance/authority/currentness inference from checksums. |
-| D-G0-05 | Deterministic explicit-date assessment and exact-byte reconstruction; no implicit clock, defaults or thresholds. New location/build/date/inputs require renewed report/review. |
+| D-G0-05 | Deterministic explicit-date assessment and exact-byte reconstruction; no implicit clock, defaults or thresholds. New location/date/pack inputs require renewed review/report; a new build requires a new report and human reassessment of software changes. Review binds pack inputs; report additionally binds implementation/build. |
 | D-G0-06 | Qualified human review represented only as unverified attestation with exact separate record. No signature verifier or external trust anchor configured. Actual independent authentication remains a human task. |
 | D-G0-07 | Synthetic PASS is checker plumbing evidence. Published pending example is INCOMPLETE, and actual G0 remains open. |
 

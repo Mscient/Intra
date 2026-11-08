@@ -82,6 +82,13 @@ margin/liquidity, earlier losses, funding shocks and programme cash consumption
 affect each stop. No automatic top-up or guessed numeric limit exists here. The
 checker compares explicit declarations; it computes no trading risk or margin.
 
+In the private V1 register, the three monetary cells contain only their amounts.
+Record capital valuation/liquidity details in `risk_capital_definition`. Record
+separately labelled annual-spend inclusions/accounting and live-loss measurement,
+horizon and stop definitions in the mandatory `stop_triggers` narrative, alongside
+their detection/actions. The human reviewer must assess these descriptions; the
+checker can test presence and declared constraints, not their substantive adequacy.
+
 Independent sign-off remains **PENDING_OWNER_INPUT**: identity and qualification
 evidence, independently authenticated contact/role, independence from operator,
 exact charter/source/right digests, dated review decision/reservations and stop/resume

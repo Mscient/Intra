@@ -71,6 +71,9 @@ and sorted finding rows. FAIL > INCOMPLETE > PASS. Reports contain no owner valu
 contact descriptions or paths; canonical absolute file identities are hashed.
 They remain private fingerprints, especially for low-entropy financial inputs.
 An independently retained report digest and byte reconstruction validate reports.
-Changing canonical location, input bytes, source bytes, implementation class bytes
-or build identity requires a new review/report. Verification authenticates none of
+Changing canonical location or pack/source bytes requires a new review/report.
+Changing implementation class bytes or build identity requires a new report;
+reviewers must reassess software changes externally. The review record binds the
+pack inputs; the report additionally binds implementation/build identity.
+Verification authenticates none of
 the human assertions. The operating guide describes publication and exit codes.
