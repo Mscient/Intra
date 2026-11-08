@@ -1,4 +1,8 @@
 Intra-Paper-System/examples/g0-charter/** text eol=lf
+# Only these pending registers need terminal TSV delimiters for empty final cells.
+# G0's strict cell parser still rejects surrounding spaces and malformed delimiters.
+Intra-Paper-System/examples/g0-charter/owners.tsv whitespace=-blank-at-eol
+Intra-Paper-System/examples/g0-charter/review.tsv whitespace=-blank-at-eol
 Intra-Paper-System/schemas/g0-charter/** text eol=lf
 Intra-Paper-System/src/main/java/com/mscient/intrapaper/g0/** text eol=lf
 Intra-Paper-System/src/test/java/com/mscient/intrapaper/g0/** text eol=lf

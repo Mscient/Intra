@@ -12,6 +12,10 @@ references reject. Unknown keys/columns/enums/versions reject. Missing decision 
 and blank values remain INCOMPLETE; an assessment date is necessary to evaluate.
 Literal UNKNOWN, UNRESOLVED, PENDING_OWNER_INPUT and NOT_SUPPLIED owner values
 remain unknown rather than becoming attestations, limits or permissions.
+Unknown charter values and reviewer qualification also block completion. A missing
+or non-date assessment cannot be evaluated and rejects. The two pending example
+registers have narrowly scoped Git whitespace attributes because terminal tabs
+encode empty final cells; the strict parser still rejects whitespace inside cells.
 
 Dates use valid ISO `YYYY-MM-DD` from 2000 onwards. `valid_until` is inclusive.
 Assessment dates are explicit, never taken from the machine clock. An expired or
@@ -43,7 +47,8 @@ RECORDED needs every intended and allowed dimension: purpose, instruments, stora
 intended set must be contained in its allowed set; requested retention cannot exceed
 the recorded maximum. Owner data declarations must equal the combined intended
 source/purpose/storage/sharing/publication/deletion sets, and `data_retention` must
-equal sorted `use_id:days` pairs. Instruments must be within owner scope. Unknowns
+equal sorted `use_id:days` pairs. Instruments must be within owner scope.
+Included and excluded instrument sets must be disjoint. Unknowns
 block; DENIED or mismatches fail. No wildcard or implicit unlimited retention exists.
 
 Review requires APPROVE_EVIDENCE_PACK, distinct assigned reviewer, qualified and

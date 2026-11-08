@@ -78,14 +78,14 @@ public final class G0Checker {
         return new Result(status, bytes, sha256(bytes), pack);
     }
     private void checkCharter() {
-        for (String key : G0Schema.CHARTER) if (blank(charter.get(key))) incomplete("charter." + key, "MISSING_VALUE");
+        for (String key : G0Schema.CHARTER) if (blank(charter.get(key)) || unknown(charter.get(key))) incomplete("charter." + key, "MISSING_OR_UNKNOWN_VALUE");
         for (var e : Map.of("boundary", "OFFLINE_RESEARCH_PAPER", "order_route", "ABSENT", "account_access", "DISABLED",
             "network_access", "DISABLED", "spending_authorized", "NO", "live_authorized", "NO",
             "limitations_acknowledged", "YES").entrySet()) {
             String actual = charter.get(e.getKey());
-            if (!blank(actual) && !e.getValue().equals(actual)) fail("charter." + e.getKey(), "FROZEN_BOUNDARY_VIOLATION");
+            if (!blank(actual) && !unknown(actual) && !e.getValue().equals(actual)) fail("charter." + e.getKey(), "FROZEN_BOUNDARY_VIOLATION");
         }
-        if (!blank(charter.get("classification"))) oneOf(charter.get("classification"), "SYNTHETIC", "CALLER_SUPPLIED");
+        if (!blank(charter.get("classification")) && !unknown(charter.get("classification"))) oneOf(charter.get("classification"), "SYNTHETIC", "CALLER_SUPPLIED");
         if (!blank(charter.get("charter_id"))) token(charter.get("charter_id"));
         if (!blank(charter.get("ruleset_id"))) token(charter.get("ruleset_id"));
         tokens(charter.getOrDefault("data_uses", ""), true);
@@ -142,6 +142,8 @@ public final class G0Checker {
         String capital = value(rows, "risk_capital_value"), loss = value(rows, "live_loss_ceiling");
         if (money(capital) && money(loss) && new java.math.BigDecimal(loss).compareTo(new java.math.BigDecimal(capital)) > 0)
             fail("owner.live_loss_ceiling", "LOSS_EXCEEDS_DECLARED_CAPITAL");
+        Set<String> inScope = tokens(value(rows, "instruments_in"), true), excluded = tokens(value(rows, "instruments_out"), true);
+        if (!Collections.disjoint(inScope, excluded)) fail("owner.instruments_out", "INCLUDED_AND_EXCLUDED_INSTRUMENT");
     }
     private static boolean money(String v) { return !blank(v) && v.matches("(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,2})?"); }
     private void expect(Map<String, Map<String, String>> rows, String id, String expected) {
@@ -160,6 +162,7 @@ public final class G0Checker {
             oneOf(r.get("authority"), "PRIMARY_ACCEPTED_BY_REVIEWER", "UNRESOLVED");
             oneOf(r.get("applicability"), "APPLICABLE", "NOT_APPLICABLE_WITH_RATIONALE", "UNRESOLVED");
             if (blank(r.get("reason"))) invalid();
+            for (String field : List.of("ruleset", "data_source")) if (!blank(r.get(field)) && !unknown(r.get(field))) token(r.get(field));
             for (String field : List.of("title", "publisher", "url", "section", "requirement"))
                 if (blank(r.get(field)) || unknown(r.get(field))) incomplete(row, "MISSING_" + field.toUpperCase(Locale.ROOT));
             if (!blank(r.get("url")) && !unknown(r.get("url"))) {
@@ -193,7 +196,7 @@ public final class G0Checker {
         for (String id : expected) if (!rows.containsKey(id)) incomplete("data." + id, "MISSING_USE_DECISION");
         for (var r : rows.values()) {
             String row = "data." + r.get("id");
-            if (!expected.contains(r.get("id"))) fail(row, "USE_OUTSIDE_FROZEN_CHARTER");
+            if (!blank(charter.get("data_uses")) && !unknown(charter.get("data_uses")) && !expected.contains(r.get("id"))) fail(row, "USE_OUTSIDE_FROZEN_CHARTER");
             oneOf(r.get("status"), "RECORDED", "UNRESOLVED", "DENIED");
             if (blank(r.get("reason"))) invalid();
             if (r.get("status").equals("DENIED")) fail(row, "RIGHTS_DENIED");
@@ -228,7 +231,7 @@ public final class G0Checker {
         if (expected.isEmpty()) incomplete("data", "EXPLICIT_DATA_USE_REQUIRED");
     }
     private void checkReview(Map<String, String> r, Map<String, Map<String, String>> owners, String pack) throws IOException {
-        for (String key : G0Schema.REVIEW) if (blank(r.get(key))) incomplete("review." + key, "INDEPENDENT_REVIEW_REQUIRED");
+        for (String key : G0Schema.REVIEW) if (blank(r.get(key)) || unknown(r.get(key))) incomplete("review." + key, "INDEPENDENT_REVIEW_REQUIRED");
         if (!blank(r.get("decision"))) oneOf(r.get("decision"), "APPROVE_EVIDENCE_PACK", "REJECT", "PENDING");
         if ("REJECT".equals(r.get("decision"))) fail("review", "REVIEWER_REJECTED");
         if (!"APPROVE_EVIDENCE_PACK".equals(r.get("decision"))) incomplete("review", "REVIEW_PENDING");

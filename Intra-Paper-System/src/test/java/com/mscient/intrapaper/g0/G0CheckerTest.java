@@ -98,6 +98,11 @@ public final class G0CheckerTest {
     private static void status(Path p,G0Checker.Status expected,String name) throws Exception {
         check(G0Checker.evaluate(p).status()==expected,name);
     }
+    private static void blockedRow(Path p, String row, String name) throws Exception {
+        var result=G0Checker.evaluate(p);
+        check(result.status()==G0Checker.Status.INCOMPLETE,name);
+        check(new String(result.report(),StandardCharsets.UTF_8).contains("finding\t"+row+"\tINCOMPLETE\t"),"specific blocker "+row);
+    }
     private static void rejected(Throwing run,String name) throws Exception {
         boolean caught=false; try{run.run();}catch(java.io.IOException|IllegalArgumentException e){caught=true;} check(caught,name);
     }
@@ -111,17 +116,22 @@ public final class G0CheckerTest {
         check(!new String(initial.report(),StandardCharsets.UTF_8).contains("1000"),"redacted financial value");
         check(!new String(initial.report(),StandardCharsets.UTF_8).contains(good.toString()),"redacted canonical location");
         Path pending=fixture(work.resolve("pending"),true); status(pending,G0Checker.Status.INCOMPLETE,"all unknowns preserved");
+        for (String field : G0Schema.CHARTER) if (!field.equals("assessment_date")) {
+            Path unknownCharter=fresh("unknown-charter-"+field);cell(unknownCharter,"charter",field,"value","UNKNOWN");pendingReview(unknownCharter);
+            blockedRow(unknownCharter,"charter."+field,"unknown charter "+field);
+        }
         for(String id:G0Schema.DECISIONS) {
-            Path p=fresh("missing-"+id); remove(p,"owners",id); pendingReview(p); status(p,G0Checker.Status.INCOMPLETE,"missing owner "+id);
-            p=fresh("pending-"+id); cell(p,"owners",id,"status","PENDING_OWNER_INPUT"); cell(p,"owners",id,"value",""); pendingReview(p); status(p,G0Checker.Status.INCOMPLETE,"pending owner "+id);
-            p=fresh("unresolved-"+id); cell(p,"owners",id,"status","UNRESOLVED"); cell(p,"owners",id,"value",""); pendingReview(p); status(p,G0Checker.Status.INCOMPLETE,"unresolved owner "+id);
-            p=fresh("unknown-"+id); cell(p,"owners",id,"value","UNKNOWN"); pendingReview(p); status(p,G0Checker.Status.INCOMPLETE,"unknown owner "+id);
+            Path p=fresh("missing-"+id); remove(p,"owners",id); pendingReview(p); blockedRow(p,"owner."+id,"missing owner "+id);
+            p=fresh("pending-"+id); cell(p,"owners",id,"status","PENDING_OWNER_INPUT"); cell(p,"owners",id,"value",""); pendingReview(p); blockedRow(p,"owner."+id,"pending owner "+id);
+            p=fresh("unresolved-"+id); cell(p,"owners",id,"status","UNRESOLVED"); cell(p,"owners",id,"value",""); pendingReview(p); blockedRow(p,"owner."+id,"unresolved owner "+id);
+            p=fresh("unknown-"+id); cell(p,"owners",id,"value","UNKNOWN"); pendingReview(p); blockedRow(p,"owner."+id,"unknown owner "+id);
         }
         for(String field:List.of("purpose","instruments","storage","sharing","publication","deletion")) {
             Path p=fresh("rights-"+field); cell(p,"data","use1","allowed_"+field,"OTHER"); approve(p); status(p,G0Checker.Status.FAIL,"rights mismatch "+field);
         }
         Path p=fresh("retention"); cell(p,"data","use1","max_retention_days","29"); approve(p); status(p,G0Checker.Status.FAIL,"rights retention mismatch");
         p=fresh("rights-source"); cell(p,"data","use1","source","OTHER"); approve(p); status(p,G0Checker.Status.FAIL,"source mismatch");
+        p=fresh("instruments-overlap");cell(p,"owners","instruments_out","value","SYNTH");approve(p);status(p,G0Checker.Status.FAIL,"instrument both included and excluded");
         for(String field:List.of("published","effective","reviewed")) {
             p=fresh("future-"+field); cell(p,"sources","s1",field,"2027-01-01"); cell(p,"sources","s1","valid_until","2027-02-01"); pendingReview(p);
             status(p,field.equals("published") ? G0Checker.Status.FAIL:G0Checker.Status.INCOMPLETE,"future source "+field);
@@ -150,6 +160,7 @@ public final class G0CheckerTest {
             status(p,G0Checker.Status.INCOMPLETE,"missing review "+field);
         }
         p=fresh("review-wrong");cell(p,"review","reviewer","value","SyntheticOperator");status(p,G0Checker.Status.FAIL,"nonindependent reviewer");
+        p=fresh("review-unknown-qualification");cell(p,"review","qualification","value","UNKNOWN");syncReviewRecord(p);status(p,G0Checker.Status.INCOMPLETE,"unknown reviewer qualification");
         for(String field:List.of("qualified","independent")) {
             p=fresh("review-no-"+field);cell(p,"review",field,"value","NO");syncReviewRecord(p);status(p,G0Checker.Status.FAIL,"review constraint "+field);
             p=fresh("review-unknown-"+field);cell(p,"review",field,"value","UNKNOWN");syncReviewRecord(p);status(p,G0Checker.Status.INCOMPLETE,"review unknown "+field);
