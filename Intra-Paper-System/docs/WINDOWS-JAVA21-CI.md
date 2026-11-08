@@ -5,7 +5,7 @@ The G2 increment additionally selects existing mapping-registry, instrument-sequ
 The workflow is [`.github/workflows/java21-build.yml`](../../.github/workflows/java21-build.yml),
 named **Windows Java 21 offline validation**. It runs on `windows-2025` for pushes
 to `main`, pull requests targeting `main`, and manual `workflow_dispatch` runs.
-There are no path filters. A run has a 20-minute timeout; a newer run for the same
+There are no path filters. A run has a 45-minute timeout; a newer run for the same
 ref cancels the previous one. The job needs only `contents: read`, and checkout
 does not persist credentials.
 
@@ -53,12 +53,16 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-data-permission-coverage.ps1` | `PermissionCoverageTest` over synthetic multi-record scope fixtures |
 | `test-incident-drill.ps1` | `IncidentDrillTest` over nine strict synthetic scenarios and dependency/CLI verification |
 | `test-feed-completeness-audit.ps1` | `FeedAuditTest` over explicit schedules/policies, verified journals, anomaly/rejection cases, and deterministic artifacts |
+| `test-mapping-registry.ps1` | `DatedInstrumentMappingRegistryTest` |
+| `test-instrument-sequence.ps1` | `InstrumentSequenceAnalyzerTest`, `InstrumentFeedCoverageAnalyzerTest` |
+| `test-synchronized-bar-frames.ps1` | `SynchronizedBarFrameBuilderTest` |
+| `test-operational-kill-controller.ps1` | `OperationalKillControllerTest` |
+| `test-g2-contracts.ps1` | `G2ContractTest` |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
 also runs packaged daily-operations, dataset intended-use, multi-record data-permission, incident-drill, and feed-audit checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
-option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
-runners. It does not establish full repository test coverage, power-loss safety,
+option-pricer runner. It does not establish full repository test coverage, power-loss safety,
 statistical validity, data rights, or trading performance. The process harness
 does not simulate power loss. The Sharpe HAC suite qualifies only its three fixed
 synthetic processes and establishes no general coverage claim.

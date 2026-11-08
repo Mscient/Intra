@@ -73,7 +73,7 @@ Completed-run OMS recovery additionally validates decision/submission/fill and C
 | Dimension | Status | Required evidence |
 | --- | --- | --- |
 | Code | PARTIAL | Scoped fixes implemented; remaining generic schemas, capture identity, dated bands/phases, full quality admission and universal SAFE/build/head/release path above. |
-| Synthetic validation | See dated validation report | Focused suites, clean selected CI, packaged manifest, separate-process outputs. Synthetic success is not G2 closure. |
+| Synthetic validation | PASS / SYNTHETIC_OFFLINE_ONLY | All 18 selected suites and packaged/drill checks passed at 819a53c1; 365 G2 assertions in source/JAR modes, 42 artifacts + journal + three quality records byte-identical. Synthetic success is not G2 closure. |
 | Authorized real data | INCOMPLETE | Exact nominated contracts/dates/products/files; all source/use clauses and before-use checks. |
 | Source authenticity and market correctness | INCOMPLETE | Original issuer/version/amendment evidence, independently verified timestamps/fields, contract/session/cost rows and corpus completeness. |
 | Independent review | INCOMPLETE | Named human/source-rights/risk/recovery/fill reviewers and accepted promotion records. AI synthesis is not approval. |

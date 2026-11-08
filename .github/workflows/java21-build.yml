@@ -17,7 +17,7 @@ concurrency:
 jobs:
   offline-validation:
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 45
     defaults:
       run:
         shell: pwsh
