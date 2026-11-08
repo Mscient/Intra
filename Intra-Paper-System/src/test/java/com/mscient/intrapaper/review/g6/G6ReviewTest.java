@@ -50,6 +50,9 @@ public final class G6ReviewTest {
         test("broker settlement mismatch","FAIL",f->{ f.broker(0).put("settlements",List.of(Map.of("bogus",true))); f.saveBroker(0); f.bind(); });
         test("broker missing stream","INCOMPLETE",f->{ f.broker(0).put("margin_inputs",null); f.saveBroker(0); f.bind(); });
         streamTests();
+        test("portfolio risk artifact breach","FAIL",f->{ riskArtifact(f,"BREACH",false); });
+        test("portfolio risk artifact incomplete","INCOMPLETE",f->{ riskArtifact(f,"INCOMPLETE",false); });
+        test("portfolio risk artifact tamper","FAIL",f->{ riskArtifact(f,"PASS",true); });
         test("open exception","FAIL",f->{ f.sessions.getFirst().put("exceptions",List.of(Map.of("id","X","kind","OUTAGE","state","OPEN","evidence",f.ref("s0/original.txt")))); f.bind(); });
         test("risk halt contradiction","FAIL",f->{ Map<String,Object> d=f.daily(0); obj(obj(d.get("risk")).get("final")).put("state","HALTED"); f.saveDaily(0); f.bind(); });
         test("missing acknowledgement","INCOMPLETE",f->{ Map<String,Object> d=f.daily(0); obj(d.get("operator")).put("acknowledgements",List.of()); f.saveDaily(0); f.bind(); });
@@ -128,6 +131,19 @@ public final class G6ReviewTest {
         check(G6Cli.run(new String[]{"explain"})==0,"CLI help");
         check(G6Cli.run(new String[]{"verify",six.dir.toString(),published.toString()})==2,"CLI verified synthetic exit stays incomplete");
         System.out.println("PASS G6 checks="+checks+" cases="+cases+"; SYNTHETIC ONLY; g6_closed=false; scale_authorized=false");
+    }
+    static void riskArtifact(Fixture f,String status,boolean tamper) throws Exception {
+        // Exercise the real artifact verifier's v2 status contract; these bytes are explicitly synthetic, not a semantic live audit.
+        List<String> names=new ArrayList<>(List.of("breaches.csv","checkpoints.csv","coverage.csv","exposures.csv","inputs.csv","reconciliation.csv","risk-budgets.csv","risk-limits.csv","risk-margin-proxies.csv","risk-sources.csv","summary.properties","settlement-reconciliation.csv","settlement-charges.csv")); Collections.sort(names);
+        byte[] content="SYNTHETIC ARTIFACT ADAPTER FIXTURE ONLY\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        StringBuilder manifest=new StringBuilder("schema_version=2\nclassification=OFFLINE_PORTFOLIO_RISK_AUDIT\nmargin_classification=CALLER_SUPPLIED_PROXIES\nstatus="+status+"\n");
+        for(String name:names) manifest.append("sha256.").append(name).append('=').append(hash(content)).append('\n');
+        byte[] manifestBytes=manifest.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8); String directory="risk/"+hash(manifestBytes);
+        List<Object> refs=new ArrayList<>();
+        for(String name:names) { f.putBytes(directory+"/"+name,content); refs.add(f.ref(directory+"/"+name)); }
+        f.putBytes(directory+"/audit-manifest.properties",manifestBytes); refs.add(f.ref(directory+"/audit-manifest.properties"));
+        f.sessions.getFirst().put("artifacts",List.of(map("kind","PORTFOLIO_RISK","directory",directory,"files",refs))); f.bind();
+        if(tamper) Files.writeString(f.dir.resolve(directory+"/breaches.csv"),"changed",StandardOpenOption.APPEND);
     }
     static void coverageTests() throws Exception {
         for(LocalDate start:List.of(LocalDate.of(2026,1,1),LocalDate.of(2024,8,31),LocalDate.of(2024,2,29))) {

@@ -515,8 +515,8 @@ public final class G6Review {
                 }
                 case "PORTFOLIO_RISK" -> {
                     String status=PortfolioRiskAuditArtifacts.verify(frozen).status();
-                    if(status.equals("FAIL")) c.failure("portfolio_risk","Risk artifact reports FAIL");
-                    if(!status.equals("PASS") && !status.equals("FAIL")) c.missing("portfolio_risk","Risk artifact is incomplete");
+                    if(status.equals("BREACH")) c.failure("portfolio_risk","Risk artifact reports BREACH");
+                    else if(!status.equals("PASS")) c.missing("portfolio_risk","Risk artifact is incomplete");
                 }
                 case "PORTFOLIO_SETTLEMENT" -> PortfolioSettlementArtifacts.verify(frozen);
                 default -> throw new IOException("Unsupported artifact");
