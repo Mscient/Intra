@@ -1,0 +1,4 @@
+RUN=g2-contracts SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-worktree\Intra-Paper-System\test-g2-contracts.ps1 SOURCE_COMMIT=819a53c1c6dc58c40f91cd676a10b2583af33ec4
+G2 contracts: 365 checks PASS; SYNTHETIC_OFFLINE_ONLY
+G2 evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-ci-819a53c\g2-contracts\2aade4892e8543d6a3f280d0634b6e0a
+RESULT=PASS EXIT_CODE=0

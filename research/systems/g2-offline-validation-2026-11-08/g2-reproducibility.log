@@ -1,0 +1,4 @@
+RUN=g2-reproducibility SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-worktree\Intra-Paper-System\test-g2-reproducibility.ps1 SOURCE_COMMIT=819a53c1c6dc58c40f91cd676a10b2583af33ec4
+PASS: 42 complete artifact files plus normalized journal byte-identical; separate JVMs, UTC/en-US and Pacific/Apia/tr-TR; SYNTHETIC_OFFLINE_ONLY
+G2 process evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-ci-819a53c\g2-reproducibility\15e19a87be474156afea5eee56bb14e1
+RESULT=PASS EXIT_CODE=0

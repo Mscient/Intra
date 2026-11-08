@@ -38,7 +38,10 @@ public final class OmsRunRecovery {
         }
     }
 
-    private record OrderInfo(String status, String side, int requestedUnits) { }
+    private record OrderInfo(String status, String side, int requestedUnits,
+            Instant decisionAt, Instant submittedAt, Instant filledAt) { }
+
+    private record OrderTimeline(Map<String, OmsOrderState> states, Map<String, Instant> lastTimes) { }
 
     private OmsRunRecovery() { }
 
@@ -49,8 +52,9 @@ public final class OmsRunRecovery {
         Path runFolder = requestedRunFolder.toAbsolutePath().normalize();
 
         Map<String, OrderInfo> orders = readOrders(runFolder.resolve("orders.csv"));
-        Map<String, OmsOrderState> orderStates = readOrderStates(runFolder.resolve("order-events.csv"), orders);
-        ExecutionRestore executions = readExecutions(runFolder.resolve("fills.csv"), orders, orderStates);
+        OrderTimeline timeline = readOrderStates(runFolder.resolve("order-events.csv"), orders);
+        Map<String, OmsOrderState> orderStates = timeline.states();
+        ExecutionRestore executions = readExecutions(runFolder.resolve("fills.csv"), orders, timeline);
         int netExecutionPosition = applySettlement(
                 runFolder.resolve("settlements.csv"), executions.finalPositionUnits());
         int savedPosition = readFinalPosition(runFolder.resolve("equity.csv"));
@@ -88,14 +92,21 @@ public final class OmsRunRecovery {
             if (!side.equals("BUY") && !side.equals("SELL")) throw new IOException("Invalid order side for " + id);
             int requested = parsePositiveInt(row.get("requested_units"), "requested_units");
             String status = required(row, "status");
-            if (orders.putIfAbsent(id, new OrderInfo(status, side, requested)) != null) {
+            Instant decision = parseInstant(row.get("decision_timestamp"), "decision_timestamp");
+            Instant submitted = optionalInstant(row.get("submit_timestamp"), "submit_timestamp");
+            Instant filled = optionalInstant(row.get("fill_timestamp"), "fill_timestamp");
+            if (submitted != null && submitted.isBefore(decision)
+                    || filled != null && (submitted == null || filled.isBefore(submitted))) {
+                throw new IOException("Recovered order timestamps are impossible for " + id);
+            }
+            if (orders.putIfAbsent(id, new OrderInfo(status, side, requested, decision, submitted, filled)) != null) {
                 throw new IOException("Duplicate order ID in recovered ledger: " + id);
             }
         }
         return orders;
     }
 
-    private static Map<String, OmsOrderState> readOrderStates(Path path,
+    private static OrderTimeline readOrderStates(Path path,
             Map<String, OrderInfo> orders) throws IOException {
         CsvTable table = CsvTable.read(path);
         requireExactHeaders(table, "timestamp", "order_id", "event", "detail");
@@ -115,6 +126,7 @@ public final class OmsRunRecovery {
             String previousEvent = lastEventNames.get(id);
             if (event.equals("CREATED")) {
                 if (previousEvent != null) throw new IOException("Order has duplicate CREATED events: " + id);
+                if (!timestamp.equals(orders.get(id).decisionAt())) throw new IOException("CREATED time differs from order decision: " + id);
                 states.put(id, OmsOrderState.CREATED);
             } else {
                 if (previousEvent == null) throw new IOException("Order event precedes CREATED: " + id);
@@ -134,14 +146,15 @@ public final class OmsRunRecovery {
                 throw new IOException("Recovered final order state differs from orders.csv for " + order.getKey());
             }
         }
-        return states;
+        return new OrderTimeline(Map.copyOf(states), Map.copyOf(lastTimes));
     }
 
     private record ExecutionRestore(ExecutionIdempotencyLedger ledger,
             Map<String, Integer> executedUnitsByOrder, int duplicateEventsIgnored, int finalPositionUnits) { }
 
     private static ExecutionRestore readExecutions(Path path, Map<String, OrderInfo> orders,
-            Map<String, OmsOrderState> orderStates) throws IOException {
+            OrderTimeline timeline) throws IOException {
+        Map<String, OmsOrderState> orderStates = timeline.states();
         CsvTable table = CsvTable.read(path);
         List<String> priorHeaders = List.of("fill_id", "order_id", "timestamp", "side", "quantity_units",
                 "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "position_units_after");
@@ -189,6 +202,18 @@ public final class OmsRunRecovery {
         }
         Map<String, Integer> executedUnitsByOrder = new HashMap<>();
         for (ExecutionEvent event : ledger.events()) {
+            OrderInfo order = orders.get(event.orderId());
+            Instant lastEvent = timeline.lastTimes().get(event.orderId());
+            OmsOrderState state = orderStates.get(event.orderId());
+            boolean terminal = state == OmsOrderState.FILLED || state == OmsOrderState.CANCELED
+                    || state == OmsOrderState.REJECTED || state == OmsOrderState.EXPIRED;
+            if (event.timestamp().isBefore(order.decisionAt())
+                    || order.submittedAt() == null || event.timestamp().isBefore(order.submittedAt())
+                    || terminal && event.timestamp().isAfter(lastEvent)
+                    || order.filledAt() != null && !event.timestamp().equals(order.filledAt())
+                    || state == OmsOrderState.FILLED && !event.timestamp().equals(lastEvent)) {
+                throw new IOException("Execution timestamp disagrees with recovered order lifecycle: " + event.orderId());
+            }
             executedUnitsByOrder.merge(event.orderId(), event.quantityUnits(), Math::addExact);
         }
         for (Map.Entry<String, Integer> executed : executedUnitsByOrder.entrySet()) {
@@ -205,8 +230,13 @@ public final class OmsRunRecovery {
             }
         }
         int units = 0;
+        Instant lastExecutionAt = null;
         try {
             for (ExecutionEvent event : ledger.events()) {
+                if (lastExecutionAt != null && event.timestamp().isBefore(lastExecutionAt)) {
+                    throw new IOException("Recovered unique execution timestamps reverse in journal order");
+                }
+                lastExecutionAt = event.timestamp();
                 units = Math.addExact(units, event.side() == ExecutionEvent.Side.BUY
                         ? event.quantityUnits() : -event.quantityUnits());
                 if (units < 0) throw new IOException("Recovered SELL execution exceeds open long units");
@@ -285,5 +315,10 @@ public final class OmsRunRecovery {
         } catch (RuntimeException invalid) {
             throw new IOException("Invalid instant in recovered ledger field " + field, invalid);
         }
+    }
+
+    private static Instant optionalInstant(String value, String field) throws IOException {
+        if (value == null) throw new IOException("Missing ledger field: " + field);
+        return value.isEmpty() ? null : parseInstant(value, field);
     }
 }

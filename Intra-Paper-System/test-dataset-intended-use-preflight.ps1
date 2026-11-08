@@ -17,7 +17,7 @@ if ([string]::IsNullOrWhiteSpace($JarPath)) {
     # The checker compiles independently of the research simulator and other audit tools.
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src\main\java\com\mscient\intrapaper\permission\preflight') -Filter '*.java' -File | ForEach-Object FullName)
     $sources += Join-Path $PSScriptRoot 'src\main\java\com\mscient\intrapaper\data\StrictJsonParser.java'
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $classes -Sources $sources
     if ($LASTEXITCODE -ne 0) { throw "Checker compilation failed: $LASTEXITCODE" }
     $classpath = $classes
 } else {

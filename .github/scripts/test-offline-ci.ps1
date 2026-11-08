@@ -46,7 +46,12 @@ $suites = @(
     'incident-drill',
     'feed-completeness-audit',
     'g0-charter',
-    'hypothesis-card'
+    'hypothesis-card',
+    'mapping-registry',
+    'instrument-sequence',
+    'synchronized-bar-frames',
+    'operational-kill-controller',
+    'g2-contracts'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -64,6 +69,8 @@ $results['feed-audit-drill'] = 'NOT_RUN'
 $results['g0-packaged'] = 'NOT_RUN'
 $results['hypothesis-card-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
+$results['g2-contracts-packaged'] = 'NOT_RUN'
+$results['g2-reproducibility'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
 $status = 'FAIL'
@@ -138,6 +145,7 @@ try {
         if ($suite -eq 'feed-completeness-audit') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'feed-audit-source')) }
         if ($suite -eq 'g0-charter') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g0-source')) }
         if ($suite -eq 'hypothesis-card') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-source')) }
+        if ($suite -eq 'g2-contracts') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g2-contracts')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -189,6 +197,12 @@ try {
     Invoke-LoggedScript 'hypothesis-card-packaged' (Join-Path $projectRoot 'test-hypothesis-card.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-packaged'))
     if ($results['hypothesis-card-packaged'] -ne 'PASS') { throw 'Packaged hypothesis card checks failed.' }
+    Invoke-LoggedScript 'g2-contracts-packaged' (Join-Path $projectRoot 'test-g2-contracts.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g2-contracts-packaged'))
+    if ($results['g2-contracts-packaged'] -ne 'PASS') { throw 'Packaged G2 contracts failed.' }
+    Invoke-LoggedScript 'g2-reproducibility' (Join-Path $projectRoot 'test-g2-reproducibility.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g2-reproducibility'))
+    if ($results['g2-reproducibility'] -ne 'PASS') { throw 'G2 cross-process reproducibility failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8

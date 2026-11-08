@@ -2,6 +2,8 @@
 
 G1 adds a strict offline [hypothesis-card schema and immutable version snapshots](docs/HYPOTHESIS-CARD-REGISTRY.md), reusing existing trial identities. [Research cards and learning/cost evidence](../research/systems/G1-FOUNDATIONS-2026-11-08.md) remain proposed/deferred; G0 OPEN, G1 INCOMPLETE, no authenticated approval or executable trial eligibility.
 
+The G2 offline increment hardens journal metadata/limits, locked-handle resume and OMS recovery chronology; adds explicit offline contract/reproducibility checks and source/use readiness records. G2 remains INCOMPLETE: data rights, authentic source/cost/calendar evidence, independent review, and trusted operational recovery remain open. See [G2 readiness inventory](docs/G2-READINESS-INVENTORY.md) and [validation report](../research/systems/2026-11-08-g2-offline-validation.md).
+
 An isolated, offline-first Java 21 futures and options research simulator. Its established bar runner handles one dated contract at a time, while a separate validated multi-instrument portfolio path provides diagnostic replay and artifact verification. Optional L1 quote execution uses caller-supplied local journals. The project is separate from the HFT 2 research notes and has no broker or network adapter.
 
 ## Built in this increment

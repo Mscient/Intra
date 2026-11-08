@@ -39,7 +39,7 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
-            RawCaptureSummary summary = RawCaptureJournalReader.replay(path, ignored -> { });
+            RawCaptureSummary summary = RawCaptureJournalReader.replay(channel, ignored -> { });
             if (summary.bytesRead() != channel.size()) throw new IOException("Raw capture journal changed while it was being verified");
             channel.position(channel.size());
             RawCaptureJournalWriter writer = new RawCaptureJournalWriter(channel, lock);
@@ -55,6 +55,9 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         if (closed || failed) throw new IOException(closed ? "Raw capture journal is closed" : "Raw capture journal failed and cannot continue");
         byte[] payload = RawCaptureEncoder.encode(message);
         if (payload.length > RawCaptureFormat.MAX_PAYLOAD_BYTES + 65_536) throw new IllegalArgumentException("Encoded capture record exceeds limit");
+        if (channel.size() > RawCaptureFormat.MAX_JOURNAL_BYTES - Integer.BYTES - payload.length - RawCaptureFormat.HASH_BYTES) {
+            throw new IOException("Raw capture journal exceeds 256 MiB; rotate to a new caller-identified capture part");
+        }
         byte[] nextHash = QuoteHashChain.nextHash(previousHash, payload);
         ByteBuffer frame = ByteBuffer.allocate(Integer.BYTES + payload.length + nextHash.length)
                 .order(ByteOrder.BIG_ENDIAN).putInt(payload.length).put(payload).put(nextHash);

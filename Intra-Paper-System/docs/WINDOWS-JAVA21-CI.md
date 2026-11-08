@@ -1,9 +1,11 @@
 # Windows Java 21 offline CI
 
+The combined main matrix runs twenty source suites: the eighteen existing/G2 suites listed below, plus the G0 charter evidence checker and G1 hypothesis-card registry. G2 additionally selects mapping-registry, instrument-sequence/acknowledgement, synchronized-bar-frame and K0–K3 recommendation suites, plus new G2 journal/OMS/fill contracts. It repeats G0, G1 and G2 contracts against the production JAR and runs synthetic raw decode plus bar/L1 artifact reconstruction/byte comparison in separate child JVMs with UTC/en-US and Pacific/Apia/tr-TR settings. A shared UTF-8 javac argument-file helper avoids Windows command-length failures in the affected full-source runners. These checks supply no real-data, source-authenticity, rights or operational evidence. G2 branch validation is in the [G2 validation report](../../research/systems/2026-11-08-g2-offline-validation.md). The combined current-main workflow remains the release acceptance path; it establishes software checks only.
+
 The workflow is [`.github/workflows/java21-build.yml`](../../.github/workflows/java21-build.yml),
 named **Windows Java 21 offline validation**. It runs on `windows-2025` for pushes
 to `main`, pull requests targeting `main`, and manual `workflow_dispatch` runs.
-There are no path filters. A run has a 20-minute timeout; a newer run for the same
+There are no path filters. A run has a 45-minute timeout; a newer run for the same
 ref cancels the previous one. The job needs only `contents: read`, and checkout
 does not persist credentials.
 
@@ -32,18 +34,6 @@ only downloaded tooling; the production build has no dependency download step.
 
 ## Suites actually executed
 
-The G1 increment adds `test-hypothesis-card.ps1` as the fifteenth selected source
-suite, plus a production-JAR repeat. It checks strict complete cards, exact hashes,
-version preservation, false approval/permission/gate claims and synthetic/proposed
-trial separation. See [the registry contract](HYPOTHESIS-CARD-REGISTRY.md).
-These are software checks; G0/G1 remain incomplete.
-
-Portfolio replay/risk/accounting/settlement/evaluation and daily-operations
-source runners now pass source lists through UTF-8 javac argument files, matching
-the main build. The G1 full-matrix run reproduced the Windows command-length
-failure with direct filename lists in the long worktree path. Arguments preserve
-the same source/test sets and Java 21 options; no scoring formula changed.
-
 [The CI runner](../../.github/scripts/test-offline-ci.ps1) invokes these existing
 PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 -NonInteractive -File` process:
@@ -63,24 +53,18 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-data-permission-coverage.ps1` | `PermissionCoverageTest` over synthetic multi-record scope fixtures |
 | `test-incident-drill.ps1` | `IncidentDrillTest` over nine strict synthetic scenarios and dependency/CLI verification |
 | `test-feed-completeness-audit.ps1` | `FeedAuditTest` over explicit schedules/policies, verified journals, anomaly/rejection cases, and deterministic artifacts |
-| `test-g0-charter.ps1` | `G0CheckerTest`, standalone package, exact review/rights/owner/schema checks, three child JVM runs and verifications |
-| `test-hypothesis-card.ps1` | `HypothesisCardTest` over complete synthetic/proposed cards, schema, immutable hashes and approval/permission boundaries |
-
-G0 is the fourteenth and G1 the fifteenth selected suite. G0 also runs against the production JAR,
-inspects package dependencies, and verifies exact reports across locales/timezones.
-Its evidence-pack status does not authorize access/spend/trading or close G0.
-
-The seven selected runners compiling the entire main source tree now use quoted
-UTF-8 javac argument files, matching the production/feed-audit build convention.
-This avoids Windows command-length failures in longer worktree paths. The risk-replay
-and trial-evaluation runners also put generated output under LOCALAPPDATA, which
-CI redirects into its isolated output root. No strategy or simulator behavior changes.
+| `test-g0-charter.ps1` | `G0CheckerTest`, standalone package, exact review/rights/owner/schema checks and cross-JVM report verification |
+| `test-hypothesis-card.ps1` | `HypothesisCardTest` over synthetic/proposed cards, schema, hashes and approval/permission boundaries |
+| `test-mapping-registry.ps1` | `DatedInstrumentMappingRegistryTest` |
+| `test-instrument-sequence.ps1` | `InstrumentSequenceAnalyzerTest`, `InstrumentFeedCoverageAnalyzerTest` |
+| `test-synchronized-bar-frames.ps1` | `SynchronizedBarFrameBuilderTest` |
+| `test-operational-kill-controller.ps1` | `OperationalKillControllerTest` |
+| `test-g2-contracts.ps1` | `G2ContractTest` |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
-also runs packaged daily-operations, dataset intended-use, multi-record data-permission, incident-drill, feed-audit, and hypothesis-card checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
-option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
-runners. It does not establish full repository test coverage, power-loss safety,
+also runs packaged G0, G1, daily-operations, dataset intended-use, multi-record data-permission, incident-drill, feed-audit and G2 checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
+option-pricer runner. It does not establish full repository test coverage, power-loss safety,
 statistical validity, data rights, or trading performance. The process harness
 does not simulate power loss. The Sharpe HAC suite qualifies only its three fixed
 synthetic processes and establishes no general coverage claim.
@@ -99,9 +83,8 @@ CI requires a clean checkout before testing and checks it again before the
 production build. Its output directory must be absent or empty, outside the
 source checkout, and have no reparse points in existing ancestors. Reusing output
 requires a new directory; this prevents stale logs or a previous JAR from being
-mistaken for this run's results. Selected runners keep generated output under the
-redirected LOCALAPPDATA/TEMP or explicit OutputRoot, outside the source checkout.
-Git's clean check does not detect ignored output left by earlier runner versions.
+mistaken for this run's results. Existing runners' ignored `build/` directories
+do not make the source checkout dirty.
 
 ## Logs and artifact retention
 
@@ -146,11 +129,10 @@ temporary directory explicitly. Pass a fresh output directory outside the
 checkout on every validation run. The existing replay/evaluation runners also use ignored
 `Intra-Paper-System/build/` output paths.
 
-The seven legacy portfolio/daily-operations source runners and the hypothesis
-runner use UTF-8 javac argument files, avoiding direct-list command-length
-failures. Deep paths can still reach filesystem/tool path limits; use ordinary
-short checkout/output paths on Windows. The G1 long-worktree rerun is recorded
-in [local validation evidence](../../research/systems/g1-validation-2026-11-08/README.md).
+Use short checkout/output paths on Windows: the existing runners pass source
+paths directly to `javac`, so deeply nested copies can exceed Windows command
+line or file path limits. GitHub's normal checkout and `RUNNER_TEMP` paths are
+short.
 
 For hosted acceptance, after authorization to push a test branch, open a pull
 request targeting `main` and retain the successful run URL and artifact names.

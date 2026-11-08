@@ -1,5 +1,11 @@
 # Offline Backtest Operating Guide
 
+The [G2 inventory and readiness report](G2-READINESS-INVENTORY.md) maps implementation, tests and remaining gaps. Overall G2 remains **INCOMPLETE**. The [source/use map](G2-SOURCE-USE-EVIDENCE.csv) contains no real-data grant. Before opening real inputs, resolve exact product/use, owner/reviewer and handling evidence with the existing permission checkers; old success or public availability is not permission.
+
+Run `.\test-g2-contracts.ps1` under JDK 21 for synthetic schema/journal/OMS/fill boundary tests. After building the JAR, run `.\test-g2-contracts.ps1 -JarPath $jar` and `.\test-g2-reproducibility.ps1 -JarPath $jar`. Both retain local evidence under printed directories; `-OutputRoot` selects the root. The latter freezes fictional inputs, independently decodes a frozen raw journal, runs the existing bar/L1 assumptions in separate JVMs with different locale/timezone settings, reconstructs each run, and byte-compares artifacts and synthetic quality records. It supplies no real market evidence or universal quality admission. No network, account or credentials are used.
+
+Raw/quote/lifecycle metadata rejects lossy Unicode and control characters. Resume verifies through the same locked handle. Raw journals have a 256 MiB cap: rotate into explicitly declared new parts; never trim or repair originals. `oms-recover` rejects execution/order chronology disagreement but remains a completed-artifact diagnostic, not an operational SAFE release. The incident-drill path requires exact reconciliation and scenario-authorized reset; low-level restore helpers provide no universal build/head/release authorization. Preserve independently retained trusted heads and configuration identities. Never infer a trusted head from damaged/lagging state.
+
 The separate offline K0–K3 stop-policy state machine is documented in [OPERATIONAL-KILL-CONTROLLER.md](OPERATIONAL-KILL-CONTROLLER.md). It produces recommended responses from caller-supplied health observations and human attestations; it is not a live watchdog, independent risk service, broker control, order-cancel mechanism, or process kill path.
 
 ## Commands

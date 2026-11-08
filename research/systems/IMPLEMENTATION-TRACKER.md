@@ -2,6 +2,8 @@
 
 **G1 foundation increment (2026-11-08):** [Research packet](G1-FOUNDATIONS-2026-11-08.md) provides learning/source evidence, five instrument candidates, 24 blank-amount cost components, three unapproved cards, variant history and an offline strict card/version facility. G0 OPEN and G1 INCOMPLETE pending genuine charter closure, private A15, owner learning/selection and independent review. See [validation](../sessions/2026-11-08-g1-foundations.md).
 
+**G2 offline increment (2026-11-08):** [Readiness inventory](../../Intra-Paper-System/docs/G2-READINESS-INVENTORY.md), [source/use map](../../Intra-Paper-System/docs/G2-SOURCE-USE-EVIDENCE.csv), and [validation report](2026-11-08-g2-offline-validation.md) record journal-size/metadata and locked-resume hardening, OMS recovery chronology, offline G2 contract checks and cross-JVM artifact reproduction. G2 remains INCOMPLETE: permissions, source truth, broader event contracts, independent review, and trusted operational recovery/release evidence remain open.
+
 **Plan source:** [Final Implementation Plan](FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.md), prepared 2026-11-03. The plan is treated as design guidance; it does not authorize account access, data capture, broker orders, or live trading.
 
 **Updated:** 2026-11-08 (Asia/Kolkata)

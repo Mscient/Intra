@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -26,6 +28,17 @@ public final class FeedLifecycleJournalReader {
         Objects.requireNonNull(path, "path");
         Objects.requireNonNull(consumer, "consumer");
         try (InputStream file = Files.newInputStream(path); BufferedInputStream input = new BufferedInputStream(file)) {
+            return replay(input, consumer);
+        }
+    }
+
+    /** Uses the writer's locked handle without closing its channel. */
+    static FeedLifecycleSummary replay(FileChannel channel, Consumer<FeedLifecycleEvent> consumer) throws IOException {
+        channel.position(0);
+        return replay(new BufferedInputStream(Channels.newInputStream(channel)), consumer);
+    }
+
+    private static FeedLifecycleSummary replay(InputStream input, Consumer<FeedLifecycleEvent> consumer) throws IOException {
             byte[] header = readExactly(input, FeedLifecycleFormat.header().length, "truncated feed lifecycle journal header");
             if (!Arrays.equals(header, FeedLifecycleFormat.header())) throw new IOException("Unsupported feed lifecycle journal header");
             byte[] previous = QuoteHashChain.genesisHash();
@@ -64,7 +77,6 @@ public final class FeedLifecycleJournalReader {
             }
             return new FeedLifecycleSummary(count, bytesRead, QuoteHashChain.hex(previous),
                     connections.size(), eventCounts);
-        }
     }
 
     private static byte[] readExactly(InputStream input, int size, String message) throws IOException {

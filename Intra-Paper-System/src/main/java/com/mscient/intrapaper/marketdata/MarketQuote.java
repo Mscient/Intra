@@ -63,6 +63,7 @@ public record MarketQuote(
         if (value.isBlank() || !value.equals(value.strip())) {
             throw new IllegalArgumentException(fieldName + " must be non-blank and trimmed");
         }
+        CaptureText.validate(value, fieldName);
         return value;
     }
 }

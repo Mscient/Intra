@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -18,14 +20,27 @@ import java.util.Map;
 import java.util.OptionalLong;
 import java.util.function.Consumer;
 
-/** Verifies capture framing and hash chain before delivering records to the caller. */
+/** Verifies each frame before delivery. Consumers must discard the prefix if any later frame fails. */
 public final class RawCaptureJournalReader {
     private record SequenceStream(String source, String connectionId, String subscriptionId) { }
 
     private RawCaptureJournalReader() { }
 
     public static RawCaptureSummary replay(Path path, Consumer<RawMarketMessage> consumer) throws IOException {
+        if (Files.size(path) > RawCaptureFormat.MAX_JOURNAL_BYTES) throw new IOException("Raw capture journal exceeds 256 MiB");
         try (InputStream file = Files.newInputStream(path); BufferedInputStream input = new BufferedInputStream(file)) {
+            return replay(input, consumer);
+        }
+    }
+
+    /** Reads through the writer's locked handle; does not close that caller-owned channel. */
+    static RawCaptureSummary replay(FileChannel channel, Consumer<RawMarketMessage> consumer) throws IOException {
+        if (channel.size() > RawCaptureFormat.MAX_JOURNAL_BYTES) throw new IOException("Raw capture journal exceeds 256 MiB");
+        channel.position(0);
+        return replay(new BufferedInputStream(Channels.newInputStream(channel)), consumer);
+    }
+
+    private static RawCaptureSummary replay(InputStream input, Consumer<RawMarketMessage> consumer) throws IOException {
             byte[] header = readExactly(input, RawCaptureFormat.header().length, "truncated raw capture header");
             if (!Arrays.equals(header, RawCaptureFormat.header())) throw new IOException("Unsupported raw capture journal header");
             byte[] previous = QuoteHashChain.genesisHash();
@@ -45,6 +60,9 @@ public final class RawCaptureJournalReader {
                 lengthBytes.flip();
                 int length = lengthBytes.getInt();
                 if (length < 1 || length > RawCaptureFormat.MAX_PAYLOAD_BYTES + 65_536) throw new IOException("Invalid raw capture frame length: " + length);
+                if (bytesRead > RawCaptureFormat.MAX_JOURNAL_BYTES - Integer.BYTES - length - RawCaptureFormat.HASH_BYTES) {
+                    throw new IOException("Raw capture journal exceeds 256 MiB");
+                }
                 byte[] encoded = readExactly(input, length, "truncated raw capture record");
                 byte[] storedHash = readExactly(input, RawCaptureFormat.HASH_BYTES, "truncated raw capture hash");
                 byte[] expectedHash = QuoteHashChain.nextHash(previous, encoded);
@@ -72,7 +90,6 @@ public final class RawCaptureJournalReader {
             }
             return new RawCaptureSummary(count, bytesRead, QuoteHashChain.hex(previous), sequencedEvents,
                     lastSequences.size(), sequenceGaps, missingSequenceNumbers, nonIncreasingTransitions);
-        }
     }
 
     private static RawMarketMessage decode(byte[] bytes) throws IOException {
