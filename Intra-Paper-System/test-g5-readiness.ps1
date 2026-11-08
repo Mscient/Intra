@@ -39,8 +39,22 @@ if ($LASTEXITCODE -ne 3) { throw 'G5 junction escape was accepted.' }
     Set-Content -LiteralPath (Join-Path $run 'dependencies.txt')
 if ($LASTEXITCODE -ne 0) { throw 'G5 dependency analysis failed.' }
 $dependencies = Get-Content -LiteralPath (Join-Path $run 'dependencies.txt') -Raw
-if ($dependencies -match 'java.net.http|java.net.Socket|java.net.ServerSocket|java.net.Datagram|java.net.URL|java.net.HttpURLConnection|java.net.InetAddress|javax.net|java.nio.channels.SocketChannel|java.nio.channels.ServerSocketChannel|java.nio.channels.DatagramChannel|java.lang.ProcessBuilder') {
+if ($dependencies -match 'java.net.http|java.net.Socket|java.net.ServerSocket|java.net.Datagram|java.net.URLConnection|java.net.HttpURLConnection|java.net.InetAddress|javax.net|java.nio.channels.SocketChannel|java.nio.channels.ServerSocketChannel|java.nio.channels.DatagramChannel|java.lang.ProcessBuilder') {
     throw 'Production JAR contains a forbidden network/process dependency.'
+}
+# CodeSource.getLocation() returns URL even for a local JAR. Inspect every URL user:
+# only conversion to a local Path through toURI is permitted, never openStream or a connection.
+$urlUsers = @([regex]::Matches($dependencies, '(?m)^\s*(\S+)\s+->\s+java\.net\.URL\s+') |
+    ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+if ($urlUsers.Count -gt 0) {
+    & (Join-Path $env:JAVA_HOME 'bin/javap.exe') -classpath $JarPath -c -p @urlUsers |
+        Set-Content -LiteralPath (Join-Path $run 'url-bytecode.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'G5 URL bytecode inspection failed.' }
+    $bytecode = Get-Content -LiteralPath (Join-Path $run 'url-bytecode.txt') -Raw
+    $urlMethods = @([regex]::Matches($bytecode, 'java/net/URL\.([^:]+):') | ForEach-Object { $_.Groups[1].Value })
+    if ($urlMethods.Count -eq 0 -or @($urlMethods | Where-Object { $_ -cne 'toURI' }).Count -gt 0) {
+        throw 'Production URL usage is not limited to local JAR location conversion.'
+    }
 }
 "JAR_SHA256=$((Get-FileHash -LiteralPath $JarPath -Algorithm SHA256).Hash.ToLowerInvariant())" |
     Set-Content -LiteralPath (Join-Path $run 'package-sha256.txt')
