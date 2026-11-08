@@ -1,0 +1,1 @@
+{"protocol":"Synthetic exact normalized ledger comparison only"}

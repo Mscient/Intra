@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 calendar v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "calendar_id",
+    "timezone",
+    "days"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-calendar/v1"
+    },
+    "calendar_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "days": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "status",
+          "session_id",
+          "reason",
+          "start_utc",
+          "end_utc"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "status": {
+            "enum": [
+              "SCHEDULED",
+              "CLOSED",
+              "EXCLUDED"
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

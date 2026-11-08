@@ -1,5 +1,7 @@
 # Intra Paper System
 
+Offline [G6 tier and capacity review](docs/G6-CAPACITY-REVIEW.md) is available through the separate `g6-capacity-review.ps1` runner. It verifies immutable review artifacts and preserves missing/unauthenticated evidence; G6 remains INCOMPLETE and no scale-up is authorized.
+
 G1 adds a strict offline [hypothesis-card schema and immutable version snapshots](docs/HYPOTHESIS-CARD-REGISTRY.md), reusing existing trial identities. [Research cards and learning/cost evidence](../research/systems/G1-FOUNDATIONS-2026-11-08.md) remain proposed/deferred; G0 OPEN, G1 INCOMPLETE, no authenticated approval or executable trial eligibility.
 
 The G2 offline increment hardens journal metadata/limits, locked-handle resume and OMS recovery chronology; adds explicit offline contract/reproducibility checks and source/use readiness records. G2 remains INCOMPLETE: data rights, authentic source/cost/calendar evidence, independent review, and trusted operational recovery remain open. See [G2 readiness inventory](docs/G2-READINESS-INVENTORY.md) and [validation report](../research/systems/2026-11-08-g2-offline-validation.md).

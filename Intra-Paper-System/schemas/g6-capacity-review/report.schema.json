@@ -1,0 +1,1184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 review report v1",
+  "description": "Offline diagnostic only. Byte identity is not source or identity authentication. Semantic constraints are enforced by G6 Java.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "g6_closed",
+    "scale_authorized",
+    "performance_claim_eligible",
+    "diagnostic_only",
+    "build",
+    "code_sha256",
+    "independent_authentication",
+    "eligible_live_sessions",
+    "eligible_six_calendar_months",
+    "verified_tested_envelope",
+    "review_id",
+    "statistical_estimates",
+    "capacity_extrapolations",
+    "limits",
+    "status",
+    "findings",
+    "sessions",
+    "capacity_scenarios",
+    "source_sha256",
+    "expected_source_sha256",
+    "all_declared_sources_present",
+    "observation_units"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-review/v1"
+    },
+    "g6_closed": {
+      "const": false
+    },
+    "scale_authorized": {
+      "const": false
+    },
+    "performance_claim_eligible": {
+      "const": false
+    },
+    "diagnostic_only": {
+      "const": true
+    },
+    "build": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "code_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "independent_authentication": {
+      "const": false
+    },
+    "eligible_live_sessions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "eligible_six_calendar_months": {
+      "type": "boolean"
+    },
+    "verified_tested_envelope": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "review_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "statistical_estimates": {
+      "type": "null"
+    },
+    "capacity_extrapolations": {
+      "type": "null"
+    },
+    "limits": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16384
+      }
+    },
+    "status": {
+      "enum": [
+        "FAIL",
+        "INCOMPLETE",
+        "ELIGIBLE_FOR_HUMAN_DECISION"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "field",
+          "reason"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "FAIL",
+              "INCOMPLETE"
+            ]
+          },
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "session_id",
+          "date",
+          "source_classification",
+          "independently_authenticated",
+          "eligible_live_evidence",
+          "declared_tested_conditions",
+          "condition_basis",
+          "observation_basis",
+          "observations"
+        ],
+        "properties": {
+          "observed_status": { "enum": ["OBSERVED", "MISSING", "EXCLUDED"] },
+          "scheduled_status": { "enum": ["SCHEDULED", "EXCLUDED"] },
+          "session_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "source_classification": {
+            "enum": [
+              "SYNTHETIC",
+              "REPLAY_ONLY",
+              "CALLER_SUPPLIED",
+              "CLAIMED_LIVE_G5",
+              "ESTIMATED",
+              "SIMULATED"
+            ]
+          },
+          "independently_authenticated": {
+            "const": false
+          },
+          "eligible_live_evidence": {
+            "const": false
+          },
+          "declared_tested_conditions": {
+            "$ref": "common.schema.json#/$defs/conditions"
+          },
+          "condition_basis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "observation_basis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "observations": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "maximum_order_size",
+              "maximum_fill_size",
+              "order_count",
+              "fill_count",
+              "filled_quantity",
+              "ordered_quantity",
+              "partial_orders",
+              "missed_orders",
+              "turnover",
+              "fees",
+              "realized_pnl",
+              "unrealized_pnl",
+              "drawdown",
+              "exposure",
+              "participation",
+              "fill_ratio",
+              "order_rate",
+              "slippage",
+              "margin_proxy",
+              "halts",
+              "incidents",
+              "operational_exceptions",
+              "rejects",
+              "cancellations",
+              "corrections"
+            ],
+            "properties": {
+              "maximum_order_size": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maximum_fill_size": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "order_count": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fill_count": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "filled_quantity": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ordered_quantity": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "partial_orders": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "missed_orders": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "turnover": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fees": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "realized_pnl": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unrealized_pnl": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "drawdown": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "exposure": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "participation": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fill_ratio": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "order_rate": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "slippage": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "margin_proxy": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "halts": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "incidents": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "operational_exceptions": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rejects": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cancellations": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "corrections": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "daily_ops_status": {
+            "enum": [
+              "PASS",
+              "INCOMPLETE",
+              "FAIL"
+            ]
+          },
+          "daily_ops_report_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "observed_maximum_order_size_by_instrument": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_maximum_fill_size_by_instrument": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "broker_stream_diagnostics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rejects",
+              "corrections",
+              "margin_proxy",
+              "margin_basis",
+              "streams"
+            ],
+            "properties": {
+              "rejects": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "corrections": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "margin_proxy": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "margin_basis": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "streams": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "acknowledgements",
+                  "rejects",
+                  "cancellations",
+                  "corrections",
+                  "cash_flows",
+                  "margin_inputs"
+                ],
+                "properties": {
+                  "acknowledgements": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "rejects": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "cancellations": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "corrections": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "cash_flows": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "margin_inputs": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "record_count",
+                      "declared_complete"
+                    ],
+                    "properties": {
+                      "record_count": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "declared_complete": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "opening_external_cash_flow": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "supplemental_unverified_observations": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "metric",
+                "value",
+                "unit",
+                "basis",
+                "source"
+              ],
+              "properties": {
+                "metric": {
+                  "enum": [
+                    "maximum_order_size",
+                    "maximum_fill_size",
+                    "order_count",
+                    "fill_count",
+                    "filled_quantity",
+                    "ordered_quantity",
+                    "partial_orders",
+                    "missed_orders",
+                    "turnover",
+                    "fees",
+                    "realized_pnl",
+                    "unrealized_pnl",
+                    "drawdown",
+                    "exposure",
+                    "participation",
+                    "fill_ratio",
+                    "order_rate",
+                    "slippage",
+                    "margin_proxy",
+                    "halts",
+                    "incidents",
+                    "operational_exceptions",
+                    "rejects",
+                    "cancellations",
+                    "corrections"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "basis": {
+                  "enum": [
+                    "CALLER_SUPPLIED",
+                    "ESTIMATED",
+                    "SIMULATED",
+                    "SYNTHETIC"
+                  ]
+                },
+                "source": {
+                  "$ref": "common.schema.json#/$defs/source"
+                }
+              }
+            }
+          },
+          "normalized_reconciliation_complete": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "capacity_scenarios": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tier",
+          "classification",
+          "identity",
+          "instruments",
+          "conditions",
+          "rationale",
+          "status",
+          "unknown_parameters",
+          "scale_authorized",
+          "capacity_limit_established"
+        ],
+        "properties": {
+          "tier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "classification": {
+            "enum": [
+              "OBSERVED",
+              "PROPOSED"
+            ]
+          },
+          "identity": {
+            "$ref": "common.schema.json#/$defs/identity"
+          },
+          "instruments": {
+            "$ref": "common.schema.json#/$defs/instruments"
+          },
+          "conditions": {
+            "$ref": "common.schema.json#/$defs/conditions"
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "status": {
+            "enum": [
+              "MATCHES_RECORDED_CONDITIONS_UNAUTHENTICATED",
+              "WITHIN_RECORDED_BOUNDS_UNTESTED",
+              "UNTESTED"
+            ]
+          },
+          "unknown_parameters": {
+            "type": "boolean"
+          },
+          "scale_authorized": {
+            "const": false
+          },
+          "capacity_limit_established": {
+            "const": false
+          }
+        }
+      }
+    },
+    "source_sha256": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "expected_source_sha256": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "all_declared_sources_present": {
+      "type": "boolean"
+    },
+    "observation_units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_order_size",
+        "maximum_fill_size",
+        "order_count",
+        "fill_count",
+        "filled_quantity",
+        "ordered_quantity",
+        "partial_orders",
+        "missed_orders",
+        "turnover",
+        "fees",
+        "realized_pnl",
+        "unrealized_pnl",
+        "drawdown",
+        "exposure",
+        "participation",
+        "fill_ratio",
+        "order_rate",
+        "slippage",
+        "margin_proxy",
+        "halts",
+        "incidents",
+        "operational_exceptions",
+        "rejects",
+        "cancellations",
+        "corrections"
+      ],
+      "properties": {
+        "maximum_order_size": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "maximum_fill_size": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "order_count": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "fill_count": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "filled_quantity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "ordered_quantity": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "partial_orders": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "missed_orders": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "turnover": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "fees": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "realized_pnl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "unrealized_pnl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "drawdown": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "exposure": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "participation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "fill_ratio": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "order_rate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "slippage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "margin_proxy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "halts": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "incidents": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "operational_exceptions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "rejects": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "cancellations": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "corrections": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        }
+      }
+    },
+    "input_history_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_history_head": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pilot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "tested_identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "deployment_conditions": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "instruments": {
+      "$ref": "common.schema.json#/$defs/instruments"
+    },
+    "account_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "evidence_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "evidence_end_exclusive": {
+      "type": "string",
+      "format": "date"
+    },
+    "history_signatures": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sequence",
+          "cryptographic_signature_present",
+          "identity_independently_authenticated"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cryptographic_signature_present": {
+            "type": "boolean"
+          },
+          "identity_independently_authenticated": {
+            "const": false
+          }
+        }
+      }
+    },
+    "declared_span_at_least_six_calendar_months": {
+      "type": "boolean"
+    },
+    "scheduled_sessions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reconciled_diagnostic_sessions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "schedule_coverage": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date",
+          "status",
+          "session_id",
+          "reason",
+          "start_utc",
+          "end_utc",
+          "eligible_live_evidence"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "status": {
+            "enum": [
+              "SCHEDULED",
+              "CLOSED",
+              "EXCLUDED"
+            ]
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligible_live_evidence": {
+            "const": false
+          },
+          "observed_status": {
+            "enum": [
+              "OBSERVED",
+              "MISSING",
+              "EXCLUDED"
+            ]
+          }
+        }
+      }
+    },
+    "calendar_days_complete": {
+      "type": "boolean"
+    },
+    "thresholds_evaluated": {
+      "type": "boolean"
+    },
+    "threshold_basis": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    }
+  }
+}

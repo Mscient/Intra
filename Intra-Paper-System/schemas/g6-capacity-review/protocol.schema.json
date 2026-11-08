@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 protocol v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "protocol_id",
+    "registered_at",
+    "method",
+    "thresholds",
+    "owner_approval",
+    "reviewer_approval",
+    "statistical_protocol"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-protocol/v1"
+    },
+    "protocol_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "registered_at": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "format": "date-time"
+    },
+    "method": {
+      "const": "DESCRIPTIVE_ONLY"
+    },
+    "thresholds": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "operator",
+          "value",
+          "unit",
+          "aggregation",
+          "rationale"
+        ],
+        "properties": {
+          "metric": {
+            "enum": [
+              "maximum_order_size",
+              "maximum_fill_size",
+              "order_count",
+              "fill_count",
+              "filled_quantity",
+              "ordered_quantity",
+              "partial_orders",
+              "missed_orders",
+              "turnover",
+              "fees",
+              "realized_pnl",
+              "unrealized_pnl",
+              "drawdown",
+              "exposure",
+              "participation",
+              "fill_ratio",
+              "order_rate",
+              "slippage",
+              "margin_proxy",
+              "halts",
+              "incidents",
+              "operational_exceptions",
+              "rejects",
+              "cancellations",
+              "corrections"
+            ]
+          },
+          "operator": {
+            "enum": [
+              "LE",
+              "GE",
+              "EQ"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "enum": [
+              "UNITS",
+              "RATIO",
+              "ORDERS_PER_UTC_SECOND",
+              "ACCOUNT_CURRENCY",
+              "COUNT"
+            ]
+          },
+          "aggregation": {
+            "const": "EACH_SESSION"
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "owner_approval": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reviewer_approval": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "statistical_protocol": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

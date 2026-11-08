@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 event v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "sequence",
+    "previous_sha256",
+    "type",
+    "review_id",
+    "subject_sha256",
+    "subject_path",
+    "supersedes",
+    "event_time",
+    "signature",
+    "report"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-event/v1"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "previous_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "type": {
+      "enum": [
+        "REGISTRATION",
+        "EVIDENCE",
+        "CORRECTION",
+        "ANALYSIS",
+        "REVIEWER_DECISION",
+        "OWNER_DECISION",
+        "REVOCATION"
+      ]
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "subject_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "subject_path": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "supersedes": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "event_time": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384,
+      "format": "date-time"
+    },
+    "signature": {
+      "$ref": "common.schema.json#/$defs/signature"
+    },
+    "report": {
+      "anyOf": [
+        {
+          "$ref": "report.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

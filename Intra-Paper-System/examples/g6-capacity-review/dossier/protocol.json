@@ -1,0 +1,1 @@
+{"method":"DESCRIPTIVE_ONLY","owner_approval":null,"protocol_id":"SYNTHETIC","registered_at":"2025-12-01T00:00:00Z","reviewer_approval":null,"schema":"g6-protocol/v1","statistical_protocol":null,"thresholds":[{"aggregation":"EACH_SESSION","metric":"maximum_order_size","operator":"LE","rationale":"Synthetic plumbing rule only","unit":"UNITS","value":1}]}

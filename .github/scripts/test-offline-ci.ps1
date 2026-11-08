@@ -51,7 +51,8 @@ $suites = @(
     'instrument-sequence',
     'synchronized-bar-frames',
     'operational-kill-controller',
-    'g2-contracts'
+    'g2-contracts',
+    'g6-capacity-review'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -71,6 +72,7 @@ $results['hypothesis-card-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $results['g2-contracts-packaged'] = 'NOT_RUN'
 $results['g2-reproducibility'] = 'NOT_RUN'
+$results['g6-packaged'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
 $status = 'FAIL'
@@ -146,6 +148,7 @@ try {
         if ($suite -eq 'g0-charter') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g0-source')) }
         if ($suite -eq 'hypothesis-card') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-source')) }
         if ($suite -eq 'g2-contracts') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g2-contracts')) }
+        if ($suite -eq 'g6-capacity-review') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g6-source')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -203,6 +206,9 @@ try {
     Invoke-LoggedScript 'g2-reproducibility' (Join-Path $projectRoot 'test-g2-reproducibility.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g2-reproducibility'))
     if ($results['g2-reproducibility'] -ne 'PASS') { throw 'G2 cross-process reproducibility failed.' }
+    Invoke-LoggedScript 'g6-packaged' (Join-Path $projectRoot 'test-g6-capacity-review.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g6-packaged'))
+    if ($results['g6-packaged'] -ne 'PASS') { throw 'Packaged G6 review checks failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8

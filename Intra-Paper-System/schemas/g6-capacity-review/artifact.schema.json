@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 artifact v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "report_sha256",
+    "input_history_sha256",
+    "history_sha256",
+    "build",
+    "code_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-artifact/v1"
+    },
+    "report_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_history_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "history_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "build": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "code_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

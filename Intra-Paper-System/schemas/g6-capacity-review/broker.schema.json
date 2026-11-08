@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 broker v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "session_id",
+    "pilot_id",
+    "identity",
+    "classification",
+    "originals",
+    "normalization_protocol",
+    "risk_events",
+    "executions",
+    "positions",
+    "initial_cash",
+    "ending_cash",
+    "fees",
+    "settlements",
+    "charges",
+    "acknowledgements",
+    "rejects",
+    "cancellations",
+    "corrections",
+    "cash_flows",
+    "margin_inputs",
+    "complete",
+    "signature"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-broker/v1"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "pilot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "classification": {
+      "enum": [
+        "SYNTHETIC",
+        "REPLAY_ONLY",
+        "CALLER_SUPPLIED",
+        "CLAIMED_LIVE_G5",
+        "ESTIMATED",
+        "SIMULATED"
+      ]
+    },
+    "originals": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "classification",
+          "provenance"
+        ],
+        "properties": {
+          "source": {
+            "$ref": "common.schema.json#/$defs/source"
+          },
+          "classification": {
+            "enum": [
+              "SYNTHETIC",
+              "REPLAY_ONLY",
+              "CALLER_SUPPLIED",
+              "CLAIMED_LIVE_G5",
+              "ESTIMATED",
+              "SIMULATED"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "normalization_protocol": {
+      "$ref": "common.schema.json#/$defs/source"
+    },
+    "risk_events": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "kind",
+          "timestamp_utc"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "kind": {
+            "enum": [
+              "RESERVE",
+              "FILL",
+              "CANCEL",
+              "SETTLE",
+              "HALT"
+            ]
+          },
+          "order_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "instrument_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "coverage_window_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "coverage_event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "stop_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "settlement_event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "signed_quantity": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "executions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "execution_id",
+          "order_id",
+          "instrument_id",
+          "side",
+          "quantity",
+          "price",
+          "fee",
+          "timestamp_utc"
+        ],
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "order_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "instrument_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ]
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "fee": {
+            "type": "number"
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "positions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "initial_cash": {
+      "type": "number"
+    },
+    "ending_cash": {
+      "type": "number"
+    },
+    "fees": {
+      "type": "number"
+    },
+    "settlements": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "instrument_id",
+          "signed_quantity",
+          "cash_amount",
+          "fee",
+          "timestamp_utc",
+          "source_ref",
+          "price"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "instrument_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "signed_quantity": {
+            "type": "number"
+          },
+          "cash_amount": {
+            "type": "number"
+          },
+          "fee": {
+            "type": "number"
+          },
+          "timestamp_utc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "source_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "price": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "charges": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "charge_id",
+          "target_kind",
+          "target_id",
+          "component",
+          "amount",
+          "source_ref",
+          "rounding",
+          "effective_from_utc",
+          "effective_to_utc"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "target_kind": {
+            "enum": [
+              "EXECUTION",
+              "SETTLEMENT"
+            ]
+          },
+          "target_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "component": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "amount": {
+            "type": "number"
+          },
+          "source_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "rounding": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "effective_from_utc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "effective_to_utc": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    },
+    "acknowledgements": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "rejects": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "cancellations": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "corrections": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "cash_flows": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "margin_inputs": {
+      "$ref": "common.schema.json#/$defs/stream"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "signature": {
+      "$ref": "common.schema.json#/$defs/signature"
+    }
+  }
+}

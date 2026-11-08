@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 scenarios v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "owner",
+    "tiers"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-scenarios/v1"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "tiers": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tier",
+          "classification",
+          "identity",
+          "instruments",
+          "conditions",
+          "rationale"
+        ],
+        "properties": {
+          "tier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "classification": {
+            "enum": [
+              "OBSERVED",
+              "PROPOSED"
+            ]
+          },
+          "identity": {
+            "$ref": "common.schema.json#/$defs/identity"
+          },
+          "instruments": {
+            "$ref": "common.schema.json#/$defs/instruments"
+          },
+          "conditions": {
+            "$ref": "common.schema.json#/$defs/conditions"
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      }
+    }
+  }
+}

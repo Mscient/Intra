@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 manifest v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "review_id",
+    "pilot_id",
+    "identity",
+    "instruments",
+    "evidence_start",
+    "evidence_end_exclusive",
+    "calendar",
+    "protocol",
+    "scenarios",
+    "g5_authorization",
+    "roles",
+    "deployment_conditions",
+    "identity_evidence",
+    "account_currency"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-manifest/v1"
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "pilot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "instruments": {
+      "$ref": "common.schema.json#/$defs/instruments"
+    },
+    "evidence_start": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "evidence_end_exclusive": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "calendar": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "protocol": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "scenarios": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "g5_authorization": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/source"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "reviewer"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        }
+      }
+    },
+    "deployment_conditions": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "identity_evidence": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/identity_evidence"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "account_currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    }
+  }
+}

@@ -1,0 +1,688 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 normalized broker stream v1",
+  "description": "Offline diagnostic only. Byte identity is not source or identity authentication. Semantic constraints are enforced by G6 Java.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "session_id",
+    "pilot_id",
+    "identity",
+    "kind",
+    "classification",
+    "complete",
+    "expected_count",
+    "no_records_reason",
+    "records"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-stream/v1"
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "pilot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "kind": {
+      "enum": [
+        "acknowledgements",
+        "rejects",
+        "cancellations",
+        "corrections",
+        "cash_flows",
+        "margin_inputs"
+      ]
+    },
+    "classification": {
+      "enum": [
+        "SYNTHETIC",
+        "REPLAY_ONLY",
+        "CALLER_SUPPLIED",
+        "CLAIMED_LIVE_G5",
+        "ESTIMATED",
+        "SIMULATED"
+      ]
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "expected_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "no_records_reason": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "order_id",
+              "broker_order_id",
+              "timestamp_utc"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "order_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "broker_order_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "order_id",
+              "timestamp_utc",
+              "reason"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "order_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "order_id",
+              "timestamp_utc",
+              "quantity",
+              "reason"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "order_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "quantity": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "target_kind",
+              "target_id",
+              "timestamp_utc",
+              "reason",
+              "original",
+              "corrected"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "target_kind": {
+                "enum": [
+                  "EXECUTION",
+                  "CHARGE"
+                ]
+              },
+              "target_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "original": {
+                "$ref": "common.schema.json#/$defs/source"
+              },
+              "corrected": {
+                "$ref": "common.schema.json#/$defs/source"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "timestamp_utc",
+              "amount",
+              "currency",
+              "kind",
+              "reference"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "kind": {
+                "enum": [
+                  "DEPOSIT",
+                  "WITHDRAWAL",
+                  "ADJUSTMENT"
+                ]
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "instrument_id",
+              "timestamp_utc",
+              "amount",
+              "currency",
+              "basis",
+              "source"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "instrument_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384
+              },
+              "timestamp_utc": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16384,
+                "format": "date-time",
+                "pattern": "Z$"
+              },
+              "amount": {
+                "type": "number",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "basis": {
+                "enum": [
+                  "CALLER_SUPPLIED_BROKER_MARGIN",
+                  "PROXY"
+                ]
+              },
+              "source": {
+                "$ref": "common.schema.json#/$defs/source"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "acknowledgements"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "order_id",
+                "broker_order_id",
+                "timestamp_utc"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "order_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "broker_order_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "rejects"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "order_id",
+                "timestamp_utc",
+                "reason"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "order_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "cancellations"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "order_id",
+                "timestamp_utc",
+                "quantity",
+                "reason"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "order_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                "quantity": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "corrections"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "target_kind",
+                "target_id",
+                "timestamp_utc",
+                "reason",
+                "original",
+                "corrected"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "target_kind": {
+                  "enum": [
+                    "EXECUTION",
+                    "CHARGE"
+                  ]
+                },
+                "target_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "original": {
+                  "$ref": "common.schema.json#/$defs/source"
+                },
+                "corrected": {
+                  "$ref": "common.schema.json#/$defs/source"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "cash_flows"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "timestamp_utc",
+                "amount",
+                "currency",
+                "kind",
+                "reference"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                },
+                "kind": {
+                  "enum": [
+                    "DEPOSIT",
+                    "WITHDRAWAL",
+                    "ADJUSTMENT"
+                  ]
+                },
+                "reference": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "margin_inputs"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "records": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "instrument_id",
+                "timestamp_utc",
+                "amount",
+                "currency",
+                "basis",
+                "source"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "instrument_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384
+                },
+                "timestamp_utc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 16384,
+                  "format": "date-time",
+                  "pattern": "Z$"
+                },
+                "amount": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                },
+                "basis": {
+                  "enum": [
+                    "CALLER_SUPPLIED_BROKER_MARGIN",
+                    "PROXY"
+                  ]
+                },
+                "source": {
+                  "$ref": "common.schema.json#/$defs/source"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

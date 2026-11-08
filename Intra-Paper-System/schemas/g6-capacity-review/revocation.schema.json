@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 revocation v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "review_id",
+    "reason",
+    "report_sha256",
+    "signature"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-revocation/v1"
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "report_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "signature": {
+      "$ref": "common.schema.json#/$defs/signature"
+    }
+  }
+}

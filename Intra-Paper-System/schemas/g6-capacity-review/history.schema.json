@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 history v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "events"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-history/v1"
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "$ref": "event.schema.json"
+      },
+      "minItems": 1
+    }
+  }
+}

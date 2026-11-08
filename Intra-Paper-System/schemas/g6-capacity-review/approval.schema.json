@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 approval v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "role",
+    "identity",
+    "protocol_core_sha256",
+    "decision",
+    "evidence",
+    "signature"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g6-approval/v1"
+    },
+    "role": {
+      "enum": [
+        "owner",
+        "reviewer"
+      ]
+    },
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "protocol_core_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision": {
+      "enum": [
+        "APPROVE",
+        "REJECT"
+      ]
+    },
+    "evidence": {
+      "$ref": "common.schema.json#/$defs/source"
+    },
+    "signature": {
+      "$ref": "common.schema.json#/$defs/signature"
+    }
+  }
+}

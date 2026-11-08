@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 common v1",
+  "description": "Offline diagnostic contract. No identity authentication or scale authority. See G6-CAPACITY-REVIEW.md for semantic constraints.",
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "build",
+        "configuration",
+        "instruments",
+        "rules",
+        "calendar",
+        "costs",
+        "risk",
+        "account_route",
+        "deployment",
+        "data_sources",
+        "execution"
+      ],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "build": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "configuration": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "instruments": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rules": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "calendar": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "costs": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "risk": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "account_route": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "deployment": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "data_sources": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "execution": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16384
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_order_size",
+        "exposure",
+        "participation",
+        "order_rate",
+        "risk_budget",
+        "broker_limit",
+        "exchange_limit"
+      ],
+      "properties": {
+        "maximum_order_size": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "exposure": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "participation": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "order_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "risk_budget": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "broker_limit": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "exchange_limit": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "public_key",
+            "value"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "Ed25519"
+            },
+            "public_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16384
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "stream": {
+      "anyOf": [
+        {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source",
+              "classification",
+              "record_count"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "common.schema.json#/$defs/source"
+              },
+              "classification": {
+                "enum": [
+                  "SYNTHETIC",
+                  "REPLAY_ONLY",
+                  "CALLER_SUPPLIED",
+                  "CLAIMED_LIVE_G5",
+                  "ESTIMATED",
+                  "SIMULATED"
+                ]
+              },
+              "record_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "identity_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "build",
+        "configuration",
+        "instruments",
+        "rules",
+        "calendar",
+        "costs",
+        "risk",
+        "account_route",
+        "deployment",
+        "data_sources",
+        "execution"
+      ],
+      "properties": {
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "build": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "instruments": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "calendar": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "costs": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "risk": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "account_route": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deployment": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "data_sources": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution": {
+          "anyOf": [
+            {
+              "$ref": "common.schema.json#/$defs/source"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
