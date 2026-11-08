@@ -1,5 +1,16 @@
 # Implementation status
 
+**Offline historical ingestion (2026-11-09):** Isolated versioned request planner,
+strict SmartAPI-shaped synthetic adapter, canonical bar normalization, dated
+mapping/calendar checks, atomic bundles and full recomputation verifier delivered.
+251 focused synthetic checks pass from source, including the production classpath
+CLI process. Full committed Java 21 matrix evidence is recorded in the
+[validation report](../research/systems/2026-11-09-historical-ingestion-validation.md).
+Angel One admission remains blocked: existing permission tools authenticate no
+provider rights. G0 OPEN/G2 INCOMPLETE and permission/production flags remain false;
+20 days is only OWNER_PROPOSED_UNVERIFIED for provider requests. See the
+[guide](docs/HISTORICAL-INGESTION.md).
+
 **G3 strategy-evidence increment (2026-11-08):** [Current-state and candidate packet](../research/systems/g3-strategy-evidence-2026-11-08/README.md) is integrated as a historical evidence snapshot. MM and slower RV are NOT TESTABLE; zero market trials ran and all financial results remain null. No candidate performance rejection is claimed. G3 remains INCOMPLETE; G4 forward paper is unauthorized and G5 remains closed. The packet’s 14-suite/13-package validation was performed against its unchanged historical software base `0ae90aa`, not this consolidated main.
 
 **G1 foundation increment (2026-11-08):** [Research packet](../research/systems/G1-FOUNDATIONS-2026-11-08.md), full unapproved cards, cost/variant/source identities and offline [registry](docs/HYPOTHESIS-CARD-REGISTRY.md) added. G0 OPEN; G1 INCOMPLETE. Owner A15, learning, selection, permissions and independent reviews remain pending. Validation: [session record](../research/sessions/2026-11-08-g1-foundations.md).

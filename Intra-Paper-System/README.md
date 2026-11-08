@@ -116,3 +116,10 @@ Private data, raw-capture journals (`.rawcap`, `.rawcapture`, `.raw`), feed-life
 - [First-cut data contract](docs/DATA-CONTRACT.md)
 - [Implementation tracker](IMPLEMENTATION-TRACKER.md)
 - [G3 strategy-evidence review and operator guide](../research/systems/g3-strategy-evidence-2026-11-08/README.md) — both candidate slots INCOMPLETE; no market evaluation or next-stage authorization.
+# Offline historical ingestion
+
+The standalone [historical candle planner, ingestion gate and verifier](docs/HISTORICAL-INGESTION.md)
+use explicit local files and deterministic atomic diagnostic bundles. Synthetic
+normalization is implemented; Angel One ingestion remains fail-closed because
+provider permission has not been authenticated. G0/G2 and production eligibility
+remain unchanged. No SmartAPI connection, cloud deployment or retention job exists.

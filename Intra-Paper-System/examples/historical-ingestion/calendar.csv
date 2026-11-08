@@ -1,0 +1,2 @@
+session_date,session_status,first_bar_timestamp,last_bar_timestamp,market_rule_regime_id,regime_source_reference
+2026-01-02,OPEN,2026-01-02T03:45:00Z,2026-01-02T03:47:00Z,synthetic-regime,synthetic-only

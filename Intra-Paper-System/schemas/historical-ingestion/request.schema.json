@@ -1,0 +1,166 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "historical-request/v1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "source": {
+      "enum": [
+        "SYNTHETIC_CANDLES",
+        "ANGEL_ONE"
+      ]
+    },
+    "exchange": {
+      "const": "NFO"
+    },
+    "source_token": {
+      "type": "string",
+      "pattern": "^[0-9]{1,18}$"
+    },
+    "instrument_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "interval": {
+      "enum": [
+        "ONE_MINUTE",
+        "FIVE_MINUTE",
+        "FIFTEEN_MINUTE",
+        "THIRTY_MINUTE",
+        "ONE_HOUR",
+        "ONE_DAY"
+      ]
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "to": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "timestamp_role": {
+      "enum": [
+        "BAR_START",
+        "BAR_END"
+      ]
+    },
+    "timezone": {
+      "const": "Asia/Kolkata"
+    },
+    "captured_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "assessment_date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "purpose": {
+      "enum": [
+        "SIMULATION",
+        "BACKTEST"
+      ]
+    },
+    "storage": {
+      "const": "LOCAL_ONLY"
+    },
+    "retention_days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3650
+    },
+    "retention_status": {
+      "enum": [
+        "SYNTHETIC_TEST_ONLY",
+        "OWNER_PROPOSED_UNVERIFIED"
+      ]
+    },
+    "master_snapshot_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "master_retrieved_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "master_effective_from": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "calendar_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "calendar_basis": {
+      "enum": [
+        "SYNTHETIC",
+        "CALLER_SUPPLIED_UNVERIFIED"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "source",
+    "exchange",
+    "source_token",
+    "instrument_id",
+    "interval",
+    "from",
+    "to",
+    "timestamp_role",
+    "timezone",
+    "captured_at",
+    "assessment_date",
+    "purpose",
+    "storage",
+    "retention_days",
+    "retention_status",
+    "master_snapshot_id",
+    "master_retrieved_at",
+    "master_effective_from",
+    "calendar_id",
+    "calendar_basis"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "SYNTHETIC_CANDLES"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retention_status": {
+            "const": "SYNTHETIC_TEST_ONLY"
+          },
+          "calendar_basis": {
+            "const": "SYNTHETIC"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "retention_status": {
+            "const": "OWNER_PROPOSED_UNVERIFIED"
+          },
+          "calendar_basis": {
+            "const": "CALLER_SUPPLIED_UNVERIFIED"
+          }
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Structural schema. Runtime additionally rejects duplicate keys, malformed UTF-8/BOM, secret-like content and applies the semantic constraints in HISTORICAL-INGESTION.md. No network schema retrieval."
+}

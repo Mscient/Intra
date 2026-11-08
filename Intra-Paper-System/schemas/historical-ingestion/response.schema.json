@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "const": true
+    },
+    "message": {
+      "const": "SUCCESS"
+    },
+    "errorcode": {
+      "const": ""
+    },
+    "data": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "array",
+        "minItems": 6,
+        "maxItems": 6,
+        "prefixItems": [
+          {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        ],
+        "items": false
+      }
+    }
+  },
+  "required": [
+    "status",
+    "message",
+    "errorcode",
+    "data"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Structural schema. Runtime additionally rejects duplicate keys, malformed UTF-8/BOM, secret-like content and applies the semantic constraints in HISTORICAL-INGESTION.md. No network schema retrieval."
+}

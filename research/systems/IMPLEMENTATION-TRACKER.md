@@ -67,3 +67,12 @@
 5. Update this tracker when implementation evidence changes; do not mark gates closed based only on compilation or synthetic examples.
 
 Reviewed local-only integration against fetched GitHub main `fe552d2` on 2026-11-06: separate durability commit `2b762e5` and missing settlement/evaluation commit `b25426f`. JDK 21 checks passed: 447 durability, 162 evaluator, 79 audit, 274 settlement fixtures, 84 risk replay and 88 settlement sidecar, plus replay/accounting/UTF-8 regressions. The clean implementation JAR and packaged example were verified; no push or gate closure. See [the integration review](../sessions/a3cc55bf-4c93-4dfb-bc58-a2fd14035dcf.md).
+# Offline historical ingestion increment — 2026-11-09
+
+The [standalone ingestion subsystem](../../Intra-Paper-System/docs/HISTORICAL-INGESTION.md)
+plans without acquisition, validates fictional local candles against dated references,
+and publishes/reproduces atomic hash-bound diagnostics. Existing permission checkers
+remain declaration-only; ANGEL_ONE admission fails before raw input is opened.
+No G0/G2 closure, production promotion, cloud choice, live route, or automatic
+retention deletion is introduced. Validation and integration-base identities are in
+the [implementation validation record](2026-11-09-historical-ingestion-validation.md).

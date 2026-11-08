@@ -1,0 +1,2 @@
+mapping_id,exchange,token,instrument_id,trading_symbol,instrument_type,expiry,strike,option_right,effective_from_utc,effective_until_utc,source,source_reference,source_file_sha256
+synthetic-map-1,NFO,1001,SYNTH_FUT_20260129,SYNTHJANFUT,FUTURE,2026-01-29,,,2026-01-01T00:00:00Z,2026-01-30T00:00:00Z,SYNTHETIC_CANDLES,synthetic-only,1111111111111111111111111111111111111111111111111111111111111111

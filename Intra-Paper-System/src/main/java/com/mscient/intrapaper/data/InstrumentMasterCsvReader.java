@@ -17,7 +17,14 @@ public final class InstrumentMasterCsvReader {
     private InstrumentMasterCsvReader() { }
 
     public static InstrumentMasterSnapshot read(RunConfig config) throws IOException {
-        CsvTable table = CsvTable.read(config.instrumentMasterPath());
+        return read(config.instrumentMasterPath(), config.snapshotId(), config.snapshotSourceName(),
+                config.snapshotRetrievedAt(), config.snapshotEffectiveFrom());
+    }
+
+    /** Explicit local snapshot metadata for offline consumers independent of replay configuration. */
+    public static InstrumentMasterSnapshot read(java.nio.file.Path path, String snapshotId, String source,
+            java.time.Instant retrievedAt, LocalDate effectiveFrom) throws IOException {
+        CsvTable table = CsvTable.read(path);
         table.requireHeaders("instrument_id", "exchange", "segment", "source_token", "trading_symbol",
                 "contract_kind", "underlying", "expiry", "strike", "option_right", "lot_size", "tick_size",
                 "effective_from", "effective_through");
@@ -47,8 +54,7 @@ public final class InstrumentMasterCsvReader {
         }
         if (instruments.isEmpty()) throw new IllegalArgumentException("Instrument master CSV contains no records");
         String masterHash = table.sha256();
-        return new InstrumentMasterSnapshot(1, config.snapshotId(), config.snapshotSourceName(),
-                config.snapshotRetrievedAt(), config.snapshotEffectiveFrom(), masterHash, instruments);
+        return new InstrumentMasterSnapshot(1, snapshotId, source, retrievedAt, effectiveFrom, masterHash, instruments);
     }
 
     private static String required(java.util.Map<String, String> row, String name) {

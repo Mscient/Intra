@@ -1,0 +1,23 @@
+{
+  "schema_version": "historical-policy/v1",
+  "policy_id": "offline-conservative-example-v1",
+  "effective_date": "2026-01-01",
+  "review_by": "2026-12-31",
+  "source_url": "https://smartapi.angelone.in/docs",
+  "evidence_status": "OWNER_CONSERVATIVE_UNVERIFIED",
+  "boundary": "[start,end)",
+  "min_delay_ms": 2000,
+  "max_concurrency": 1,
+  "limits": [
+    {
+      "exchange": "NFO",
+      "interval": "ONE_MINUTE",
+      "max_window_seconds": 120
+    },
+    {
+      "exchange": "NFO",
+      "interval": "FIVE_MINUTE",
+      "max_window_seconds": 3600
+    }
+  ]
+}

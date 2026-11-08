@@ -51,7 +51,8 @@ $suites = @(
     'instrument-sequence',
     'synchronized-bar-frames',
     'operational-kill-controller',
-    'g2-contracts'
+    'g2-contracts',
+    'historical-ingestion'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -71,6 +72,7 @@ $results['hypothesis-card-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $results['g2-contracts-packaged'] = 'NOT_RUN'
 $results['g2-reproducibility'] = 'NOT_RUN'
+$results['historical-ingestion-packaged'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
 $status = 'FAIL'
@@ -146,6 +148,7 @@ try {
         if ($suite -eq 'g0-charter') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g0-source')) }
         if ($suite -eq 'hypothesis-card') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-source')) }
         if ($suite -eq 'g2-contracts') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'g2-contracts')) }
+        if ($suite -eq 'historical-ingestion') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'historical-ingestion')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -158,6 +161,9 @@ try {
     Invoke-LoggedScript 'production-build' (Join-Path $projectRoot 'build.ps1')
     if ($results['production-build'] -ne 'PASS') { throw 'Production JAR build failed.' }
     $jarPath = Join-Path $env:INTRA_PAPER_BUILD_DIR 'intra-paper-system.jar'
+    Invoke-LoggedScript 'historical-ingestion-packaged' (Join-Path $projectRoot 'test-historical-ingestion.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'historical-ingestion-packaged'))
+    if ($results['historical-ingestion-packaged'] -ne 'PASS') { throw 'Packaged historical ingestion checks failed.' }
     Invoke-LoggedScript 'g0-packaged' (Join-Path $projectRoot 'test-g0-charter.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'g0-packaged'))
     if ($results['g0-packaged'] -ne 'PASS') { throw 'Packaged G0 checks failed.' }

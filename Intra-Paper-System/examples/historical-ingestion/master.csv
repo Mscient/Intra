@@ -1,0 +1,2 @@
+instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through
+SYNTH_FUT_20260129,NSE,NFO,1001,SYNTHJANFUT,FUTURE,SYNTH,2026-01-29,,,1,0.05,2026-01-01,2026-01-29

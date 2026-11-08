@@ -1,0 +1,88 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "historical-policy/v1"
+    },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "effective_date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "review_by": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "source_url": {
+      "const": "https://smartapi.angelone.in/docs"
+    },
+    "evidence_status": {
+      "const": "OWNER_CONSERVATIVE_UNVERIFIED"
+    },
+    "boundary": {
+      "const": "[start,end)"
+    },
+    "min_delay_ms": {
+      "type": "integer",
+      "minimum": 1000,
+      "maximum": 3600000
+    },
+    "max_concurrency": {
+      "const": 1
+    },
+    "limits": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "properties": {
+          "exchange": {
+            "const": "NFO"
+          },
+          "interval": {
+            "enum": [
+              "ONE_MINUTE",
+              "FIVE_MINUTE",
+              "FIFTEEN_MINUTE",
+              "THIRTY_MINUTE",
+              "ONE_HOUR",
+              "ONE_DAY"
+            ]
+          },
+          "max_window_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 31622400
+          }
+        },
+        "required": [
+          "exchange",
+          "interval",
+          "max_window_seconds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id",
+    "effective_date",
+    "review_by",
+    "source_url",
+    "evidence_status",
+    "boundary",
+    "min_delay_ms",
+    "max_concurrency",
+    "limits"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Structural schema. Runtime additionally rejects duplicate keys, malformed UTF-8/BOM, secret-like content and applies the semantic constraints in HISTORICAL-INGESTION.md. No network schema retrieval."
+}

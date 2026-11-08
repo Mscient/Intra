@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "software",
+    "parser_version",
+    "permission_approved",
+    "production_eligible",
+    "g0_closed",
+    "g2_closed",
+    "input_sha256",
+    "determinism",
+    "raw_preservation",
+    "status",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "historical-ingestion-manifest/v1"
+    },
+    "operation": {
+      "enum": [
+        "plan",
+        "ingest"
+      ]
+    },
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "build_commit",
+        "class_tree_sha256",
+        "java_release"
+      ],
+      "properties": {
+        "version": {
+          "const": "historical-ingestion/1.0.0"
+        },
+        "build_commit": {
+          "type": "string"
+        },
+        "class_tree_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "java_release": {
+          "const": 21
+        }
+      }
+    },
+    "parser_version": {
+      "const": "smartapi-candles/1"
+    },
+    "permission_approved": {
+      "const": false
+    },
+    "production_eligible": {
+      "const": false
+    },
+    "g0_closed": {
+      "const": false
+    },
+    "g2_closed": {
+      "const": false
+    },
+    "input_sha256": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "determinism": {
+      "const": "CALLER_FROZEN_CAPTURE_AND_ASSESSMENT_TIME"
+    },
+    "raw_preservation": {
+      "const": "EXACT_BYTES_ONLY_AFTER_PERMISSION_AND_STRICT_PARSING"
+    },
+    "status": {
+      "enum": [
+        "PASS_PLANNED",
+        "PASS_SYNTHETIC",
+        "REJECTED",
+        "INCOMPLETE",
+        "PERMISSION_DENIED"
+      ]
+    },
+    "files": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9._-]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "request": {
+      "$ref": "request.schema.json"
+    },
+    "permission_decision_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "raw_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "normalized_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
