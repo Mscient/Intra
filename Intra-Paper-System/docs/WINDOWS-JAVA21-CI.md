@@ -32,6 +32,12 @@ only downloaded tooling; the production build has no dependency download step.
 
 ## Suites actually executed
 
+The G1 increment adds `test-hypothesis-card.ps1` as the fourteenth selected source
+suite, plus a production-JAR repeat. It checks strict complete cards, exact hashes,
+version preservation, false approval/permission/gate claims and synthetic/proposed
+trial separation. See [the registry contract](HYPOTHESIS-CARD-REGISTRY.md).
+These are software checks; G0/G1 remain incomplete.
+
 [The CI runner](../../.github/scripts/test-offline-ci.ps1) invokes these existing
 PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 -NonInteractive -File` process:

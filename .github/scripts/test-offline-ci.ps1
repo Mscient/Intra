@@ -44,7 +44,8 @@ $suites = @(
     'dataset-intended-use-preflight',
     'data-permission-coverage',
     'incident-drill',
-    'feed-completeness-audit'
+    'feed-completeness-audit',
+    'hypothesis-card'
 )
 $results = [ordered]@{}
 foreach ($suite in $suites) { $results[$suite] = 'NOT_RUN' }
@@ -59,6 +60,7 @@ $results['data-permission-coverage-packaged'] = 'NOT_RUN'
 $results['incident-drill-packaged'] = 'NOT_RUN'
 $results['feed-audit-packaged'] = 'NOT_RUN'
 $results['feed-audit-drill'] = 'NOT_RUN'
+$results['hypothesis-card-packaged'] = 'NOT_RUN'
 $results['manifest-check'] = 'NOT_RUN'
 $sourceCommit = 'unknown'
 $jdkVersion = 'unknown'
@@ -132,6 +134,7 @@ try {
         if ($suite -eq 'data-permission-coverage') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'data-permission-coverage')) }
         if ($suite -eq 'incident-drill') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'incident-drill')) }
         if ($suite -eq 'feed-completeness-audit') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'feed-audit-source')) }
+        if ($suite -eq 'hypothesis-card') { $runnerArguments = @('-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-source')) }
         Invoke-LoggedScript $suite $scriptPath $runnerArguments
     }
     $failedSuites = @($suites | Where-Object { $results[$_] -ne 'PASS' })
@@ -177,6 +180,9 @@ try {
     Invoke-LoggedScript 'feed-audit-drill' (Join-Path $projectRoot 'synthetic-feed-audit-drill.ps1') @(
         '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'feed-audit-drill'))
     if ($results['feed-audit-drill'] -ne 'PASS') { throw 'Synthetic feed audit drill failed.' }
+    Invoke-LoggedScript 'hypothesis-card-packaged' (Join-Path $projectRoot 'test-hypothesis-card.ps1') @(
+        '-JarPath', $jarPath, '-OutputRoot', (Join-Path $OutputRoot 'hypothesis-card-packaged'))
+    if ($results['hypothesis-card-packaged'] -ne 'PASS') { throw 'Packaged hypothesis card checks failed.' }
     $manifestLog = Join-Path $logRoot 'manifest-check.log'
     $results['manifest-check'] = 'FAIL'
     "EXPECTED_COMMIT=$ExpectedCommit" | Set-Content -LiteralPath $manifestLog -Encoding utf8
