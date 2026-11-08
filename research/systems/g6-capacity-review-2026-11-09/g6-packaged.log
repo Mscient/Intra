@@ -1,0 +1,90 @@
+RUN=g6-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g6-worktree\Intra-Paper-System\test-g6-capacity-review.ps1 SOURCE_COMMIT=1facc354143aee97cec68ab074ed9930fa114f61
+PASS calendar eligibility arithmetic; no real evidence authenticated by this test
+PASS missing session
+PASS missing calendar period
+PASS duplicate calendar day
+PASS out-of-order calendar
+PASS excluded session
+PASS duplicate evidence session
+PASS out-of-order evidence
+PASS synthetic falsely claimed live
+PASS replay only never eligible
+PASS missing broker
+PASS missing original broker bytes
+PASS incomplete broker ledger
+PASS broker cash mismatch
+PASS broker settlement mismatch
+PASS broker missing stream
+PASS missing broker ACK
+PASS duplicate broker ACK
+PASS broker ACK follows fill
+PASS rejected order has fills
+PASS broker cancellation mismatch
+PASS broker cash currency mismatch
+PASS unsupported intraday cash flow
+PASS cash flow breaks continuity
+PASS duplicate margin sample
+PASS margin timestamp mismatch
+PASS valid correction retains originals
+PASS correction disagrees with final ledger
+PASS portfolio risk artifact breach
+PASS portfolio risk artifact incomplete
+PASS portfolio risk artifact tamper
+PASS open exception
+PASS risk halt contradiction
+PASS missing acknowledgement
+PASS closing reconciliation mismatch
+PASS manifest byte tamper
+PASS artifact byte tamper
+PASS protocol byte tamper
+PASS threshold change after registration
+PASS no thresholds
+PASS threshold violation
+PASS threshold wrong unit
+PASS unknown metric threshold
+PASS changed strategy
+PASS changed build
+PASS changed configuration
+PASS changed instruments
+PASS changed rules
+PASS changed costs
+PASS changed risk
+PASS changed account_route
+PASS changed deployment
+PASS changed data_sources
+PASS changed execution
+PASS calendar identity mismatch
+PASS history tamper
+PASS unknown manifest field
+PASS path traversal
+PASS absolute path
+PASS bad event signature
+PASS unapproved thresholds
+PASS signed approvals still unauthenticated
+PASS tampered protocol approval signature
+PASS cross-session cash mismatch
+PASS revoked review
+PASS missing source cannot hide later tampering
+PASS identity snapshot mismatch
+PASS registered configuration bytes changed
+PASS daily misses scheduled window
+PASS unknown capacity input
+PASS false observed tier
+PASS false tested size
+PASS correction preserves old sources
+PASS superseded bytes tampered
+G6 offline review v1
+review DOSSIER HISTORY OUTPUT_DIRECTORY
+verify DOSSIER OUTPUT_DIRECTORY [EXTENDED_HISTORY]
+explain DOSSIER HISTORY
+append HISTORY EVENT NEW_GENERATION_DIRECTORY
+[start,end_exclusive) must span six calendar months; every calendar day and scheduled session is explicit.
+FAIL: contradictions, tampering, protocol/reconciliation errors. INCOMPLETE: missing or unauthenticated evidence.
+ELIGIBLE_FOR_HUMAN_DECISION is the ceiling; v1 cannot reach it because G5/broker/identity authentication is not provisioned.
+Ed25519 validates signed bytes only; supplied keys, identities, qualifications and timestamps remain unauthenticated.
+g6_closed=false; scale_authorized=false. No performance, capacity, compliance or readiness claim.
+{"decisions":[],"g6_closed":false,"history_head":"702a7419c2eb8150473fe690a6f12bb8e91bca870e0321940e47509daf87c9f5","identity_independently_authenticated":false,"integrity_verified":true,"report_reproduced":true,"report_sha256":"e05f2d42c409cec421e802dc8c3ce3b46ecb3534095940e4c97994af132de71e","scale_authorized":false,"status":"INCOMPLETE"}
+PASS G6 checks=217 cases=73; SYNTHETIC ONLY; g6_closed=false; scale_authorized=false
+PASS offline G6 JSON schemas: 59 documents; unknown authority field rejected. No external references fetched.
+SYNTHETIC G6 SOFTWARE checks retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g6-ci-1facc35\g6-packaged\621bc2f55697467f85722f56c024ebbf
+RESULT=PASS EXIT_CODE=0

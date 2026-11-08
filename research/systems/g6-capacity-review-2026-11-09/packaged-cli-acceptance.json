@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "source_commit": "1facc354143aee97cec68ab074ed9930fa114f61",
+  "jar_sha256": "804643f5bfd02b03f99b5ce089ee433cc720cd65c6087613e7228e27295ffb32",
+  "build_commit": "1facc354143aee97cec68ab074ed9930fa114f61",
+  "locale_timezone_bytes_identical": true,
+  "cli_review_exit": 2,
+  "cli_verify_exit": 2,
+  "cli_explain_exit": 2,
+  "g6_status": "INCOMPLETE",
+  "g6_closed": false,
+  "scale_authorized": false,
+  "hosted_ci": "NOT_RUN"
+}

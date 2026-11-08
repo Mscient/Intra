@@ -1,0 +1,43 @@
+param([Parameter(Mandatory=$true)][string]$JarPath,[Parameter(Mandatory=$true)][string]$ExpectedCommit,[Parameter(Mandatory=$true)][string]$OutputRoot)
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $false
+$repo = Join-Path $PSScriptRoot 'g6-worktree'
+$project = Join-Path $repo 'Intra-Paper-System'
+$dossier = Join-Path $project 'examples/g6-capacity-review/dossier'
+$history = Join-Path $dossier 'history.json'
+$java = Join-Path $env:JAVA_HOME 'bin/java.exe'
+$cli = 'com.mscient.intrapaper.review.g6.G6Cli'
+if (Test-Path -LiteralPath $OutputRoot) { throw 'Use a new acceptance output directory.' }
+New-Item -ItemType Directory -Path $OutputRoot | Out-Null
+$archive = [IO.Compression.ZipFile]::OpenRead($JarPath)
+try {
+    $reader = [IO.StreamReader]::new($archive.GetEntry('META-INF/MANIFEST.MF').Open())
+    try { $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+} finally { $archive.Dispose() }
+if ($manifest -notmatch "(?m)^Build-Commit: $ExpectedCommit\r?$" -or $manifest.Contains('unknown-dirty')) { throw 'JAR Build-Commit mismatch.' }
+$manifest | Set-Content -LiteralPath (Join-Path $OutputRoot 'manifest.txt')
+$outputs = @()
+foreach ($variant in @(@('UTC','en','US'),@('Pacific/Apia','tr','TR'))) {
+    $output = Join-Path $OutputRoot ('review-' + $variant[1])
+    & $java "-Duser.timezone=$($variant[0])" "-Duser.language=$($variant[1])" "-Duser.country=$($variant[2])" -cp $JarPath $cli review $dossier $history $output > (Join-Path $OutputRoot ('review-' + $variant[1] + '.log'))
+    if ($LASTEXITCODE -ne 2) { throw 'Synthetic CLI review must exit INCOMPLETE.' }
+    $report = Get-Content -LiteralPath (Join-Path $output 'report.json') -Raw | ConvertFrom-Json
+    if ($report.status -ne 'INCOMPLETE' -or $report.g6_closed -ne $false -or $report.scale_authorized -ne $false -or $report.build -cne $ExpectedCommit) { throw 'Unexpected report authority or identity.' }
+    $outputs += $output
+}
+foreach ($file in @('report.json','history.json','artifact.json','input-history.json')) {
+    if ((Get-FileHash (Join-Path $outputs[0] $file)).Hash -cne (Get-FileHash (Join-Path $outputs[1] $file)).Hash) { throw "Cross-process bytes differ: $file" }
+}
+& $java '-Duser.timezone=Pacific/Apia' '-Duser.language=tr' -cp $JarPath $cli verify $dossier $outputs[0] > (Join-Path $OutputRoot 'verify.json')
+if ($LASTEXITCODE -ne 2) { throw 'Synthetic CLI verify must exit INCOMPLETE.' }
+$verification = Get-Content -LiteralPath (Join-Path $OutputRoot 'verify.json') -Raw | ConvertFrom-Json
+if (-not $verification.integrity_verified -or -not $verification.report_reproduced -or $verification.identity_independently_authenticated) { throw 'Verification boundary mismatch.' }
+& $java -cp $JarPath $cli explain $dossier $history > (Join-Path $OutputRoot 'explain.json')
+if ($LASTEXITCODE -ne 2) { throw 'Synthetic explain must exit INCOMPLETE.' }
+if ((Get-Content (Join-Path $OutputRoot 'explain.json') -Raw).Trim() -cne (Get-Content (Join-Path $outputs[0] 'report.json') -Raw).Trim()) { throw 'Explain differs from review.' }
+& (Join-Path $PSHOME 'pwsh.exe') -NoProfile -File (Join-Path $project 'g6-capacity-review.ps1') -Command verify -Dossier $dossier -Output $outputs[0] -JarPath $JarPath > (Join-Path $OutputRoot 'runner-verify.json')
+if ($LASTEXITCODE -ne 2) { throw 'PowerShell runner must preserve INCOMPLETE exit.' }
+& (Join-Path $project 'test-g6-schemas.ps1') -Dossier $dossier -ReportDirectories $outputs
+$result = [ordered]@{ status='PASS'; source_commit=$ExpectedCommit; jar_sha256=(Get-FileHash $JarPath).Hash.ToLowerInvariant(); build_commit=$ExpectedCommit; locale_timezone_bytes_identical=$true; cli_review_exit=2; cli_verify_exit=2; cli_explain_exit=2; g6_status='INCOMPLETE'; g6_closed=$false; scale_authorized=$false; hosted_ci='NOT_RUN' }
+$result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutputRoot 'acceptance.json') -Encoding utf8
+$result | ConvertTo-Json

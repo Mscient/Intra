@@ -1,0 +1,3 @@
+# Preserve original Windows receipt bytes and recognize CRLF as line endings.
+* -text whitespace=cr-at-eol
+README.md text eol=lf
