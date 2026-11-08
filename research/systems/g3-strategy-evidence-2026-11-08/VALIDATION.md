@@ -116,8 +116,21 @@ was not part of this main revision and was not executed by this session.
 
 ## Git and hosted scope
 
-The G3 packet, session and trackers are committed after packet verification and
-`git diff --check`. Commit/push observations are appended after publication.
+The G3 packet, session and trackers were committed as
+`cbd8be7b0e302cea02803f252cfb6442efb02e34` after packet verification and both
+working/staged `git diff --check` passed. The initial staged check caught CRLF in
+the retained log copies; only those copies were normalized, with original hashes
+recorded, then both checks passed. The source tree remained identical to the
+tested Java tree. `git push -u origin codex/g3-strategy-evidence-20261108` succeeded
+as a new clean branch, with no force push or main change. This follow-up records
+the observed publication and indexes that packet commit; final Git identity is
+available from branch HEAD rather than a self-referential document hash.
+
+Packet manifest SHA-256:
+`c4b44a124ee7dff488327cc302a73457a3c29446fd61d3499f014b5d547ce94b`.
+It identifies 20 documentary files and 54 source-identity rows, including 13
+snapshots. It is a local anchor, **UNVERIFIED** as independent custody.
+
 Base hosted Actions run 42447304687 completed successfully at the exact base SHA.
 No G3-branch hosted success is claimed: the workflow triggers main pushes, PRs or
 manual dispatch; a codex branch push alone does not trigger it. No merge or live
