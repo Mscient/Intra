@@ -1,0 +1,12 @@
+RUN=portfolio-risk-audit SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-worktree\Intra-Paper-System\test-portfolio-risk-audit.ps1 SOURCE_COMMIT=0ae90aadc58fd86a4835917ffbbf992a7870bcf2
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: PASS | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\temp\portfolio-risk-audit-test-11467789958528741664\e2e\audits\487d39d4b9c03a88998941ce4af2a348021bbd61be30ad77b20190017567b05b
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: INCOMPLETE | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\temp\portfolio-risk-audit-test-11467789958528741664\e2e\audits\77b444813eb80f72d8e33ccaec8719c8c65deeb652ad4548504613b9573f253d
+Artifact integrity verified; semantic verification requires original replay/risk inputs.
+Offline audit: BREACH | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\temp\portfolio-risk-audit-test-11467789958528741664\e2e\audits\2333934f427ae740c4416bb35ef26ac88d719060dca5bc2cc14f54a37b4928fa
+Portfolio risk audit rejected: Exact header required in sources.csv: source_id,effective_from,effective_to,observed_date,reference,reference_sha256
+Offline audit: INCOMPLETE | caller-supplied margin proxies | C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\temp\portfolio-risk-audit-test-11467789958528741664\settlement\audits\ac8eee0bcf2515452b4384174e7e99c87cefe3522b587407d5a437929dcf754a
+PortfolioRiskAudit: 79 focused checks passed
+PortfolioRiskSettlement: 274 focused checks passed
+RESULT=PASS EXIT_CODE=0

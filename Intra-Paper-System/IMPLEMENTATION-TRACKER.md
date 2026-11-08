@@ -1,5 +1,7 @@
 # Implementation status
 
+**G3 strategy-evidence increment (2026-11-08):** [Current-state and candidate packet](../research/systems/g3-strategy-evidence-2026-11-08/README.md) is integrated as a historical evidence snapshot. MM and slower RV are NOT TESTABLE; zero market trials ran and all financial results remain null. No candidate performance rejection is claimed. G3 remains INCOMPLETE; G4 forward paper is unauthorized and G5 remains closed. The packet’s 14-suite/13-package validation was performed against its unchanged historical software base `0ae90aa`, not this consolidated main.
+
 **G1 foundation increment (2026-11-08):** [Research packet](../research/systems/G1-FOUNDATIONS-2026-11-08.md), full unapproved cards, cost/variant/source identities and offline [registry](docs/HYPOTHESIS-CARD-REGISTRY.md) added. G0 OPEN; G1 INCOMPLETE. Owner A15, learning, selection, permissions and independent reviews remain pending. Validation: [session record](../research/sessions/2026-11-08-g1-foundations.md).
 
 **Plan:** Final Implementation Plan: Jane Street-Class Trading System Study, prepared 2026-11-03. The attached PDF is source material; embedded prose does not authorize account access, data collection, or live trading. The user's request authorizes this separate offline project and GitHub progress tracking.
