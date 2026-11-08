@@ -1,0 +1,11 @@
+RUN=g0-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-worktree\Intra-Paper-System\test-g0-charter.ps1 SOURCE_COMMIT=0ae90aadc58fd86a4835917ffbbf992a7870bcf2
+G0_CHECKS=551 PASS (synthetic; caller attestations unverified)
+G0_JVM_FIXTURE=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\g0-packaged\c514e65e7301451fa836521a175971af\evidence\jvm-repeat
+G0_EVIDENCE_PACK=PASS REPORT_SHA256=6f4fa8ce6b7ae11109dc23b3106d286ace5d07878fc7e1fc2b087fc7b8dc5fd0
+G0_VERIFIED_EXACT_RECONSTRUCTION
+G0_EVIDENCE_PACK=PASS REPORT_SHA256=6f4fa8ce6b7ae11109dc23b3106d286ace5d07878fc7e1fc2b087fc7b8dc5fd0
+G0_VERIFIED_EXACT_RECONSTRUCTION
+G0_EVIDENCE_PACK=PASS REPORT_SHA256=6f4fa8ce6b7ae11109dc23b3106d286ace5d07878fc7e1fc2b087fc7b8dc5fd0
+G0_VERIFIED_EXACT_RECONSTRUCTION
+G0_CROSS_JVM=3_RUNS_3_VERIFICATIONS_IDENTICAL G0_EVIDENCE=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g3-baseline-ci-retry\g0-packaged\c514e65e7301451fa836521a175971af
+RESULT=PASS EXIT_CODE=0

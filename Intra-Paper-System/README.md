@@ -111,3 +111,4 @@ Private data, raw-capture journals (`.rawcap`, `.rawcapture`, `.raw`), feed-life
 - [Strategy research-card template](docs/STRATEGY-CARD-TEMPLATE.md)
 - [First-cut data contract](docs/DATA-CONTRACT.md)
 - [Implementation tracker](IMPLEMENTATION-TRACKER.md)
+- [G3 strategy-evidence review and operator guide](../research/systems/g3-strategy-evidence-2026-11-08/README.md) — both candidate slots INCOMPLETE; no market evaluation or next-stage authorization.
