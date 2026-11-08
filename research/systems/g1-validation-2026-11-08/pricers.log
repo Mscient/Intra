@@ -1,0 +1,4 @@
+Built C:\Users\prash\AppData\Local\Temp\codex-g1-pricers-20261108\local\Intra-Paper-System\c2-validation-build\intra-paper-system.jar
+BSM R11: cases=12; max_abs_error price=4.594e-09 delta=4.410e-09 gamma=2.626e-09 vega_raw=4.597e-07 theta_year=4.966e-07 rho_raw=4.233e-07
+B76 R11: cases=10; max_abs_error price=4.594e-09 delta=3.016e-09 gamma=2.646e-09 vega_raw=3.071e-07 theta_year=4.748e-07 rho_raw=4.733e-07
+JAVA PRICER VALIDATION PASSED: R11=22; boundary=16; no_arbitrage=5805; QuantLib cross-check is separate; validation harness is outside the runtime JAR

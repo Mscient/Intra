@@ -1,0 +1,3 @@
+RUN=production-build SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\build.ps1 SOURCE_COMMIT=9accd8296c12eb901cab3f64917bc798c66729c8
+Built C:\Users\prash\AppData\Local\Temp\codex-g1-ci-fixed-20261108\package\intra-paper-system.jar
+RESULT=PASS EXIT_CODE=0

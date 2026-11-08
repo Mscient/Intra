@@ -1,0 +1,4 @@
+RUN=daily-ops-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\test-daily-ops-evidence.ps1 SOURCE_COMMIT=9accd8296c12eb901cab3f64917bc798c66729c8
+Daily operations evidence checks passed: 455 assertions in 5 synthetic groups.
+Synthetic checks and byte-identical reports retained at C:\Users\prash\AppData\Local\Temp\codex-g1-ci-fixed-20261108\daily-ops-packaged\b514226bc2c449a39f1bb9ed94929164
+RESULT=PASS EXIT_CODE=0

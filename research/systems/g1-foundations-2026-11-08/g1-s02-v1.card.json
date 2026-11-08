@@ -1,0 +1,139 @@
+{
+  "schema": "INTRA_HYPOTHESIS_CARD_V1",
+  "card_id": "G1-S02",
+  "card_version": 1,
+  "previous_card_sha256": null,
+  "changelog": "Initial proposed specification based on existing Wave A v1; no new market experiment or owner selection. Companion source/cost/variant bytes are bound.",
+  "recorded_at_utc": "2026-11-08T02:50:54Z",
+  "frozen_at_utc": null,
+  "classification": "PLANNING_ONLY",
+  "status": "DEFERRED",
+  "strategy_id": "S02",
+  "strategy_version": "wave-a-v1",
+  "variant_family_id": "WAVEA3_V1",
+  "benchmark_id": "FLAT-SESSION-SIGNAL-V1",
+  "primary_metric_id": "MEAN-SESSION-ALIGNED-LOG-BPS",
+  "universe_candidate_ids": [
+    "C_INDEX",
+    "C_FUT",
+    "C_OPT_CALL",
+    "C_OPT_PUT",
+    "C_SYNTHETIC"
+  ],
+  "variant_ids": [
+    "S02-M30-C15-H15"
+  ],
+  "cost_model": {
+    "id": "G1-COST",
+    "version": "v1",
+    "file": "cost-model-v1.csv",
+    "sha256": "679dbfc57d5412f559ed540abe4bcdb817c6c100a6f15a7c0bd017ccc28d053e"
+  },
+  "variant_ledger": {
+    "id": "G1-VARIANTS",
+    "version": "v1",
+    "file": "variant-ledger-v1.md",
+    "sha256": "51cfff46cd4c315afd222725b4085a1d9cf3741e33ea1bd7a7c090c9346483c0"
+  },
+  "source_register": {
+    "id": "G1-SOURCES",
+    "version": "v1",
+    "file": "source-register-v1.md",
+    "sha256": "ed9879c5b05644475cba303aab51d679a5b9ff47260c4cc9280761b6d171544c"
+  },
+  "hypothesis": {
+    "economic_mechanism": "HYPOTHETICAL: persistent sequential directional demand may make recent index direction predict the next short horizon; no observed Nifty effect or size claim.",
+    "participant_constraint": "HYPOTHETICAL: investors implementing larger decisions in smaller sequential orders may sustain direction; auction/opening adjustment and liquidity demand are alternative explanations. Specific participant evidence UNKNOWN.",
+    "event_signal": "Every 15-minute decision point after first 30 complete session minutes: m=log(close_now/close_30_minutes_ago); a=+1 if m>0, -1 if m<0, no signal if zero/missing. Fixed 30-minute lookback and 15-minute cadence, no volatility threshold. Exclude events whose 30-minute diagnostic label crosses close.",
+    "decision_timestamp": "Signal completed-bar close, no earlier than verified data availability. Historical bar label start/end and publication delay UNRESOLVED; stop before scoring if role unverified. Never simulate entry at signal close.",
+    "holding_horizon": "15 trading minutes primary index markout; 5 and 30 minutes descriptive only. No executable holding policy selected.",
+    "expected_sign": "POSITIVE direction-aligned mean is the proposed claim; not established.",
+    "expected_size_range": "UNKNOWN: no authorized estimate or cited Nifty size range exists; do not copy plan cost/return examples.",
+    "rationale_sources": "Existing Wave A S02 fixes the baseline; mechanism is an inference, participant evidence/expected magnitude UNKNOWN."
+  },
+  "instruments": {
+    "research_universe": "NIFTY 50 index signal only, ASSUMPTION_PENDING_OWNER_CONFIRMATION. C_INDEX is retained for desk design; no market series is permitted for collection or an eligible trial.",
+    "identity_requirements": "Exact index identifier, source/product, dated calendar and source timestamp role. Later futures/options require venue/segment, expiry, strike/right, dated symbol/token mapping, lot/tick/master and settlement inputs; never map an index close to a derivative fill.",
+    "contract_selection": "No traded contract selected. Index has no expiry/roll. Any future/options translation requires a separate frozen card with point-in-time deterministic contract/strike choice before outcomes.",
+    "expiry_roll_policy": "No roll in index score. Derivative contract selection, expiry exclusions, roll executions and settlement rules UNRESOLVED; current master or continuous chart cannot substitute.",
+    "candidate_disposition": "C_INDEX RETAIN_PENDING_RIGHTS_AND_QUALITY; C_FUT/C_OPT_CALL/C_OPT_PUT DEFER; C_SYNTHETIC SOFTWARE_ONLY. Full comparison in G1-INSTRUMENT-COMPARISON-2026-11-08.md."
+  },
+  "measurement": {
+    "primary_metric_definition": "For each fully eligible regular session take mean of a*log(index_close_t+15/index_close_t) over this rule's signals, times 10000; zero for a complete no-signal session, never zero for missing data. Primary estimate equal-weight mean of session scores.",
+    "units": "Basis points of index log-price markout; not INR P&L, futures notional return or option premium return.",
+    "observation_unit": "Complete regular session; conditional per-signal estimates secondary. Intraday observations within sessions not independent.",
+    "benchmark_definition": "Flat/no-signal session-score zero. It is a statistical signal comparator with no executable investment or cost inference.",
+    "secondary_diagnostics": "Fixed 5/30-minute index markouts, conditional signal mean/median, hit rate with zero labels separate, tails, no-signal frequency, exclusions and time-of-day; descriptive, cannot rescue primary failure."
+  },
+  "data": {
+    "source_fields_frequency": "Angel historical index OHLC one-minute source is a prior project lead only; current docs inaccessible S09. No collection or history entitlement. Need raw label/offset, OHLC, index identity, source version and file hash. No invented index volume.",
+    "timestamp_roles": "Source label, verified bar interval/start/end, exchange/source publication if present, UTC local receive and monotonic time if captured. Historical receive availability UNKNOWN; do not backdate knowledge.",
+    "session_calendar": "Dated official regular/special session and holiday calendar; exclude special sessions unless separate predeclared regime. CAS/pre-open/closing reference issues UNRESOLVED; S19 not accessible.",
+    "known_gaps": "Prior report records 2026-10-30 15:14 to 15:28 jump and partial 2026-11-02 smoke exposure. No raw data acquired here, no repairs or causal inference. Full missing days, timestamp convention, revisions and history remain unknown.",
+    "minimum_usable_sample": "Complete regular sessions with 30-minute warm-up, fixed 15-minute cadence and up to 30-minute forward diagnostics; cluster multiple signals by session. Nonempty chronological partitions plus development-only precision/sample-floor review PENDING_G2_DATA.",
+    "rights_state": "UNRESOLVED",
+    "collection_storage_replay_derived_sharing": "Collection UNRESOLVED; local storage/backups/retention UNRESOLVED; replay UNRESOLVED; derived outputs UNRESOLVED; sharing UNRESOLVED. Public source access and synthetic permission fixtures grant no market rights."
+  },
+  "execution": {
+    "signal_vs_pnl": "Signal-only. No executable orders, fills or net P&L. Index candle markouts must not be multiplied by futures lot or priced as options.",
+    "order_type": "No order in this card. Later traded study: proposed bounded marketable IOC simulation only if dated API/exchange permissions support it; limit/price bound and actual route UNRESOLVED.",
+    "latency_spread": "No execution applied to signal score. Later study requires measured receive/decision/release delay, bid/ask side and separately frozen stale cutoff; all amounts UNKNOWN.",
+    "fills_queue_partial_missed": "No fill inference. Later L1 model must retain whole-lot partials, IOC remainders, missed/failed exits and intended quantity; no queue-position assertion from broker snapshots. Passive touch never fills by assumption.",
+    "impact_adverse_selection": "Later size/impact sensitivity and side-aligned post-fill mid markout at declared horizon required; amounts UNKNOWN. Do not double-charge adverse movement already in exit P&L."
+  },
+  "economics": {
+    "cost_formula": "G1-COST/v1: itemized trade/expiry fees + crossing + incremental latency/slippage/impact + financing + allocated fixed/time + capital hurdle. Details G1-COST-WALL-V1.md. No net economics calculated for an index score.",
+    "component_status": "Cost attachment holds dated public rate references only; actual amounts blank. Brokerage/clearing/GST taxable basis/spread/slippage/latency/impact/settlement applicability UNKNOWN or PENDING_SOURCE_REVIEW. No unknown is zero.",
+    "capital_margin_funding": "PENDING_OWNER_INPUT: private capital, annual hurdle/funding and approved margin/feasibility. Margin/principal are not fees or guaranteed loss limits.",
+    "fixed_time_cost": "PENDING_OWNER_INPUT: private recurring cash, time hours/opportunity rate and allocation denominator. Keep annual fixed spend even with no fills; outside Git/chat.",
+    "sensitivity_scenarios": "K0 fees-only partial reference, K1 assumed marketable full fills, K2 partial/missed intended-quantity scoring, K3 joint stressed friction plus capital/fixed/time. Magnitudes UNKNOWN, separate later execution card required."
+  },
+  "design": {
+    "all_candidates_variants": "Bound G1-VARIANTS/v1 records S01-S10 archetypes, three Wave A baselines, six primary confirmatory comparisons, six descriptive horizons, bootstrap sensitivity and four planned cost scenarios. No threshold/universe grid authorized.",
+    "prior_exposure": "UNKNOWN total experiments/views; disclosed partial 2026-11-02 smoke and 2026-10-30 data-gap inspection. Independent preregistration UNVERIFIED. Require owner exposure audit and untouched periods.",
+    "development": "PENDING_G2_DATA: proposed chronological 60% complete sessions; only development can assess precision/eligible sample before validation. Exact dates/seed/sample requirement reviewed before forward labels.",
+    "validation": "PENDING_G2_DATA: chronological next 20%, exact dates frozen before labels; test unchanged rules, no tuning.",
+    "holdout": "PENDING_G2_DATA: chronological final 20%; untouched until authorized one-shot protocol. Card facility has no access/unlock mechanism. No universe/parameter choice from holdout.",
+    "multiple_testing": "Existing Wave A proposal: all three rules reported, two confirmatory partitions => six comparisons with two-sided 99.1667% stationary-bootstrap intervals; mean block 5, 10000 resamples. 2/10 sensitivity descriptive. No DSR/PBO/HAC formula changes or inference certification.",
+    "no_retuning": "No thresholds tuned on validation/holdout. Revised rule, universe, metric, execution or decision criterion gets new version/family and new untouched period. Unknown history cannot be hidden by narrowing family."
+  },
+  "decisions": {
+    "falsification_rejection": "Existing Wave A: positive-signal pass only if positive adjusted interval excludes zero in validation and holdout; reject positive claim if adjusted holdout interval entirely below zero. Zero-inclusive/disagreeing/unstable assumptions => INCONCLUSIVE. Failure to establish minimum precision => NOT_TESTABLE/INCONCLUSIVE. No economic pass from these scores.",
+    "missing_data_behavior": "Exclude affected session/event per fixed required information; report missingness and exclusions, no forward fill. If rights, clock/session/identity/completeness unverified stop before outcomes; never omit failed fills in later execution research.",
+    "stop_conditions": "G0 open; unreviewed rights/calendar/timestamp/master/cost or holdout exposure; undeclared changes; incomplete history; private budgets/reviews missing. Stop promotion and preserve evidence. No acquisition/connectivity authorized.",
+    "required_approvals": "Owner confirms G0 scope/A1-A15, private A15 precommitment and attestation, learning comprehension, candidate choice; independent reviewer checks source/variant/exposure/data/cost/rejection/splits before freeze. All PENDING_OWNER_INPUT.",
+    "gate_status": "INCOMPLETE"
+  },
+  "reviews": {
+    "owner_selection": {
+      "status": "PENDING_OWNER_INPUT",
+      "record_id": null,
+      "evidence_sha256": null,
+      "at_utc": null
+    },
+    "independent_review": {
+      "status": "PENDING_OWNER_INPUT",
+      "record_id": null,
+      "evidence_sha256": null,
+      "at_utc": null
+    },
+    "learning_acknowledgment": {
+      "status": "PENDING_OWNER_INPUT",
+      "record_id": null,
+      "evidence_sha256": null,
+      "at_utc": null
+    },
+    "private_a15_attestation": {
+      "status": "PENDING_OWNER_INPUT",
+      "record_id": null,
+      "evidence_sha256": null,
+      "at_utc": null
+    },
+    "g0_review": {
+      "status": "PENDING_OWNER_INPUT",
+      "record_id": null,
+      "evidence_sha256": null,
+      "at_utc": null
+    }
+  }
+}

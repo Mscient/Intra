@@ -1,5 +1,7 @@
 # Intra Paper System
 
+G1 adds a strict offline [hypothesis-card schema and immutable version snapshots](docs/HYPOTHESIS-CARD-REGISTRY.md), reusing existing trial identities. [Research cards and learning/cost evidence](../research/systems/G1-FOUNDATIONS-2026-11-08.md) remain proposed/deferred; G0 OPEN, G1 INCOMPLETE, no authenticated approval or executable trial eligibility.
+
 An isolated, offline-first Java 21 futures and options research simulator. Its established bar runner handles one dated contract at a time, while a separate validated multi-instrument portfolio path provides diagnostic replay and artifact verification. Optional L1 quote execution uses caller-supplied local journals. The project is separate from the HFT 2 research notes and has no broker or network adapter.
 
 ## Built in this increment

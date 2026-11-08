@@ -1,0 +1,4 @@
+RUN=hypothesis-card-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\test-hypothesis-card.ps1 SOURCE_COMMIT=9accd8296c12eb901cab3f64917bc798c66729c8
+Hypothesis card: 168 checks PASS; SYNTHETIC SOFTWARE ONLY; market_evidence=false approval_authenticated=false g1_closed=false
+SYNTHETIC SOFTWARE evidence retained: C:\Users\prash\AppData\Local\Temp\codex-g1-ci-fixed-20261108\hypothesis-card-packaged\b305aaca462f4d14bbf91c8956429729
+RESULT=PASS EXIT_CODE=0

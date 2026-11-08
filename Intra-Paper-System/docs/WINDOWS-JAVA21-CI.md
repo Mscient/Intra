@@ -32,6 +32,18 @@ only downloaded tooling; the production build has no dependency download step.
 
 ## Suites actually executed
 
+The G1 increment adds `test-hypothesis-card.ps1` as the fifteenth selected source
+suite, plus a production-JAR repeat. It checks strict complete cards, exact hashes,
+version preservation, false approval/permission/gate claims and synthetic/proposed
+trial separation. See [the registry contract](HYPOTHESIS-CARD-REGISTRY.md).
+These are software checks; G0/G1 remain incomplete.
+
+Portfolio replay/risk/accounting/settlement/evaluation and daily-operations
+source runners now pass source lists through UTF-8 javac argument files, matching
+the main build. The G1 full-matrix run reproduced the Windows command-length
+failure with direct filename lists in the long worktree path. Arguments preserve
+the same source/test sets and Java 21 options; no scoring formula changed.
+
 [The CI runner](../../.github/scripts/test-offline-ci.ps1) invokes these existing
 PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 -NonInteractive -File` process:
@@ -52,8 +64,9 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-incident-drill.ps1` | `IncidentDrillTest` over nine strict synthetic scenarios and dependency/CLI verification |
 | `test-feed-completeness-audit.ps1` | `FeedAuditTest` over explicit schedules/policies, verified journals, anomaly/rejection cases, and deterministic artifacts |
 | `test-g0-charter.ps1` | `G0CheckerTest`, standalone package, exact review/rights/owner/schema checks, three child JVM runs and verifications |
+| `test-hypothesis-card.ps1` | `HypothesisCardTest` over complete synthetic/proposed cards, schema, immutable hashes and approval/permission boundaries |
 
-G0 is the fourteenth selected suite; it also runs against the production JAR,
+G0 is the fourteenth and G1 the fifteenth selected suite. G0 also runs against the production JAR,
 inspects package dependencies, and verifies exact reports across locales/timezones.
 Its evidence-pack status does not authorize access/spend/trading or close G0.
 
@@ -65,7 +78,7 @@ CI redirects into its isolated output root. No strategy or simulator behavior ch
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
-also runs packaged daily-operations, dataset intended-use, multi-record data-permission, incident-drill, and feed-audit checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
+also runs packaged daily-operations, dataset intended-use, multi-record data-permission, incident-drill, feed-audit, and hypothesis-card checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
 option-pricer, instrument-sequence, mapping-registry, or synchronized-bar-frame
 runners. It does not establish full repository test coverage, power-loss safety,
 statistical validity, data rights, or trading performance. The process harness
@@ -133,10 +146,11 @@ temporary directory explicitly. Pass a fresh output directory outside the
 checkout on every validation run. The existing replay/evaluation runners also use ignored
 `Intra-Paper-System/build/` output paths.
 
-Use short checkout/output paths on Windows: the existing runners pass source
-paths directly to `javac`, so deeply nested copies can exceed Windows command
-line or file path limits. GitHub's normal checkout and `RUNNER_TEMP` paths are
-short.
+The seven legacy portfolio/daily-operations source runners and the hypothesis
+runner use UTF-8 javac argument files, avoiding direct-list command-length
+failures. Deep paths can still reach filesystem/tool path limits; use ordinary
+short checkout/output paths on Windows. The G1 long-worktree rerun is recorded
+in [local validation evidence](../../research/systems/g1-validation-2026-11-08/README.md).
 
 For hosted acceptance, after authorization to push a test branch, open a pull
 request targeting `main` and retain the successful run URL and artifact names.
