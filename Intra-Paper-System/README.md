@@ -1,5 +1,7 @@
 # Intra Paper System
 
+[G5 readiness and decision records](docs/G5-READINESS.md) provide separate offline `check`, `verify`, `explain` and immutable-history commands. Exact hashes and Ed25519 key-possession checks remain diagnostic; V1 cannot establish authenticated human/source/operational evidence. G5 stays closed, and every report disables order egress. Build/run/test with the separate `*-g5-readiness.ps1` scripts.
+
 G1 adds a strict offline [hypothesis-card schema and immutable version snapshots](docs/HYPOTHESIS-CARD-REGISTRY.md), reusing existing trial identities. [Research cards and learning/cost evidence](../research/systems/G1-FOUNDATIONS-2026-11-08.md) remain proposed/deferred; G0 OPEN, G1 INCOMPLETE, no authenticated approval or executable trial eligibility.
 
 The G2 offline increment hardens journal metadata/limits, locked-handle resume and OMS recovery chronology; adds explicit offline contract/reproducibility checks and source/use readiness records. G2 remains INCOMPLETE: data rights, authentic source/cost/calendar evidence, independent review, and trusted operational recovery remain open. See [G2 readiness inventory](docs/G2-READINESS-INVENTORY.md) and [validation report](../research/systems/2026-11-08-g2-offline-validation.md).
