@@ -133,10 +133,11 @@ temporary directory explicitly. Pass a fresh output directory outside the
 checkout on every validation run. The existing replay/evaluation runners also use ignored
 `Intra-Paper-System/build/` output paths.
 
-Use short checkout/output paths on Windows: the existing runners pass source
-paths directly to `javac`, so deeply nested copies can exceed Windows command
-line or file path limits. GitHub's normal checkout and `RUNNER_TEMP` paths are
-short.
+The seven legacy portfolio/daily-operations source runners and the hypothesis
+runner use UTF-8 javac argument files, avoiding direct-list command-length
+failures. Deep paths can still reach filesystem/tool path limits; use ordinary
+short checkout/output paths on Windows. The G1 long-worktree rerun is recorded
+in [local validation evidence](../../research/systems/g1-validation-2026-11-08/README.md).
 
 For hosted acceptance, after authorization to push a test branch, open a pull
 request targeting `main` and retain the successful run URL and artifact names.

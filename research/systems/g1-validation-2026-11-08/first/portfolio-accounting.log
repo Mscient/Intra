@@ -1,0 +1,11 @@
+RUN=portfolio-accounting SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\test-portfolio-accounting.ps1 SOURCE_COMMIT=ebd1a0290a0e2eeb03f5dd4326edb7ec1d8516fa
+ResourceUnavailable: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\test-portfolio-accounting.ps1:36
+Line |
+  36 |      & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSource …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Program 'javac.exe' failed to run: An error occurred trying to start process 'C:\Program
+     | Files\Microsoft\jdk-21.0.13.21-hotspot\bin\javac.exe' with working directory
+     | 'C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree'. The filename or extension is too
+     | long.At
+     | C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g1-worktree\Intra-Paper-System\test-portfolio-accounting.ps1:36 char:5 +     & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSource … +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+RESULT=FAIL (exit 1) EXIT_CODE=1

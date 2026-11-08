@@ -1,20 +1,53 @@
 # G1 foundations research and offline registry increment
 
 Session date: 2026-11-08, Asia/Calcutta. Branch `codex/g1-foundations-20261108`.
-Fresh fetch base: `ff48741` (`origin/main`). Existing dirty main and all unrelated worktrees preserved using isolated `g1-worktree`; no G0 draft was merged or treated as approval.
+Fresh fetch base: `ff4874167e889a26990e1f4d9d2b1ffa4acbefe6` (`origin/main`).
+Existing dirty main and all unrelated worktrees preserved using isolated
+`g1-worktree`; no G0 draft was merged or treated as approval. A later fresh fetch
+confirmed main's G0 record remains Open.
 
-Read the final plan, Phase 4 continuation, research tracker, Nifty design, Wave A spec, instrument/data matrix, isolated testing plan, next research requests, G0 open items, and existing order-book/pricing/reference/permission/cost/trial/outcome/portfolio evaluation and CI contracts. Main explicitly leaves G0 open. No signed charter, owner A1–A15/private amounts, source rights, route review, learning acknowledgment, candidate selection or independent G1 freeze was found.
+Read the final plan, Phase 4 continuation, research tracker, Nifty design, Wave A
+spec, instrument/data matrix, isolated testing plan, next research requests,
+G0 open items, and existing order-book/pricing/reference/permission/cost/trial/
+outcome/portfolio evaluation and CI contracts. No signed charter, owner A1–A15/
+private amounts, source rights, route review, learning acknowledgment, candidate
+selection or independent G1 freeze was found.
 
-Added the [research packet and exact blocker list](../systems/G1-FOUNDATIONS-2026-11-08.md), targeted learning/source register, five-candidate comparison, three full proposed/deferred Wave A cards, 24-row cost register with no actual amounts, variant/exposure history and private owner/reviewer checklist. Added only the real missing card schema/version-snapshot validation facility, reusing strict JSON and the existing trial hash convention. No alpha, book, pricer, fee engine or trial ledger was duplicated. Existing DSR/PBO/HAC, holdout and legacy registration/replay behavior are unchanged.
+Added the [research packet and exact B00–B11 blockers](../systems/G1-FOUNDATIONS-2026-11-08.md),
+targeted learning/source register, five-candidate comparison, three full
+proposed/deferred Wave A cards, 24-row cost register with no actual amounts,
+variant/exposure history and private owner/reviewer checklist. Added only the
+real missing card schema/version-snapshot facility, reusing strict JSON and the
+existing trial hash convention. No alpha, book, pricer, fee engine or trial ledger
+was duplicated. DSR/PBO/HAC, holdout and legacy registration/replay behavior are
+unchanged. S01 is PROPOSED_PENDING_OWNER_SELECTION; S02/S03 DEFERRED.
 
-## Validation in progress
+The final selected local Java 21 matrix passed on clean implementation commit
+`9accd8296c12eb901cab3f64917bc798c66729c8`: all 14 source suites and all 13
+build/package/drill/standalone/manifest stages. New card tests passed 168 source
+and 168 packaged checks. The earlier full run at `ebd1a02` failed seven legacy
+runners on Windows command length and correctly skipped production build;
+`9accd82` fixes source-list transport using javac argument files. No scoring
+formula changed. Initial diagnostic test/classpath errors were corrected and
+approved outside-sandbox runs passed.
 
-JDK: Microsoft OpenJDK **21.0.13.0.2+1-LTS**, `JAVA_VERSION=21.0.13.0.2`, `IMPLEMENTOR_VERSION=Microsoft-15780113`, x86_64 Windows, installed at `C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot`.
+Microsoft OpenJDK 21.0.13.0.2+1-LTS, Microsoft-15780113, PowerShell 7.6.9,
+Windows 11 x64/NTFS. The unchanged independent pricer runner also passed
+22 R11, 16 boundary and 5,805 no-arbitrage checks on clean `ebd1a02`;
+QuantLib was not rerun. See [exact commands, counts, failures, retained logs,
+JAR identity and limitations](../systems/g1-validation-2026-11-08/README.md).
 
-Initial focused packaged run passed **163** checks. A test lambda compilation error was corrected; sandbox javac JAR-classpath access was denied and the corrected offline run was rerun with execution approval. After stronger false-permission/gate/placeholder checks, the final focused source run passed **168** checks. Default-sandbox source classpath resolution also failed; the identical source command passed outside the sandbox with requested execution approval. Final matrix/package results will be recorded before publication.
+Artifact audit: 24 cost rows/13 fields, no actual amounts; three cards have null
+freeze and 15 pending review records; exact companion hashes match; local links,
+PowerShell parsing, changed-file credential-pattern/manual review and
+`git diff --check` pass. No owner financial amounts or credentials entered
+tracked files. The evidence follow-up commit records the tested implementation
+commit above and is not claimed as a full-matrix rerun. Publication is a normal
+branch push after clean-worktree checks; no main merge or hosted CI result is
+claimed.
 
-Research artifact audit: 24 component rows, 13 fields per row, zero nonblank `actual_amount_inr` cells; all three cards validate with null freeze and pending review records. All new G1 document local links resolve. Changed-file credential-pattern scan found no matches; no actual owner values entered tracked files. `git diff --check` passed. Main-source build succeeds; preliminary dirty-worktree JAR is diagnostic only and is not the final commit-identified production artifact.
-
-Planned final commands: focused `test-hypothesis-card.ps1`; complete `.github/scripts/test-offline-ci.ps1` (14 source suites, all existing packaged/drill/standalone checks plus packaged cards); existing `validate-option-pricers.ps1`; document/hash/privacy audit; `git diff --check`; clean-commit JAR manifest check. No hosted Actions run is claimed.
-
-G0 OPEN and G1 INCOMPLETE. No market data acquisition, provider contact, broker/API route, credentials, actual owner financial values or market experiment occurred. Synthetic software tests and theory notes establish no profitability, trading readiness or legal-compliance conclusion.
+**G0 OPEN; G1 INCOMPLETE.** Owner selection, learning, genuine G0 closure, private
+A15 precommitment and independent review/freeze are missing. No market data
+acquisition, provider contact, broker/API route, actual owner values, holdout
+release or market experiment occurred. Synthetic tests and theory notes establish
+no profitability, trading readiness or legal-compliance conclusion.
