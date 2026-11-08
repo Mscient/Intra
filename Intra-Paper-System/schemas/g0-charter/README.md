@@ -10,7 +10,8 @@ The total pack is bounded to 64 MiB and 256 snapshots; oversized packs reject.
 Set cells use `;`; duplicate members, keys, rows and identical source rule/URL/section
 references reject. Unknown keys/columns/enums/versions reject. Missing decision rows
 and blank values remain INCOMPLETE; an assessment date is necessary to evaluate.
-Literal UNKNOWN, UNRESOLVED, PENDING_OWNER_INPUT and NOT_SUPPLIED owner values
+Literal UNKNOWN, UNRESOLVED, PENDING_OWNER_INPUT, NOT_SUPPLIED, TBD, TBC,
+UNDECIDED, TO_BE_DECIDED and PLACEHOLDER owner values
 remain unknown rather than becoming attestations, limits or permissions.
 Unknown charter values and reviewer qualification also block completion. A missing
 or non-date assessment cannot be evaluated and rejects. The two pending example

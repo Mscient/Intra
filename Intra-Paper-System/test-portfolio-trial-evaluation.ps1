@@ -18,7 +18,7 @@ if ($protocolHash -ne 'e7f00ce87640c69743779ee580b8eab81725ef34054a056330ae6d175
     throw "Portfolio Sharpe HAC protocol bytes do not match the implementation pin: $protocolHash"
 }
 
-$testRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot 'build\portfolio-trial-evaluation-tests'))
+$testRoot = [System.IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Intra-Paper-System\portfolio-trial-evaluation-tests'))
 New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
 $testRootItem = Get-Item -LiteralPath $testRoot -Force
 if (($testRootItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
@@ -44,7 +44,9 @@ try {
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioSettlementFixtures.java')
     )
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    $sourceArguments = Join-Path $runRoot 'javac-sources.args'
+    [IO.File]::WriteAllLines($sourceArguments, [string[]]@($mainSources | Sort-Object | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $mainClasses ('@' + $sourceArguments)
     if ($LASTEXITCODE -ne 0) { throw "Production compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses @testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused check compilation failed with exit code $LASTEXITCODE" }

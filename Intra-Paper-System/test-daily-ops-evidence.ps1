@@ -18,7 +18,9 @@ New-Item -ItemType Directory -Force -Path $classes, $testClasses | Out-Null
 $test = Join-Path $PSScriptRoot 'src\test\java\com\mscient\intrapaper\ops\evidence\DailyOpsEvidenceCheckerTest.java'
 if ([string]::IsNullOrWhiteSpace($JarPath)) {
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object FullName)
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources
+    $sourceArguments = Join-Path $runRoot 'javac-sources.args'
+    [IO.File]::WriteAllLines($sourceArguments, [string[]]@($sources | Sort-Object | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $classes ('@' + $sourceArguments)
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed: $LASTEXITCODE" }
     $classpath = $classes
 } else {

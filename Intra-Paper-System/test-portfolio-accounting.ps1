@@ -33,7 +33,9 @@ try {
     if ($mainSources.Count -eq 0 -or -not (Test-Path -LiteralPath $testSource)) {
         throw 'Main sources and portfolio-accounting test source are required.'
     }
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    $sourceArguments = Join-Path $runRootAbsolute 'javac-sources.args'
+    [IO.File]::WriteAllLines($sourceArguments, [string[]]@($mainSources | Sort-Object | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $mainClasses ('@' + $sourceArguments)
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSource
     if ($LASTEXITCODE -ne 0) { throw "Focused-check compilation failed with exit code $LASTEXITCODE" }

@@ -57,6 +57,12 @@ G0 is the fourteenth selected suite; it also runs against the production JAR,
 inspects package dependencies, and verifies exact reports across locales/timezones.
 Its evidence-pack status does not authorize access/spend/trading or close G0.
 
+The seven selected runners compiling the entire main source tree now use quoted
+UTF-8 javac argument files, matching the production/feed-audit build convention.
+This avoids Windows command-length failures in longer worktree paths. The risk-replay
+and trial-evaluation runners also put generated output under LOCALAPPDATA, which
+CI redirects into its isolated output root. No strategy or simulator behavior changes.
+
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow
 also runs packaged daily-operations, dataset intended-use, multi-record data-permission, incident-drill, and feed-audit checks after the production JAR is built. It builds and tests the standalone permission-coverage JAR, then checks the same 102-scenario suite against the production JAR. The nine incident-drill scenarios, including the 198-check acceptance suite, dependency inspection, repeated executions, and manifest verification, run against both the standalone and production JARs. The feed audit and synthetic drill also run against the production JAR. It does not invoke the
@@ -80,8 +86,9 @@ CI requires a clean checkout before testing and checks it again before the
 production build. Its output directory must be absent or empty, outside the
 source checkout, and have no reparse points in existing ancestors. Reusing output
 requires a new directory; this prevents stale logs or a previous JAR from being
-mistaken for this run's results. Existing runners' ignored `build/` directories
-do not make the source checkout dirty.
+mistaken for this run's results. Selected runners keep generated output under the
+redirected LOCALAPPDATA/TEMP or explicit OutputRoot, outside the source checkout.
+Git's clean check does not detect ignored output left by earlier runner versions.
 
 ## Logs and artifact retention
 

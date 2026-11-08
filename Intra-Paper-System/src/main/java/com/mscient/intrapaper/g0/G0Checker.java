@@ -372,7 +372,7 @@ public final class G0Checker {
     private static void token(String s) { if (s == null || !s.matches("[A-Za-z][A-Za-z0-9_.-]{0,127}")) invalid(); }
     private static void oneOf(String v, String... choices) { if (!Arrays.asList(choices).contains(v)) invalid(); }
     private static boolean blank(String s) { return s == null || s.isEmpty(); }
-    private static boolean unknown(String s) { return s != null && Set.of("UNKNOWN", "UNRESOLVED", "PENDING_OWNER_INPUT", "NOT_SUPPLIED").contains(s.toUpperCase(Locale.ROOT)); }
+    private static boolean unknown(String s) { return s != null && Set.of("UNKNOWN", "UNRESOLVED", "PENDING_OWNER_INPUT", "NOT_SUPPLIED", "TBD", "TBC", "UNDECIDED", "TO_BE_DECIDED", "PLACEHOLDER").contains(s.toUpperCase(Locale.ROOT)); }
     private static void hash(String s) { if (s == null || !s.matches("[0-9a-f]{64}")) invalid(); }
     private static void invalid() { throw new IllegalArgumentException("INVALID_SCHEMA"); }
     public static String sha256(byte[] bytes) {

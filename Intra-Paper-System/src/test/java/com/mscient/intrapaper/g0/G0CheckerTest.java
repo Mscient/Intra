@@ -113,7 +113,7 @@ public final class G0CheckerTest {
         Path good=fresh("good"); status(good,G0Checker.Status.PASS,"complete synthetic attested pack");
         var initial=G0Checker.evaluate(good);
         check(new String(initial.report(),StandardCharsets.UTF_8).contains("authorization\tNONE"),"never authorizes");
-        check(!new String(initial.report(),StandardCharsets.UTF_8).contains("1000"),"redacted financial value");
+        check(!new String(initial.report(),StandardCharsets.UTF_8).contains("\t1000\n"),"redacted financial cell (hash substrings are not values)");
         check(!new String(initial.report(),StandardCharsets.UTF_8).contains(good.toString()),"redacted canonical location");
         Path pending=fixture(work.resolve("pending"),true); status(pending,G0Checker.Status.INCOMPLETE,"all unknowns preserved");
         for (String field : G0Schema.CHARTER) if (!field.equals("assessment_date")) {
@@ -161,6 +161,8 @@ public final class G0CheckerTest {
         }
         p=fresh("review-wrong");cell(p,"review","reviewer","value","SyntheticOperator");status(p,G0Checker.Status.FAIL,"nonindependent reviewer");
         p=fresh("review-unknown-qualification");cell(p,"review","qualification","value","UNKNOWN");syncReviewRecord(p);status(p,G0Checker.Status.INCOMPLETE,"unknown reviewer qualification");
+        p=fresh("owner-tbd");cell(p,"owners","stop_triggers","value","TBD");pendingReview(p);blockedRow(p,"owner.stop_triggers","TBD is not a stop decision");
+        p=fresh("review-placeholder");cell(p,"review","qualification","value","PLACEHOLDER");syncReviewRecord(p);blockedRow(p,"review.qualification","placeholder is not qualification evidence");
         for(String field:List.of("qualified","independent")) {
             p=fresh("review-no-"+field);cell(p,"review",field,"value","NO");syncReviewRecord(p);status(p,G0Checker.Status.FAIL,"review constraint "+field);
             p=fresh("review-unknown-"+field);cell(p,"review",field,"value","UNKNOWN");syncReviewRecord(p);status(p,G0Checker.Status.INCOMPLETE,"review unknown "+field);

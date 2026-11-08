@@ -16,7 +16,9 @@ try {
     New-Item -ItemType Directory -Path $classes | Out-Null
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
     $tests = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio') -Filter '*.java' | ForEach-Object { $_.FullName })
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources @tests
+    $sourceArguments = Join-Path $auditTestRoot 'javac-sources.args'
+    [IO.File]::WriteAllLines($sourceArguments, [string[]]@(($sources + $tests) | Sort-Object | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $classes ('@' + $sourceArguments)
     if ($LASTEXITCODE -ne 0) { throw "Compilation failed: $LASTEXITCODE" }
     & $java -cp $classes com.mscient.intrapaper.audit.portfolio.PortfolioRiskAuditTest $projectRoot
     if ($LASTEXITCODE -ne 0) { throw "Audit checks failed: $LASTEXITCODE" }
