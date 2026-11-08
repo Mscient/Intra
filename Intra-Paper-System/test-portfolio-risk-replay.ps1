@@ -19,7 +19,7 @@ $tests = @(
 ) | ForEach-Object { Join-Path $projectRoot ('src\test\java\com\mscient\intrapaper\' + $_) }
 if ([string]::IsNullOrWhiteSpace($JarPath)) {
     $sources = @(Get-ChildItem (Join-Path $projectRoot 'src\main\java') -Filter '*.java' -Recurse | ForEach-Object FullName)
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources @tests
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $classes -Sources ($sources + $tests)
 } else {
     $classes = (Resolve-Path -LiteralPath $JarPath).Path
     & $javac --release 21 -encoding UTF-8 -cp $classes -d $testClasses @tests

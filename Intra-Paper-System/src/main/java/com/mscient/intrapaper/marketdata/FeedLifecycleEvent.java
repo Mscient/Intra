@@ -1,6 +1,5 @@
 package com.mscient.intrapaper.marketdata;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -61,9 +60,7 @@ public record FeedLifecycleEvent(int schemaVersion, String source, String connec
         if (value.isBlank() || !value.equals(value.strip()) || value.chars().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException(field + " must be non-empty, trimmed, and free of control characters");
         }
-        if (value.getBytes(StandardCharsets.UTF_8).length > 65_536) {
-            throw new IllegalArgumentException(field + " exceeds 65536 UTF-8 bytes");
-        }
+        CaptureText.validate(value, field);
         return value;
     }
 }

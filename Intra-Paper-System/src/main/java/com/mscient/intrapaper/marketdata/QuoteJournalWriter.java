@@ -52,7 +52,7 @@ public final class QuoteJournalWriter implements AutoCloseable {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
-            QuoteJournalSummary summary = QuoteJournalReader.replay(path, ignored -> { });
+            QuoteJournalSummary summary = QuoteJournalReader.replay(channel, ignored -> { });
             if (summary.bytesRead() != channel.size()) {
                 throw new IOException("Quote journal changed while it was being verified");
             }

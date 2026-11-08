@@ -1,7 +1,6 @@
 package com.mscient.intrapaper.marketdata;
 
 import java.time.Instant;
-import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.OptionalLong;
 
@@ -43,6 +42,6 @@ public record RawMarketMessage(
     }
 
     private static void checkLength(String value, String field) {
-        if (value.getBytes(StandardCharsets.UTF_8).length > 65_536) throw new IllegalArgumentException(field + " exceeds 65536 UTF-8 bytes");
+        CaptureText.validate(value, field);
     }
 }

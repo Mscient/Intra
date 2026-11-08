@@ -44,7 +44,7 @@ try {
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioSettlementFixtures.java')
     )
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $mainClasses -Sources $mainSources
     if ($LASTEXITCODE -ne 0) { throw "Production compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses @testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused check compilation failed with exit code $LASTEXITCODE" }

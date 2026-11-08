@@ -39,7 +39,7 @@ try {
     if ($mainSources.Count -eq 0 -or @($testSources | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -ne 0) {
         throw 'Main sources and portfolio-replay/cost test sources are required.'
     }
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $mainClasses -Sources $mainSources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses @testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused-check compilation failed with exit code $LASTEXITCODE" }

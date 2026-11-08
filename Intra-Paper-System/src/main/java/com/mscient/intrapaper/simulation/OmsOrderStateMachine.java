@@ -56,6 +56,9 @@ public final class OmsOrderStateMachine {
                 && (executedUnits == 0 || executedUnits == requestedWorstCaseUnits)) {
             throw new IllegalArgumentException("Partially filled order must have both filled and remaining units");
         }
+        if ((state == OmsOrderState.CREATED || state == OmsOrderState.REJECTED) && executedUnits != 0) {
+            throw new IllegalArgumentException("Created/rejected order cannot have executions; a replace rejection must preserve the original order state");
+        }
         return switch (state) {
             case FILLED, CANCELED, REJECTED, EXPIRED -> 0;
             case CREATED, PENDING_NEW, WORKING, PARTIALLY_FILLED,

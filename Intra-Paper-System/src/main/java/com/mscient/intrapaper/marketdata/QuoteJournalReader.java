@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -25,6 +27,17 @@ public final class QuoteJournalReader {
         Objects.requireNonNull(consumer, "consumer");
         try (InputStream raw = Files.newInputStream(path);
              BufferedInputStream buffered = new BufferedInputStream(raw)) {
+            return replay(buffered, consumer);
+        }
+    }
+
+    /** Uses the writer's locked handle without closing its channel. */
+    static QuoteJournalSummary replay(FileChannel channel, Consumer<MarketQuote> consumer) throws IOException {
+        channel.position(0);
+        return replay(new BufferedInputStream(Channels.newInputStream(channel)), consumer);
+    }
+
+    private static QuoteJournalSummary replay(InputStream buffered, Consumer<MarketQuote> consumer) throws IOException {
             long bytesRead = readAndVerifyHeader(buffered);
             byte[] previousHash = QuoteHashChain.genesisHash();
             long eventCount = 0;
@@ -71,7 +84,6 @@ public final class QuoteJournalReader {
             }
             return new QuoteJournalSummary(eventCount, lastSequenceNumber, sequenceGapCount,
                     missingSequenceNumbers, QuoteHashChain.hex(previousHash), bytesRead);
-        }
     }
 
     private static long readAndVerifyHeader(InputStream input) throws IOException {

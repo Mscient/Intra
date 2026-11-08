@@ -32,7 +32,7 @@ try {
     if ($mainSources.Count -eq 0 -or -not (Test-Path -LiteralPath $testSource)) {
         throw 'Main sources and OperationalKillControllerTest.java are required.'
     }
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $mainClasses -Sources $mainSources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSource
     if ($LASTEXITCODE -ne 0) { throw "Focused test compilation failed with exit code $LASTEXITCODE" }

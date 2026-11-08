@@ -16,7 +16,7 @@ try {
     New-Item -ItemType Directory -Path $classes | Out-Null
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
     $tests = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio') -Filter '*.java' | ForEach-Object { $_.FullName })
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources @tests
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $classes -Sources ($sources + $tests)
     if ($LASTEXITCODE -ne 0) { throw "Compilation failed: $LASTEXITCODE" }
     & $java -cp $classes com.mscient.intrapaper.audit.portfolio.PortfolioRiskAuditTest $projectRoot
     if ($LASTEXITCODE -ne 0) { throw "Audit checks failed: $LASTEXITCODE" }

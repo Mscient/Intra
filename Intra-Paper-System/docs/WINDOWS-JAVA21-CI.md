@@ -1,5 +1,7 @@
 # Windows Java 21 offline CI
 
+The G2 increment additionally selects existing mapping-registry, instrument-sequence/acknowledgement coverage, synchronized-bar-frame and K0–K3 recommendation suites, plus new G2 journal/OMS/fill contracts. It repeats G2 contracts against the production JAR and runs synthetic raw decode plus bar/L1 artifact reconstruction/byte comparison in separate child JVMs with UTC/en-US and Pacific/Apia/tr-TR settings. A shared UTF-8 javac argument-file helper avoids Windows command-length failures in the affected full-source runners. These checks supply no real-data, source-authenticity, rights or operational evidence. Current measured results are in the [G2 validation report](../../research/systems/2026-11-08-g2-offline-validation.md).
+
 The workflow is [`.github/workflows/java21-build.yml`](../../.github/workflows/java21-build.yml),
 named **Windows Java 21 offline validation**. It runs on `windows-2025` for pushes
 to `main`, pull requests targeting `main`, and manual `workflow_dispatch` runs.

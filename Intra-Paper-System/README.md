@@ -1,5 +1,7 @@
 # Intra Paper System
 
+The [G2 inventory and readiness](docs/G2-READINESS-INVENTORY.md) and [source/use map](docs/G2-SOURCE-USE-EVIDENCE.csv) keep the gate **INCOMPLETE**. New synthetic journal/OMS contracts and separate-JVM bar/L1 reproducibility tests run through the existing core; no real data or order route is added. See [exact validation](../research/systems/2026-11-08-g2-offline-validation.md).
+
 An isolated, offline-first Java 21 futures and options research simulator. Its established bar runner handles one dated contract at a time, while a separate validated multi-instrument portfolio path provides diagnostic replay and artifact verification. Optional L1 quote execution uses caller-supplied local journals. The project is separate from the HFT 2 research notes and has no broker or network adapter.
 
 ## Built in this increment

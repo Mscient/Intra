@@ -35,7 +35,7 @@ try {
     if ($mainSources.Count -eq 0 -or @($testSources | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -gt 0) {
         throw 'Main sources and focused instrument sequence/coverage tests are required.'
     }
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $mainClasses -Sources $mainSources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses $testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused test compilation failed with exit code $LASTEXITCODE" }

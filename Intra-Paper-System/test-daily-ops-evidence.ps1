@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Force -Path $classes, $testClasses | Out-Null
 $test = Join-Path $PSScriptRoot 'src\test\java\com\mscient\intrapaper\ops\evidence\DailyOpsEvidenceCheckerTest.java'
 if ([string]::IsNullOrWhiteSpace($JarPath)) {
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object FullName)
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources
+    & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $classes -Sources $sources
     if ($LASTEXITCODE -ne 0) { throw "Main compilation failed: $LASTEXITCODE" }
     $classpath = $classes
 } else {

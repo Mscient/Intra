@@ -17,7 +17,7 @@ try {
     $test = Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio\PortfolioSettlementAuditTest.java'
     if ([string]::IsNullOrWhiteSpace($JarPath)) {
         $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
-        & $javac --release 21 -encoding UTF-8 -d $classes @sources $test
+        & (Join-Path $PSScriptRoot 'compile-java21.ps1') -Javac $javac -Destination $classes -Sources ($sources + @($test))
         $classpath = $classes
     } else {
         if (-not (Test-Path -LiteralPath $JarPath -PathType Leaf)) { throw 'JAR missing.' }

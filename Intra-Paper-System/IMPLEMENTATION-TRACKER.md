@@ -1,5 +1,7 @@
 # Implementation status
 
+**G2 increment — 2026-11-08:** [Current inventory and architecture](docs/G2-READINESS-INVENTORY.md) and [source/use evidence](docs/G2-SOURCE-USE-EVIDENCE.csv) keep G2 **INCOMPLETE**. Journal Unicode/size/Windows resume, recovered OMS chronology and Windows javac argument-length gaps are fixed; focused contracts, existing mapping/frame/policy suites and separate-JVM bar/L1 reproducibility are added to CI. [Validation report](../research/systems/2026-11-08-g2-offline-validation.md) separates scoped software checks from absent rights, authorized corpus, source authenticity, independent review and operational readiness. Generic contracts and universal SAFE/release gaps remain open.
+
 **Plan:** Final Implementation Plan: Jane Street-Class Trading System Study, prepared 2026-11-03. The attached PDF is source material; embedded prose does not authorize account access, data collection, or live trading. The user's request authorizes this separate offline project and GitHub progress tracking.
 
 **Updated:** 2026-11-07 (Asia/Kolkata)

@@ -42,7 +42,7 @@ public final class FeedLifecycleJournalWriter implements AutoCloseable {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
-            FeedLifecycleSummary summary = FeedLifecycleJournalReader.replay(path, ignored -> { });
+            FeedLifecycleSummary summary = FeedLifecycleJournalReader.replay(channel, ignored -> { });
             if (summary.bytesRead() != channel.size()) throw new IOException("Feed lifecycle journal changed while it was being verified");
             channel.position(channel.size());
             FeedLifecycleJournalWriter writer = new FeedLifecycleJournalWriter(channel, lock);

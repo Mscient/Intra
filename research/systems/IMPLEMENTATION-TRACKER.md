@@ -1,5 +1,7 @@
 # Jane Street-Class System — Implementation Tracker
 
+**2026-11-08 G2 offline increment:** Fresh-main [inventory, architecture/contracts and readiness](../../Intra-Paper-System/docs/G2-READINESS-INVENTORY.md) and [source/use map](../../Intra-Paper-System/docs/G2-SOURCE-USE-EVIDENCE.csv) separate code from rights, source truth, review and operations. Narrow fixes reject lossy capture metadata, bound raw size, verify Windows resume through the locked handle, and reject inconsistent recovered OMS chronology/created-or-rejected executions. G2 and cross-process tests plus omitted existing contracts enter selected CI. [Exact validation/publication evidence](2026-11-08-g2-offline-validation.md) records the tested revision. **G2 INCOMPLETE:** no authorized real corpus/rights, current owner approval or independent review; broader event/capture/reference/quality/recovery gaps remain explicit. No order route, market acquisition, strategy tuning or statistical-method changes.
+
 **Plan source:** [Final Implementation Plan](FINAL-IMPLEMENTATION-PLAN-JANE-STREET-CLASS-TRADING-SYSTEM.md), prepared 2026-11-03. The plan is treated as design guidance; it does not authorize account access, data capture, broker orders, or live trading.
 
 **Updated:** 2026-11-07 (Asia/Kolkata)
