@@ -44,7 +44,9 @@ try {
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioSettlementFixtures.java')
     )
-    & $javac --release 21 -encoding UTF-8 -d $mainClasses @mainSources
+    $argFile = Join-Path $runRoot 'main-sources.txt'
+    [IO.File]::WriteAllLines($argFile, [string[]]@($mainSources | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $mainClasses ('@' + $argFile)
     if ($LASTEXITCODE -ne 0) { throw "Production compilation failed with exit code $LASTEXITCODE" }
     & $javac --release 21 -encoding UTF-8 -cp $mainClasses -d $testClasses @testSources
     if ($LASTEXITCODE -ne 0) { throw "Focused check compilation failed with exit code $LASTEXITCODE" }

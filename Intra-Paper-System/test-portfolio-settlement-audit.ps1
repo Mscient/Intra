@@ -17,7 +17,9 @@ try {
     $test = Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\audit\portfolio\PortfolioSettlementAuditTest.java'
     if ([string]::IsNullOrWhiteSpace($JarPath)) {
         $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src\main\java') -Recurse -File -Filter '*.java' | ForEach-Object { $_.FullName })
-        & $javac --release 21 -encoding UTF-8 -d $classes @sources $test
+        $argFile = Join-Path $settlementTestRoot 'sources.txt'
+        [IO.File]::WriteAllLines($argFile, [string[]]@(($sources + @($test)) | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+        & $javac --release 21 -encoding UTF-8 -d $classes ('@' + $argFile)
         $classpath = $classes
     } else {
         if (-not (Test-Path -LiteralPath $JarPath -PathType Leaf)) { throw 'JAR missing.' }

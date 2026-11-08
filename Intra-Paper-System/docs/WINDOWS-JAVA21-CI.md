@@ -38,6 +38,12 @@ version preservation, false approval/permission/gate claims and synthetic/propos
 trial separation. See [the registry contract](HYPOTHESIS-CARD-REGISTRY.md).
 These are software checks; G0/G1 remain incomplete.
 
+Portfolio replay/risk/accounting/settlement/evaluation and daily-operations
+source runners now pass source lists through UTF-8 javac argument files, matching
+the main build. The G1 full-matrix run reproduced the Windows command-length
+failure with direct filename lists in the long worktree path. Arguments preserve
+the same source/test sets and Java 21 options; no scoring formula changed.
+
 [The CI runner](../../.github/scripts/test-offline-ci.ps1) invokes these existing
 PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 -NonInteractive -File` process:

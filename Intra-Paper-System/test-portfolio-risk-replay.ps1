@@ -19,7 +19,9 @@ $tests = @(
 ) | ForEach-Object { Join-Path $projectRoot ('src\test\java\com\mscient\intrapaper\' + $_) }
 if ([string]::IsNullOrWhiteSpace($JarPath)) {
     $sources = @(Get-ChildItem (Join-Path $projectRoot 'src\main\java') -Filter '*.java' -Recurse | ForEach-Object FullName)
-    & $javac --release 21 -encoding UTF-8 -d $classes @sources @tests
+    $argFile = Join-Path $runRoot 'sources.txt'
+    [IO.File]::WriteAllLines($argFile, [string[]]@(($sources + $tests) | ForEach-Object { '"' + $_.Replace('\', '/') + '"' }), [Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $classes ('@' + $argFile)
 } else {
     $classes = (Resolve-Path -LiteralPath $JarPath).Path
     & $javac --release 21 -encoding UTF-8 -cp $classes -d $testClasses @tests
