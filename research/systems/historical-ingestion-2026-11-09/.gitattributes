@@ -1,0 +1,2 @@
+ci-local/*.log -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+ci-log-sha256.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

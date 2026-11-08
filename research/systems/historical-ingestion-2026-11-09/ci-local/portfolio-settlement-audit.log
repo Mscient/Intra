@@ -1,0 +1,10 @@
+RUN=portfolio-settlement-audit SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-portfolio-settlement-audit.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+Offline settlement diagnostic verified: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\temp\portfolio-settlement-test-15941893094146285762\e2e\cli-audits\31da50a6644d854b69ed20dddf752d7e09d018d08b788d8ddbed1ba939c3e744
+Offline settlement diagnostic verified: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\temp\portfolio-settlement-test-15941893094146285762\e2e\audits\31da50a6644d854b69ed20dddf752d7e09d018d08b788d8ddbed1ba939c3e744
+Artifact integrity verified; replay reconstruction and source authenticity are separate checks.
+Offline settlement diagnostic verified: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\temp\portfolio-settlement-test-15941893094146285762\e2e\audits\b5c091497a0f5e66caac1e410d26d8bbb6b8d16c5a63c6de0a739b2e5bd79095
+Usage: PortfolioSettlementAuditCli audit <run> <portfolio-inputs.csv> <portfolio.properties> <settlement-events.csv> <output-root> [settlement-costs.csv]
+       PortfolioSettlementAuditCli verify <audit-folder> <run> <portfolio-inputs.csv> <portfolio.properties> <settlement-events.csv> [settlement-costs.csv]
+       PortfolioSettlementAuditCli verify-artifact <audit-folder>
+PortfolioSettlementAudit: 88 focused checks passed
+RESULT=PASS EXIT_CODE=0

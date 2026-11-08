@@ -20,8 +20,10 @@
   fail-closed provider gate; strict offset/number/OHLC parsing; dated coverage and
   duplicate/order diagnostics; normalization; immutable-addressed raw bytes; atomic
   publication and complete recomputation; CLI/PowerShell runner; user guide and tests.
-- Verification: source acceptance reached 251 checks including separate CLI JVMs;
-  the committed full-matrix/package evidence is recorded in the
+- Verification: implementation `53a65c091eb1bcd13d4406f6e0bcf07e41776809`
+  passed 251 ingestion checks each from source and the production JAR, all 21 source
+  suites and 17 build/package/drill/verification stages. JAR Build-Commit matched
+  exactly; the PowerShell plan/verify smoke also passed. The full evidence is in the
   [validation report](../systems/2026-11-09-historical-ingestion-validation.md).
 - Limits/status: permission checkers are not authenticated provider-rights verifiers;
   Angel One input stays blocked before raw access. Synthetic source identity remains

@@ -1,0 +1,9 @@
+RUN=portfolio-risk-replay SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-portfolio-risk-replay.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+Fixture check output: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\temp\risk-replay-test-3178147982817385358
+Portfolio risk replay: 84 checks passed
+PortfolioReplayEngine checks passed
+PortfolioExecutionCostSchedule checks passed
+PortfolioReplayArtifactVerifier v3 publication, tamper, signed partial, and deterministic replay checks passed
+PortfolioSettlement signed accounting, inputs, UTF-8, dates, charges, and atomicity checks passed
+Checks passed; compiled evidence retained at C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\local-app-data\Intra-Paper-System\risk-replay-checks-a1d8211ec4df4dac8778bc5ea0116da7
+RESULT=PASS EXIT_CODE=0

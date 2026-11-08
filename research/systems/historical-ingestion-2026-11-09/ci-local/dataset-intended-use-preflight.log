@@ -1,0 +1,4 @@
+RUN=dataset-intended-use-preflight SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-dataset-intended-use-preflight.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+PASS 300 synthetic dataset-permission preflight checks; G2 remains open
+Synthetic acceptance evidence retained at C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\dataset-intended-use-preflight\52f2d5f3cdbf47e59a6753cf2c902368
+RESULT=PASS EXIT_CODE=0

@@ -1,0 +1,4 @@
+RUN=hypothesis-card-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-hypothesis-card.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+Hypothesis card: 168 checks PASS; SYNTHETIC SOFTWARE ONLY; market_evidence=false approval_authenticated=false g1_closed=false
+SYNTHETIC SOFTWARE evidence retained: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\hypothesis-card-packaged\193259385d724282936b0df711c83165
+RESULT=PASS EXIT_CODE=0

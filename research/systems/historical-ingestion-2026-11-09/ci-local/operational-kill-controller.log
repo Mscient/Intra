@@ -1,0 +1,3 @@
+RUN=operational-kill-controller SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-operational-kill-controller.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+OperationalKillController focused checks passed.
+RESULT=PASS EXIT_CODE=0

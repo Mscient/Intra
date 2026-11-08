@@ -1,0 +1,29 @@
+RUN=risk-gateway SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-risk-gateway.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+Evidence directory: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\risk-gateway\4e1f7b833c7c4a079974d1f6d263be5d
+java.version=21.0.13.0.2
+java.runtime.version=21.0.13.0.2+1-LTS
+java.vendor=Microsoft
+java.vendor.version=Microsoft-15780113
+java.vm.name=OpenJDK 64-Bit Server VM
+java.vm.version=21.0.13.0.2+1-LTS
+java.home=C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot
+os.name=Windows 11
+os.arch=amd64
+PASS append, restart and reservation lifecycle
+PASS accepted decisions and duplicate/conflicting IDs
+PASS ordering, invalid executions and session boundaries
+PASS daily-loss latch and closeout recovery
+PASS missing/stale inputs and extreme quantities
+PASS same-JVM writer leases and concurrent calls
+PASS hash-chain corruption and checkpoint rollback detection
+PASS canonical payloads and malformed binary inputs
+PASS semantic replay errors despite valid hash chains
+PASS field, collection, event and journal size limits
+PASS injected write and force uncertainty
+PASS missing/replaced journals, real I/O failures and rejected IDs
+PASS checkpoint configuration binding and constructor cleanup
+REPLAY_SHA256=c29af67dbe2c00a6c5dbdf76ebe595517e6737323041eabefc1957751c6d2d7b
+PASS: 447 checks in 13 groups. Offline, same-JVM concurrency only.
+Package SHA-256: 8428ad27606e449204b986d3a87a191cf9e8163e1d9c6e7303c3ea23a3f13d45
+Offline evidence retained: C:\Users\prash\AppData\Local\Temp\ahi-ci-53a65c0-run2\risk-gateway\4e1f7b833c7c4a079974d1f6d263be5d
+RESULT=PASS EXIT_CODE=0

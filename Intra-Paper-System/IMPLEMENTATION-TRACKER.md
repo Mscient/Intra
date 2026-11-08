@@ -3,8 +3,9 @@
 **Offline historical ingestion (2026-11-09):** Isolated versioned request planner,
 strict SmartAPI-shaped synthetic adapter, canonical bar normalization, dated
 mapping/calendar checks, atomic bundles and full recomputation verifier delivered.
-251 focused synthetic checks pass from source, including the production classpath
-CLI process. Full committed Java 21 matrix evidence is recorded in the
+251 focused synthetic checks pass both from source and the production JAR, including
+separate CLI processes. All 21 source suites and 17 build/package/drill/verification
+stages passed locally at `53a65c0`; exact Java 21 evidence is recorded in the
 [validation report](../research/systems/2026-11-09-historical-ingestion-validation.md).
 Angel One admission remains blocked: existing permission tools authenticate no
 provider rights. G0 OPEN/G2 INCOMPLETE and permission/production flags remain false;

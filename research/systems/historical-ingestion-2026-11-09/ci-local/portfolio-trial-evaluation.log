@@ -1,0 +1,10 @@
+RUN=portfolio-trial-evaluation SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\angelone-historical-ingestion-worktree\Intra-Paper-System\test-portfolio-trial-evaluation.ps1 SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+PortfolioTrialEvaluation: 165 focused checks passed
+IID synthetic qualification: empirical_sd=0.06645803220322333; bandwidth_rms_se=0:0.06448377410371389,1:0.06439754056065687,2:0.06435992861562657,4:0.06413752414777664; largest_bandwidth_ratio=0.9650831061571195
+AR1 synthetic qualification: empirical_sd=0.08264382413264408; bandwidth_rms_se=0:0.06452230529070205,1:0.07180229925106515,2:0.07510296418940728,4:0.07781462534765977; largest_bandwidth_ratio=0.9415661262572579
+VOL synthetic qualification: empirical_sd=0.06577461984318596; bandwidth_rms_se=0:0.0644565258690892,1:0.06433156783121252,2:0.06417256040404701,4:0.06388843154416497; largest_bandwidth_ratio=0.9713234633127813
+Portfolio Sharpe HAC: 30019 checks passed
+PortfolioReplayEngine checks passed
+PortfolioExecutionCostSchedule checks passed
+PortfolioReplayArtifactVerifier v3 publication, tamper, signed partial, and deterministic replay checks passed
+RESULT=PASS EXIT_CODE=0

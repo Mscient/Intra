@@ -1,0 +1,14 @@
+SOURCE_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+EXPECTED_COMMIT=53a65c091eb1bcd13d4406f6e0bcf07e41776809
+JAVA_HOME=C:/Program Files/Microsoft/jdk-21.0.13.21-hotspot
+POWERSHELL=7.6.9
+PLANNED_SUITES=risk-gateway,risk-gateway-process,portfolio-replay-engine,portfolio-risk-replay,portfolio-accounting,portfolio-risk-audit,portfolio-settlement-audit,portfolio-trial-evaluation,daily-ops-evidence,dataset-intended-use-preflight,data-permission-coverage,incident-drill,feed-completeness-audit,g0-charter,hypothesis-card,mapping-registry,instrument-sequence,synchronized-bar-frames,operational-kill-controller,g2-contracts,historical-ingestion
+IMPLEMENTOR="Microsoft"
+IMPLEMENTOR_VERSION="Microsoft-15780113"
+JAVA_RUNTIME_VERSION="21.0.13.0.2+1-LTS"
+JAVA_VERSION="21.0.13.0.2"
+OS_ARCH="x86_64"
+openjdk version "21.0.13.0.2" 2026-10-22 LTS
+OpenJDK Runtime Environment Microsoft-15780113 (build 21.0.13.0.2+1-LTS)
+OpenJDK 64-Bit Server VM Microsoft-15780113 (build 21.0.13.0.2+1-LTS, mixed mode, sharing)
+javac 21.0.13.0.2

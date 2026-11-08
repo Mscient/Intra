@@ -157,6 +157,7 @@ The pipeline reuses:
 Calendar bounds are inclusive expected **bar timestamps** for the declared interval
 and timestamp role, not independently inferred exchange open/close times. Every
 expected timestamp within the requested half-open range is enumerated on that grid.
+Both input candles and enumerated expected timestamps are limited to 100,000.
 Missing calendar dates/grid validity or instrument coverage are INCOMPLETE, including
 reference checks at missing candle timestamps. The existing calendar reader requires
 at least one OPEN entry; a file containing only closed dates is INCOMPLETE in v1.
@@ -187,7 +188,8 @@ The preflight runs on frozen document snapshots and records its decision ID. The
 coverage checker runs on supplied declarations only when safe to do so; otherwise
 it records the existing checker's missing-input INCOMPLETE result. Its report hash
 is retained. Evidence files referenced by the coverage register must each also be
-explicitly named with `--evidence-file`; no other references are opened. Coverage
+explicitly named with `--evidence-file`; no other references are opened. This boundary
+supports UTF-8 text evidence only; binary evidence cannot pass its safety checks. Coverage
 dataset `files` must be empty at this blocked ingestion boundary, so it cannot read
 market bytes before authorization. Use the independent coverage command for a full
 already-authorized dataset assessment. Nothing here treats those diagnostics as
