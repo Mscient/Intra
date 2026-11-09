@@ -1,0 +1,467 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:mscient:intrapaper:g2-admission-report:v1",
+  "title": "G2 joined admission report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "admission_version",
+    "admission_id",
+    "classification",
+    "input_manifest_sha256",
+    "code_sha256",
+    "assessment_time_utc",
+    "capture",
+    "processing",
+    "coverage",
+    "resources",
+    "permission_decisions",
+    "replay_dataset",
+    "feed_audit",
+    "events",
+    "event_domains",
+    "unknown_fields",
+    "reasons",
+    "status",
+    "pass_scope",
+    "source_authenticity_verified",
+    "permission_authenticated",
+    "complete_feed_verified",
+    "market_correctness_verified",
+    "trading_readiness_approved",
+    "release_authorized",
+    "order_egress_enabled",
+    "profitability_established",
+    "g2_closed",
+    "report_id",
+    "normalized_projection_verified",
+    "event_semantics_verified",
+    "mapping_calendar_authority_verified",
+    "control_input_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "g2-admission-report/v1"
+    },
+    "admission_version": {
+      "const": "g2-admission/1"
+    },
+    "admission_id": {
+      "type": "string"
+    },
+    "classification": {
+      "enum": [
+        "SYNTHETIC",
+        "CALLER_DECLARED"
+      ]
+    },
+    "input_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "code_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "assessment_time_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capture": {
+      "$ref": "input.schema.json#/properties/capture"
+    },
+    "processing": {
+      "$ref": "input.schema.json#/properties/processing"
+    },
+    "coverage": {
+      "$ref": "input.schema.json#/properties/coverage"
+    },
+    "resources": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 64,
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "order": {
+            "maximum": 63,
+            "type": "integer",
+            "minimum": 0
+          },
+          "logical_id": {
+            "$ref": "input.schema.json#/$defs/id"
+          },
+          "role": {
+            "enum": [
+              "RAW_INPUT",
+              "LIFECYCLE_INPUT",
+              "NORMALIZED_DATA",
+              "TOKEN_MAPPING",
+              "SESSION_CALENDAR",
+              "DECODER",
+              "SCHEMA",
+              "BUILD",
+              "FEED_EVIDENCE",
+              "FEED_REFERENCE"
+            ]
+          },
+          "path": {
+            "$ref": "input.schema.json#/$defs/path"
+          },
+          "declared_sha256": {
+            "$ref": "input.schema.json#/$defs/hash"
+          },
+          "admitted_sha256": {
+            "anyOf": [
+              {
+                "$ref": "input.schema.json#/$defs/hash"
+              },
+              {
+                "const": "UNKNOWN"
+              }
+            ]
+          },
+          "maximum_bytes": {
+            "maximum": 16777216,
+            "type": "integer",
+            "minimum": 1
+          },
+          "observed_at_utc": {
+            "$ref": "input.schema.json#/$defs/instant"
+          }
+        },
+        "required": [
+          "order",
+          "logical_id",
+          "role",
+          "path",
+          "declared_sha256",
+          "admitted_sha256",
+          "maximum_bytes",
+          "observed_at_utc"
+        ]
+      }
+    },
+    "permission_decisions": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 64,
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "resource_id": {
+            "$ref": "input.schema.json#/$defs/id"
+          },
+          "role": {
+            "enum": [
+              "RAW_INPUT",
+              "LIFECYCLE_INPUT",
+              "NORMALIZED_DATA",
+              "TOKEN_MAPPING",
+              "SESSION_CALENDAR",
+              "DECODER",
+              "SCHEMA",
+              "BUILD",
+              "FEED_EVIDENCE",
+              "FEED_REFERENCE"
+            ]
+          },
+          "decision_id": {
+            "$ref": "input.schema.json#/$defs/hash"
+          },
+          "decision_sha256": {
+            "$ref": "input.schema.json#/$defs/hash"
+          },
+          "status": {
+            "enum": [
+              "ALLOWED",
+              "DENIED",
+              "INCOMPLETE"
+            ]
+          },
+          "decision": {
+            "type": "object"
+          },
+          "manifest_path": {
+            "$ref": "input.schema.json#/$defs/path"
+          },
+          "intended_use_path": {
+            "$ref": "input.schema.json#/$defs/path"
+          },
+          "evidence_path": {
+            "$ref": "input.schema.json#/$defs/path"
+          },
+          "observed_dataset_sha256": {
+            "anyOf": [
+              {
+                "$ref": "input.schema.json#/$defs/hash"
+              },
+              {
+                "const": "UNKNOWN"
+              }
+            ]
+          },
+          "dataset_manifest": {
+            "$ref": "../dataset-intended-use-preflight/dataset-manifest.schema.json"
+          },
+          "dataset_verification": {
+            "const": "EXACT_FROZEN_BYTES"
+          }
+        },
+        "required": [
+          "resource_id",
+          "role",
+          "decision_id",
+          "decision_sha256",
+          "status",
+          "decision",
+          "manifest_path",
+          "intended_use_path",
+          "evidence_path",
+          "observed_dataset_sha256"
+        ]
+      }
+    },
+    "replay_dataset": {
+      "$ref": "input.schema.json#/properties/replay_dataset"
+    },
+    "feed_audit": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "INCOMPLETE",
+            "NOT_RUN",
+            "INVALID"
+          ]
+        },
+        "schedule_id": {
+          "$ref": "input.schema.json#/$defs/id"
+        },
+        "schedule_revision": {
+          "$ref": "input.schema.json#/$defs/id"
+        },
+        "report_sha256": {
+          "$ref": "input.schema.json#/$defs/hash"
+        },
+        "artifact_sha256": {
+          "$ref": "input.schema.json#/$defs/hash"
+        },
+        "evidence_sha256": {
+          "$ref": "input.schema.json#/$defs/hash"
+        },
+        "input_sha256": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "input.schema.json#/$defs/hash"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "schedule_id",
+        "schedule_revision"
+      ]
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "order",
+          "event_id",
+          "domain",
+          "event_type",
+          "observed_at_utc",
+          "event_time_utc",
+          "event_time_status",
+          "resource_id",
+          "record_ordinal",
+          "record_sha256",
+          "byte_offset",
+          "byte_length"
+        ],
+        "properties": {
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "event_id": {
+            "$ref": "input.schema.json#/$defs/id"
+          },
+          "domain": {
+            "enum": [
+              "CAPTURE",
+              "DECODE",
+              "NORMALIZE",
+              "MAPPING",
+              "SESSION",
+              "PERMISSION",
+              "REPLAY"
+            ]
+          },
+          "event_type": {
+            "$ref": "input.schema.json#/$defs/id"
+          },
+          "observed_at_utc": {
+            "$ref": "input.schema.json#/$defs/instant"
+          },
+          "event_time_utc": {
+            "anyOf": [
+              {
+                "$ref": "input.schema.json#/$defs/instant"
+              },
+              {
+                "const": "UNKNOWN"
+              }
+            ]
+          },
+          "event_time_status": {
+            "enum": [
+              "OBSERVED",
+              "UNKNOWN"
+            ]
+          },
+          "resource_id": {
+            "$ref": "input.schema.json#/$defs/id"
+          },
+          "record_ordinal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "record_sha256": {
+            "$ref": "input.schema.json#/$defs/hash"
+          },
+          "byte_offset": {
+            "maximum": 9223372036854775807,
+            "type": "integer",
+            "minimum": 0
+          },
+          "byte_length": {
+            "maximum": 9223372036854775807,
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "maxItems": 100000
+    },
+    "event_domains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CAPTURE",
+          "DECODE",
+          "NORMALIZE",
+          "MAPPING",
+          "SESSION",
+          "PERMISSION",
+          "REPLAY"
+        ]
+      }
+    },
+    "unknown_fields": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "FAIL",
+              "INCOMPLETE"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "code",
+          "field",
+          "detail"
+        ]
+      }
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCOMPLETE"
+      ]
+    },
+    "pass_scope": {
+      "const": "CONFIGURED_SYNTHETIC_OR_CALLER_DECLARED_CHECKS_ONLY"
+    },
+    "source_authenticity_verified": {
+      "const": false
+    },
+    "permission_authenticated": {
+      "const": false
+    },
+    "complete_feed_verified": {
+      "const": false
+    },
+    "market_correctness_verified": {
+      "const": false
+    },
+    "trading_readiness_approved": {
+      "const": false
+    },
+    "release_authorized": {
+      "const": false
+    },
+    "order_egress_enabled": {
+      "const": false
+    },
+    "profitability_established": {
+      "const": false
+    },
+    "g2_closed": {
+      "const": false
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "normalized_projection_verified": {
+      "const": false
+    },
+    "event_semantics_verified": {
+      "const": false
+    },
+    "mapping_calendar_authority_verified": {
+      "const": false
+    },
+    "control_input_sha256": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "input.schema.json#/$defs/hash"
+      }
+    }
+  },
+  "$comment": "The embedded production permission decision is checked by exact deterministic recomputation; issuer identity and permission remain unauthenticated. verify-artifact enforces every nested field by rerunning the production checkers. All report hashes identify bytes only."
+}

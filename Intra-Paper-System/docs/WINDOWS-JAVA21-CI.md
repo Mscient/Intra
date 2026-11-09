@@ -1,5 +1,7 @@
 # Windows Java 21 offline CI
 
+The 2026-11-09 admission continuation adds `test-g2-admission.ps1` as the twenty-first selected source suite and repeats it against the exact production JAR. It checks Build-Commit before packaged execution, retains environment/fixture logs, compares separate JVM output bytes and rejects junction input. See [admission validation](../../research/systems/2026-11-09-g2-admission-validation.md). The historical combined-main description below predates this addition. A local run does not establish hosted success.
+
 The combined main matrix runs twenty source suites: the eighteen existing/G2 suites listed below, plus the G0 charter evidence checker and G1 hypothesis-card registry. G2 additionally selects mapping-registry, instrument-sequence/acknowledgement, synchronized-bar-frame and K0–K3 recommendation suites, plus new G2 journal/OMS/fill contracts. It repeats G0, G1 and G2 contracts against the production JAR and runs synthetic raw decode plus bar/L1 artifact reconstruction/byte comparison in separate child JVMs with UTC/en-US and Pacific/Apia/tr-TR settings. A shared UTF-8 javac argument-file helper avoids Windows command-length failures in the affected full-source runners. These checks supply no real-data, source-authenticity, rights or operational evidence. G2 branch validation is in the [G2 validation report](../../research/systems/2026-11-08-g2-offline-validation.md). The combined current-main workflow remains the release acceptance path; it establishes software checks only.
 
 The workflow is [`.github/workflows/java21-build.yml`](../../.github/workflows/java21-build.yml),
@@ -60,6 +62,7 @@ PowerShell runners sequentially, each in a separate `pwsh -NoProfile
 | `test-synchronized-bar-frames.ps1` | `SynchronizedBarFrameBuilderTest` |
 | `test-operational-kill-controller.ps1` | `OperationalKillControllerTest` |
 | `test-g2-contracts.ps1` | `G2ContractTest` |
+| `test-g2-admission.ps1` | `G2AdmissionTest`, independent JVM deterministic artifacts, junction rejection; source and production JAR |
 
 Some runners intentionally repeat shared regression checks. Compiling Java
 sources does not establish that every test class was executed. This workflow

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:mscient:intrapaper:g2-admission-artifact:v1",
+  "title": "G2 admission artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "admission_version", "report_id", "report_sha256", "code_sha256"],
+  "properties": {
+    "schema": {"const": "g2-admission-artifact/v1"},
+    "admission_version": {"const": "g2-admission/1"},
+    "report_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "report_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "code_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

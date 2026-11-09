@@ -1,5 +1,9 @@
 # G2 implementation and evidence inventory — 2026-11-08
 
+## Admission continuation — 2026-11-09
+
+The [offline admission sidecar](G2-ADMISSION.md) now joins permission decisions and exact input hashes, raw/normalized/mapping/calendar and decoder/schema/build resources, replay identity, feed re-audit and byte-bound cross-domain references. This completes a bounded production admission-report contract formerly available only as a test sidecar. Universal event semantics, normalized transformation verification, authoritative reference content and authenticated evidence remain partial or absent. CALLER_DECLARED admission always stays INCOMPLETE or FAIL. See the current [gap matrix](G2-ADMISSION-GAPS.md) and [validation report](../../research/systems/2026-11-09-g2-admission-validation.md). Historical counts below describe the prior increment; they do not validate this continuation. **Overall G2 remains INCOMPLETE.**
+
 **Overall G2: INCOMPLETE.** This increment completes the demonstrated journal/recovery and test-runner fixes below. It does not complete every design capability or supply authorized real data. Software validation, source truth, rights, market correctness, profitability and live readiness are separate claims. Order egress remains absent and disabled.
 
 Baseline: fresh `origin/main` `ff4874167e889a26990e1f4d9d2b1ffa4acbefe6`; public hosted [Actions 42438198778](https://github.com/Mscient/Intra/actions/runs/42438198778) completed successfully. The original `main` worktree at `2b7fe0a` had substantial tracked/untracked work and other worktrees; none was reset, stashed, cherry-picked or edited. Work is isolated on `codex/g2-offline-core-20261108`. The uncommitted external-ledger/holdout work in that older checkout is not treated as integrated code. Exact validation and publication status are recorded in the [validation report](../../research/systems/2026-11-08-g2-offline-validation.md).
