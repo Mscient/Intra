@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:intra:g5:v1",
+  "title": "Intra G5 offline dossier V1",
+  "$ref": "#/$defs/dossier",
+  "$defs": {
+    "hash": {"type":"string","pattern":"^[0-9a-f]{64}$","not":{"const":"0000000000000000000000000000000000000000000000000000000000000000"}},
+    "head": {"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "ref": {"type":"string","pattern":"^ref-[0-9a-f]{32}$"},
+    "time": {"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$","format":"date-time"},
+    "path": {"type":"string","maxLength":512,"pattern":"^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$"},
+    "classification": {"enum":["SYNTHETIC","CALLER_SUPPLIED_UNAUTHENTICATED","SIGNED_KEY_POSSESSION_ONLY","AI_GENERATED"]},
+    "identities": {
+      "type":"object","additionalProperties":false,
+      "required":["build","config","card","strategy","implementation","dataset","protocol","family"],
+      "properties":{"build":{"$ref":"#/$defs/hash"},"config":{"$ref":"#/$defs/hash"},"card":{"$ref":"#/$defs/hash"},"strategy":{"$ref":"#/$defs/hash"},"implementation":{"$ref":"#/$defs/hash"},"dataset":{"$ref":"#/$defs/hash"},"protocol":{"$ref":"#/$defs/hash"},"family":{"$ref":"#/$defs/hash"}}
+    },
+    "actor": {
+      "type":"object","additionalProperties":false,"required":["id","public_key","key_sha256","qualification_ref","independence_ref"],
+      "properties":{"id":{"$ref":"#/$defs/ref"},"public_key":{"type":"string","maxLength":128},"key_sha256":{"$ref":"#/$defs/hash"},"qualification_ref":{"$ref":"#/$defs/ref"},"independence_ref":{"$ref":"#/$defs/ref"}}
+    },
+    "evidence_ref": {
+      "type":"object","additionalProperties":false,"required":["id","path","sha256"],
+      "properties":{"id":{"$ref":"#/$defs/ref"},"path":{"$ref":"#/$defs/path"},"sha256":{"$ref":"#/$defs/hash"}}
+    },
+    "file_ref": {
+      "type":"object","additionalProperties":false,"required":["id","path","sha256"],
+      "properties":{"id":{"type":"string","pattern":"^[A-Za-z][A-Za-z0-9_-]{0,63}$"},"path":{"$ref":"#/$defs/path"},"sha256":{"$ref":"#/$defs/hash"}}
+    },
+    "scope_refs": {
+      "type":"object","additionalProperties":false,"required":["scope","instruments","broker_route","data_source","hosting","network","stop","recovery","operating_policy"],
+      "properties":{"scope":{"$ref":"#/$defs/ref"},"instruments":{"$ref":"#/$defs/ref"},"broker_route":{"$ref":"#/$defs/ref"},"data_source":{"$ref":"#/$defs/ref"},"hosting":{"$ref":"#/$defs/ref"},"network":{"$ref":"#/$defs/ref"},"stop":{"$ref":"#/$defs/ref"},"recovery":{"$ref":"#/$defs/ref"},"operating_policy":{"$ref":"#/$defs/ref"}}
+    },
+    "dossier": {
+      "type":"object","additionalProperties":false,
+      "required":["schema","dossier_id","identities","build_commit","private_ref","private_sha256","roles","scope_refs","files","evidence"],
+      "properties":{
+        "schema":{"const":"INTRA_G5_DOSSIER_V1"},"dossier_id":{"$ref":"#/$defs/ref"},"identities":{"$ref":"#/$defs/identities"},
+        "build_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"private_ref":{"$ref":"#/$defs/ref"},"private_sha256":{"$ref":"#/$defs/hash"},
+        "roles":{"type":"object","additionalProperties":false,"required":["owner","operator","reviewer","custodian"],"properties":{"owner":{"anyOf":[{"$ref":"#/$defs/actor"},{"type":"null"}]},"operator":{"anyOf":[{"$ref":"#/$defs/actor"},{"type":"null"}]},"reviewer":{"anyOf":[{"$ref":"#/$defs/actor"},{"type":"null"}]},"custodian":{"anyOf":[{"$ref":"#/$defs/actor"},{"type":"null"}]}}},
+        "scope_refs":{"$ref":"#/$defs/scope_refs"},"files":{"type":"array","maxItems":512,"items":{"$ref":"#/$defs/file_ref"}},"evidence":{"type":"array","maxItems":512,"items":{"$ref":"#/$defs/evidence_ref"}}
+      }
+    },
+    "evidence": {
+      "type":"object","additionalProperties":false,
+      "required":["schema","id","requirement","source_ref","classification","claim","at_utc","valid_until_utc","identities","actor_role","payload_path","payload_sha256","verifier","arguments","session_date","preopen","signature"],
+      "properties":{
+        "schema":{"const":"INTRA_G5_EVIDENCE_V1"},"id":{"$ref":"#/$defs/ref"},"requirement":{"type":"string","pattern":"^G[0-5]_[a-z_]+$"},"source_ref":{"$ref":"#/$defs/ref"},"classification":{"$ref":"#/$defs/classification"},
+        "claim":{"enum":["CLOSED","APPROVED","PASS","COMPLETE","CLEAR","RESOLVED","SEALED","ELIGIBLE","OPEN","PENDING","FAIL","UNKNOWN","REJECTED"]},"at_utc":{"$ref":"#/$defs/time"},"valid_until_utc":{"$ref":"#/$defs/time"},"identities":{"$ref":"#/$defs/identities"},
+        "actor_role":{"enum":["owner","operator","reviewer","custodian"]},"payload_path":{"$ref":"#/$defs/path"},"payload_sha256":{"$ref":"#/$defs/hash"},"verifier":{"enum":["DOCUMENT","G0","HYPOTHESIS_CARD","PERMISSION","PORTFOLIO_REPLAY","RISK_AUDIT","SETTLEMENT_AUDIT","REGISTRATION","TRIAL_EVALUATION","DAILY_OPS","FEED_AUDIT"]},
+        "arguments":{"type":"array","maxItems":512,"items":{"$ref":"#/$defs/path"}},"session_date":{"type":"string"},"preopen":{"enum":["","PASS","FAIL","UNKNOWN"]},"signature":{"type":"string","maxLength":128}
+      }
+    },
+    "decision": {
+      "type":"object","additionalProperties":false,"required":["schema","decision_id","role","actor","decision","dossier_sha256","build_sha256","at_utc","valid_until_utc","qualification_ref","independence_ref","classification","signature"],
+      "properties":{"schema":{"const":"INTRA_G5_DECISION_V1"},"decision_id":{"$ref":"#/$defs/ref"},"role":{"enum":["owner","reviewer"]},"actor":{"$ref":"#/$defs/ref"},"decision":{"enum":["APPROVE_FUTURE_HUMAN_CONSIDERATION","REJECT","REVOKE"]},"dossier_sha256":{"$ref":"#/$defs/hash"},"build_sha256":{"$ref":"#/$defs/hash"},"at_utc":{"$ref":"#/$defs/time"},"valid_until_utc":{"$ref":"#/$defs/time"},"qualification_ref":{"$ref":"#/$defs/ref"},"independence_ref":{"$ref":"#/$defs/ref"},"classification":{"$ref":"#/$defs/classification"},"signature":{"type":"string","maxLength":128}}
+    },
+    "event": {
+      "type":"object","additionalProperties":false,"required":["schema","sequence","event_id","kind","previous","dossier_sha256","build_sha256","attachment_sha256","supersedes","at_utc","actor"],
+      "properties":{"schema":{"const":"INTRA_G5_EVENT_V1"},"sequence":{"type":"integer","minimum":1},"event_id":{"$ref":"#/$defs/ref"},"kind":{"enum":["DOSSIER_CREATED","EVIDENCE_ADDED","SUPERSEDED","EVIDENCE_CHECKED","REVIEW","OWNER_DECISION","REVOCATION"]},"previous":{"$ref":"#/$defs/head"},"dossier_sha256":{"$ref":"#/$defs/hash"},"build_sha256":{"$ref":"#/$defs/hash"},"attachment_sha256":{"$ref":"#/$defs/head"},"supersedes":{"$ref":"#/$defs/head"},"at_utc":{"$ref":"#/$defs/time"},"actor":{"$ref":"#/$defs/ref"}}
+    },
+    "evaluation_settings": {"type":"object","additionalProperties":false,"required":["schema","chronological_block_count"],"properties":{"schema":{"const":"INTRA_G5_EVALUATION_SETTINGS_V1"},"chronological_block_count":{"type":"integer","enum":[4,6,8,10,12]}}},
+    "amount": {"type":"string","pattern":"^(0|[1-9][0-9]{0,17})(\\.[0-9]{1,8})?$"},
+    "private": {
+      "type":"object","additionalProperties":false,"required":["schema","nonce","reference","required_sessions","required_preopen_streak","max_evidence_age_seconds","pilot_start_utc","pilot_end_utc","risk_limits","policy_ref"],
+      "properties":{
+        "schema":{"const":"INTRA_G5_PRIVATE_V1"},"nonce":{"$ref":"#/$defs/hash"},"reference":{"$ref":"#/$defs/ref"},"required_sessions":{"type":"integer","minimum":1},"required_preopen_streak":{"type":"integer","minimum":1},"max_evidence_age_seconds":{"type":"integer","minimum":1},"pilot_start_utc":{"$ref":"#/$defs/time"},"pilot_end_utc":{"$ref":"#/$defs/time"},"policy_ref":{"$ref":"#/$defs/ref"},
+        "risk_limits":{"type":"object","additionalProperties":false,"required":["capital","annual_spend","pilot_loss","position","notional","margin","order_rate","session_loss","currency_ref","measurement_policy_ref"],"properties":{"capital":{"$ref":"#/$defs/amount"},"annual_spend":{"$ref":"#/$defs/amount"},"pilot_loss":{"$ref":"#/$defs/amount"},"position":{"$ref":"#/$defs/amount"},"notional":{"$ref":"#/$defs/amount"},"margin":{"$ref":"#/$defs/amount"},"order_rate":{"$ref":"#/$defs/amount"},"session_loss":{"$ref":"#/$defs/amount"},"currency_ref":{"$ref":"#/$defs/ref"},"measurement_policy_ref":{"$ref":"#/$defs/ref"}}}
+      }
+    }
+  }
+}

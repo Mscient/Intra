@@ -31,7 +31,7 @@ jobs:
         run: |
           .\.github\scripts\install-microsoft-jdk21.ps1
 
-      - name: Run focused offline suites, build JAR, and verify commit
+      - name: Run offline suites including G5, build JAR, and verify commit
         id: validate
         run: |
           .\.github\scripts\test-offline-ci.ps1 `
