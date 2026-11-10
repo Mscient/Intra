@@ -1,0 +1,1 @@
+SYNTHETIC G0 original-decision placeholder. No gate is approved/closed by this fixture.
