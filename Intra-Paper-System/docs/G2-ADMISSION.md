@@ -32,6 +32,8 @@ $env:INTRA_PAPER_BUILD_DIR = 'C:\path\to\new-build'
 
 The versioned schemas are in [schemas/g2-admission](../schemas/g2-admission/). Runtime semantic validation is authoritative and also enforces joins, bounds, permission order, unique identities, date relationships, Windows path restrictions and deterministic recomputation. JSON Schema validation by itself is insufficient. The report embeds the existing production permission decision; its semantic validity is checked by recomputing that production checker.
 
+All three schemas resolve their definitions locally without fetching external references. The runner uses PowerShell `Test-Json` for three positive and three negative structural checks alongside the Java semantic and artifact checks. Use current PowerShell 7 with `Test-Json`; validation here uses 7.6.9.
+
 Generate fresh, local synthetic fixtures with:
 
 ```powershell

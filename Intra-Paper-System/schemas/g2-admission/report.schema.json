@@ -69,13 +69,13 @@
       "format": "date-time"
     },
     "capture": {
-      "$ref": "input.schema.json#/properties/capture"
+      "$ref": "#/$defs/input_capture"
     },
     "processing": {
-      "$ref": "input.schema.json#/properties/processing"
+      "$ref": "#/$defs/input_processing"
     },
     "coverage": {
-      "$ref": "input.schema.json#/properties/coverage"
+      "$ref": "#/$defs/input_coverage"
     },
     "resources": {
       "type": "array",
@@ -91,7 +91,7 @@
             "minimum": 0
           },
           "logical_id": {
-            "$ref": "input.schema.json#/$defs/id"
+            "$ref": "#/$defs/id"
           },
           "role": {
             "enum": [
@@ -108,15 +108,15 @@
             ]
           },
           "path": {
-            "$ref": "input.schema.json#/$defs/path"
+            "$ref": "#/$defs/path"
           },
           "declared_sha256": {
-            "$ref": "input.schema.json#/$defs/hash"
+            "$ref": "#/$defs/hash"
           },
           "admitted_sha256": {
             "anyOf": [
               {
-                "$ref": "input.schema.json#/$defs/hash"
+                "$ref": "#/$defs/hash"
               },
               {
                 "const": "UNKNOWN"
@@ -129,7 +129,7 @@
             "minimum": 1
           },
           "observed_at_utc": {
-            "$ref": "input.schema.json#/$defs/instant"
+            "$ref": "#/$defs/instant"
           }
         },
         "required": [
@@ -153,7 +153,7 @@
         "type": "object",
         "properties": {
           "resource_id": {
-            "$ref": "input.schema.json#/$defs/id"
+            "$ref": "#/$defs/id"
           },
           "role": {
             "enum": [
@@ -170,10 +170,10 @@
             ]
           },
           "decision_id": {
-            "$ref": "input.schema.json#/$defs/hash"
+            "$ref": "#/$defs/hash"
           },
           "decision_sha256": {
-            "$ref": "input.schema.json#/$defs/hash"
+            "$ref": "#/$defs/hash"
           },
           "status": {
             "enum": [
@@ -186,18 +186,18 @@
             "type": "object"
           },
           "manifest_path": {
-            "$ref": "input.schema.json#/$defs/path"
+            "$ref": "#/$defs/path"
           },
           "intended_use_path": {
-            "$ref": "input.schema.json#/$defs/path"
+            "$ref": "#/$defs/path"
           },
           "evidence_path": {
-            "$ref": "input.schema.json#/$defs/path"
+            "$ref": "#/$defs/path"
           },
           "observed_dataset_sha256": {
             "anyOf": [
               {
-                "$ref": "input.schema.json#/$defs/hash"
+                "$ref": "#/$defs/hash"
               },
               {
                 "const": "UNKNOWN"
@@ -205,7 +205,7 @@
             ]
           },
           "dataset_manifest": {
-            "$ref": "../dataset-intended-use-preflight/dataset-manifest.schema.json"
+            "$ref": "#/$defs/permission_dataset"
           },
           "dataset_verification": {
             "const": "EXACT_FROZEN_BYTES"
@@ -226,7 +226,7 @@
       }
     },
     "replay_dataset": {
-      "$ref": "input.schema.json#/properties/replay_dataset"
+      "$ref": "#/$defs/input_replay_dataset"
     },
     "feed_audit": {
       "additionalProperties": false,
@@ -242,24 +242,24 @@
           ]
         },
         "schedule_id": {
-          "$ref": "input.schema.json#/$defs/id"
+          "$ref": "#/$defs/id"
         },
         "schedule_revision": {
-          "$ref": "input.schema.json#/$defs/id"
+          "$ref": "#/$defs/id"
         },
         "report_sha256": {
-          "$ref": "input.schema.json#/$defs/hash"
+          "$ref": "#/$defs/hash"
         },
         "artifact_sha256": {
-          "$ref": "input.schema.json#/$defs/hash"
+          "$ref": "#/$defs/hash"
         },
         "evidence_sha256": {
-          "$ref": "input.schema.json#/$defs/hash"
+          "$ref": "#/$defs/hash"
         },
         "input_sha256": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "input.schema.json#/$defs/hash"
+            "$ref": "#/$defs/hash"
           }
         }
       },
@@ -295,7 +295,7 @@
             "minimum": 0
           },
           "event_id": {
-            "$ref": "input.schema.json#/$defs/id"
+            "$ref": "#/$defs/id"
           },
           "domain": {
             "enum": [
@@ -309,15 +309,15 @@
             ]
           },
           "event_type": {
-            "$ref": "input.schema.json#/$defs/id"
+            "$ref": "#/$defs/id"
           },
           "observed_at_utc": {
-            "$ref": "input.schema.json#/$defs/instant"
+            "$ref": "#/$defs/instant"
           },
           "event_time_utc": {
             "anyOf": [
               {
-                "$ref": "input.schema.json#/$defs/instant"
+                "$ref": "#/$defs/instant"
               },
               {
                 "const": "UNKNOWN"
@@ -331,14 +331,14 @@
             ]
           },
           "resource_id": {
-            "$ref": "input.schema.json#/$defs/id"
+            "$ref": "#/$defs/id"
           },
           "record_ordinal": {
             "type": "integer",
             "minimum": 0
           },
           "record_sha256": {
-            "$ref": "input.schema.json#/$defs/hash"
+            "$ref": "#/$defs/hash"
           },
           "byte_offset": {
             "maximum": 9223372036854775807,
@@ -459,9 +459,304 @@
     "control_input_sha256": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "input.schema.json#/$defs/hash"
+        "$ref": "#/$defs/hash"
       }
     }
   },
-  "$comment": "The embedded production permission decision is checked by exact deterministic recomputation; issuer identity and permission remain unauthenticated. verify-artifact enforces every nested field by rerunning the production checkers. All report hashes identify bytes only."
+  "$comment": "The embedded production permission decision is checked by exact deterministic recomputation; issuer identity and permission remain unauthenticated. verify-artifact enforces every nested field by rerunning the production checkers. All report hashes identify bytes only.",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "nullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullableHash": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/hash"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "nullableInstant": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/instant"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "input_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_id",
+        "session_id",
+        "process_id",
+        "process_epoch",
+        "provider_id",
+        "source_id",
+        "product_id",
+        "channel_id",
+        "connection_id",
+        "subscription_id"
+      ],
+      "properties": {
+        "capture_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "session_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "process_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "process_epoch": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "provider_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "source_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "product_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "channel_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "connection_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "subscription_id": {
+          "$ref": "#/$defs/nullableId"
+        }
+      }
+    },
+    "input_processing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decoder_id",
+        "decoder_version",
+        "decoder_sha256",
+        "schema_id",
+        "schema_version",
+        "schema_sha256",
+        "build_id",
+        "build_sha256",
+        "decoder_resource_id",
+        "schema_resource_id",
+        "build_resource_id"
+      ],
+      "properties": {
+        "decoder_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "decoder_version": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "decoder_sha256": {
+          "$ref": "#/$defs/nullableHash"
+        },
+        "schema_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "schema_version": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/nullableHash"
+        },
+        "build_id": {
+          "$ref": "#/$defs/nullableId"
+        },
+        "build_sha256": {
+          "$ref": "#/$defs/nullableHash"
+        },
+        "decoder_resource_id": {
+          "$ref": "#/$defs/id"
+        },
+        "schema_resource_id": {
+          "$ref": "#/$defs/id"
+        },
+        "build_resource_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "input_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_start_utc",
+        "requested_end_utc",
+        "required_start_utc",
+        "required_end_utc",
+        "observed_start_utc",
+        "observed_end_utc",
+        "timezone",
+        "interval_nanos"
+      ],
+      "properties": {
+        "requested_start_utc": {
+          "$ref": "#/$defs/instant"
+        },
+        "requested_end_utc": {
+          "$ref": "#/$defs/instant"
+        },
+        "required_start_utc": {
+          "$ref": "#/$defs/instant"
+        },
+        "required_end_utc": {
+          "$ref": "#/$defs/instant"
+        },
+        "observed_start_utc": {
+          "$ref": "#/$defs/nullableInstant"
+        },
+        "observed_end_utc": {
+          "$ref": "#/$defs/nullableInstant"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "interval_nanos": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "input_replay_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_id",
+        "dataset_version",
+        "normalized_resource_id",
+        "normalized_sha256"
+      ],
+      "properties": {
+        "dataset_id": {
+          "$ref": "#/$defs/id"
+        },
+        "dataset_version": {
+          "$ref": "#/$defs/id"
+        },
+        "normalized_resource_id": {
+          "$ref": "#/$defs/id"
+        },
+        "normalized_sha256": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "permission_dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_status": {
+          "enum": [
+            "CANDIDATE"
+          ],
+          "type": "string"
+        },
+        "classification": {
+          "enum": [
+            "SYNTHETIC",
+            "CALLER_DECLARED"
+          ],
+          "type": "string"
+        },
+        "data_end": {
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "data_start": {
+          "format": "date",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "type": "string"
+        },
+        "data_type": {
+          "pattern": "^(?!(?:[Aa][Ll][Ll]|[Aa][Nn][Yy]|[Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Uu][Nn][Ss][Pp][Ee][Cc][Ii][Ff][Ii][Ee][Dd]|[Aa][Mm][Bb][Ii][Gg][Uu][Oo][Uu][Ss]|[Tt][Bb][Dd]|[Nn][Oo][Nn][Ee])$)[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "type": "string"
+        },
+        "dataset_id": {
+          "pattern": "^(?!(?:[Aa][Ll][Ll]|[Aa][Nn][Yy]|[Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Uu][Nn][Ss][Pp][Ee][Cc][Ii][Ff][Ii][Ee][Dd]|[Aa][Mm][Bb][Ii][Gg][Uu][Oo][Uu][Ss]|[Tt][Bb][Dd]|[Nn][Oo][Nn][Ee])$)[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "type": "string"
+        },
+        "dataset_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "instruments": {
+          "items": {
+            "pattern": "^(?!(?:[Aa][Ll][Ll]|[Aa][Nn][Yy]|[Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Uu][Nn][Ss][Pp][Ee][Cc][Ii][Ff][Ii][Ee][Dd]|[Aa][Mm][Bb][Ii][Gg][Uu][Oo][Uu][Ss]|[Tt][Bb][Dd]|[Nn][Oo][Nn][Ee])$)[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "product_id": {
+          "pattern": "^(?!(?:[Aa][Ll][Ll]|[Aa][Nn][Yy]|[Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Uu][Nn][Ss][Pp][Ee][Cc][Ii][Ff][Ii][Ee][Dd]|[Aa][Mm][Bb][Ii][Gg][Uu][Oo][Uu][Ss]|[Tt][Bb][Dd]|[Nn][Oo][Nn][Ee])$)[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "enum": [
+            "1"
+          ],
+          "type": "string"
+        },
+        "source_id": {
+          "pattern": "^(?!(?:[Aa][Ll][Ll]|[Aa][Nn][Yy]|[Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Uu][Nn][Ss][Pp][Ee][Cc][Ii][Ff][Ii][Ee][Dd]|[Aa][Mm][Bb][Ii][Gg][Uu][Oo][Uu][Ss]|[Tt][Bb][Dd]|[Nn][Oo][Nn][Ee])$)[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_status",
+        "classification",
+        "data_end",
+        "data_start",
+        "data_type",
+        "dataset_id",
+        "dataset_sha256",
+        "instruments",
+        "product_id",
+        "schema_version",
+        "source_id"
+      ],
+      "title": "dataset-manifest v1 (additional semantic rules in the preflight guide)",
+      "type": "object"
+    }
+  }
 }

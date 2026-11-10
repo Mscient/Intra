@@ -45,6 +45,24 @@ $feedExample = Join-Path $PSScriptRoot 'examples/feed-audit/inputs/complete'
 & $java -ea -Xmx768m -cp ($classes + [IO.Path]::PathSeparator + $tests) com.mscient.intrapaper.admission.G2AdmissionTest `
     (Join-Path $runRoot 'fixtures') $feedExample 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'checks.log')
 if ($LASTEXITCODE -ne 0) { throw "G2 admission checks failed: $runRoot" }
+$schemaLog = Join-Path $runRoot 'schema-checks.log'
+$schemaCases = @(@('valid-input/admission.json','input'), @('valid-artifact/report.json','report'), @('valid-artifact/artifact.json','artifact'))
+foreach ($pair in $schemaCases) {
+    $schemaFile = Join-Path $PSScriptRoot ('schemas/g2-admission/' + $pair[1] + '.schema.json')
+    $json = Get-Content -Raw (Join-Path $runRoot ('fixtures/' + $pair[0]))
+    if (-not (Test-Json -Json $json -SchemaFile $schemaFile)) { throw "Schema validation failed: $($pair[1])" }
+    "SCHEMA_PASS=$($pair[1])" | Add-Content $schemaLog
+    $invalid = $json | ConvertFrom-Json -AsHashtable
+    switch ($pair[1]) {
+        'input' { $invalid['unexpected_field'] = $true }
+        'report' { $invalid['g2_closed'] = $true }
+        'artifact' { $invalid['report_sha256'] = 'not-a-digest' }
+    }
+    if (Test-Json -Json ($invalid | ConvertTo-Json -Depth 100) -SchemaFile $schemaFile -ErrorAction SilentlyContinue) {
+        throw "Schema accepted invalid $($pair[1])"
+    }
+    "SCHEMA_NEGATIVE_PASS=$($pair[1])" | Add-Content $schemaLog
+}
 $fixture = Join-Path $runRoot 'fixtures/valid-input/admission.json'
 $localeOutput = Join-Path $runRoot 'locale-artifact'
 & $java '-Duser.timezone=Pacific/Apia' '-Duser.language=tr' '-Duser.country=TR' -cp $classes com.mscient.intrapaper.admission.G2AdmissionCli run $fixture $localeOutput 2>&1 | Tee-Object -FilePath (Join-Path $runRoot 'locale.log')
