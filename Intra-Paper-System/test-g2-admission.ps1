@@ -33,8 +33,8 @@ if (-not $JarPath) {
         $reader = [IO.StreamReader]::new($entry.Open())
         try { $manifest = $reader.ReadToEnd() -replace '\r?\n ', '' } finally { $reader.Dispose() }
     } finally { $zip.Dispose() }
-    $matches = [regex]::Matches($manifest, '(?m)^Build-Commit: ([^\r\n]+)\r?$')
-    if ($ExpectedCommit -notmatch '^[0-9a-f]{40}$' -or $matches.Count -ne 1 -or $matches[0].Groups[1].Value -cne $ExpectedCommit) {
+    $buildCommitMatches = [regex]::Matches($manifest, '(?m)^Build-Commit: ([^\r\n]+)\r?$')
+    if ($ExpectedCommit -notmatch '^[0-9a-f]{40}$' -or $buildCommitMatches.Count -ne 1 -or $buildCommitMatches[0].Groups[1].Value -cne $ExpectedCommit) {
         throw 'Production JAR Build-Commit does not match exact expected commit.'
     }
     @("BUILD_COMMIT=$ExpectedCommit", "JAR_SHA256=$((Get-FileHash -LiteralPath $classes -Algorithm SHA256).Hash.ToLowerInvariant())") | Add-Content $environmentLog
