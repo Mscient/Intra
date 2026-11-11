@@ -1,5 +1,7 @@
 # Nifty Intraday Research Project
 
+G3 remains open. The [three remaining workstreams](research/systems/G3-REMAINING-WORKSTREAMS.md) are strategy/test-plan freeze, authorized data and executable-cost qualification, and preregistered evaluation with independent review. A candidate and its eligible universe must qualify before closure; an all-fail result is recorded without promotion.
+
 The [G5 offline readiness and decision-record subsystem](Intra-Paper-System/docs/G5-READINESS.md) binds dossiers, evidence, private inputs, signatures and append-only history. It preserves unresolved authenticity and operational evidence as blockers. G5 remains closed; no broker/feed connector or live order route is provided. Current G0–G4 evidence statuses are unchanged.
 
 G1 foundations: [learning, candidates, proposed cards, cost wall, blockers and offline registry](research/systems/G1-FOUNDATIONS-2026-11-08.md). G0 remains OPEN and G1 INCOMPLETE; S01 is proposed pending owner selection, S02/S03 deferred, and private A15 values/reviews are missing. G2 offline journal/OMS/Windows-runner hardening is delivered on main; G2 remains INCOMPLETE pending rights, authentic source/input evidence, independent review, and trusted operational recovery.

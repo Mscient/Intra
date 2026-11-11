@@ -5,6 +5,8 @@ Nov 2, 2026 | @Prashant
 
 Continuation prepared and sources rechecked Nov 3, 2026. This continues the four-phase design study. “Jane Street-class” is an engineering ambition used for comparison; no statement about Jane Street’s private systems or strategies is made as fact.
 
+**G3 implementation clarification, Nov 11, 2026:** The [three remaining workstreams](../systems/G3-REMAINING-WORKSTREAMS.md) require a reviewed strategy/test-plan freeze, qualified authorized dated data and executable costs, then preregistered chronological evaluation and independent review. Freeze the test universe before outcomes and the final candidate/universe selection before holdout access. G3 closes only when evidence supports promotion and identifies the eligible trading universe. An all-fail evaluation is a valid recorded outcome that leaves G3 open; deadlines and synthetic replay do not close it. D39 requires both the 3× trading-cost hurdle and positive net holdout evidence after fixed/funding costs and capital charge. This dated implementation clarification does not claim a new public-source verification.
+
 **Scope:** Educational system design only. This is not personalized financial, legal, or tax advice. The proposed architecture is a reference plan, not permission or a recommendation to trade. A live stage remains conditional on current rules, broker approval, complete evidence, and the operator’s own decision.
 
 ---PAGEBREAK---
