@@ -305,7 +305,7 @@ final class G7Adapters {
         return indexed;
     }
     private static void records(G7Review r, List<Object> rows, String kind, String id, Map<String, Object> scheduled, Map<String, Map<String, Object>> originals) throws IOException {
-        Set<String> seen = new HashSet<>(); Instant last = null;
+        Set<String> seen = new HashSet<>(); Set<List<Object>> correctedFields = new HashSet<>(); Instant last = null;
         for (Object value : rows) {
             Map<String, Object> row = obj(value); String record = str(row, "record_id"); Instant at = time(row.get("at"));
             if (!seen.add(record)) throw new IOException("Duplicate normalized record");
@@ -326,6 +326,8 @@ final class G7Adapters {
             if (kind.equals("CORRECTIONS")) {
                 Map<String, Object> prior = originals.get(str(row, "prior_record_id"));
                 if (prior == null || record.equals(row.get("prior_record_id")) || time(prior.get("at")).isAfter(at)
+                        || !Objects.equals(prior.get("order_id"), row.get("order_id")) || !Objects.equals(prior.get("instrument_id"), row.get("instrument_id"))
+                        || !correctedFields.add(Arrays.asList(row.get("prior_record_id"), values.get("field")))
                         || !obj(prior.get("values")).containsKey(values.get("field"))
                         || !Objects.equals(obj(prior.get("values")).get(values.get("field")), values.get("old_value"))
                         || Objects.equals(values.get("old_value"), values.get("new_value")))

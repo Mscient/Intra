@@ -1,5 +1,15 @@
 # Offline Backtest Operating Guide
 
+The separate [proposed G7 evidence reviewer](G7-OPERATIONS-EVIDENCE.md) provides
+offline `evaluate`, `verify`, `explain` and append-only `append` commands. Use
+PowerShell 7 and pinned Microsoft JDK 21.0.13.0.2, exact case-sensitive wrapper
+options, retained original dossier/history generations and a new output directory.
+Exit 3 can accompany a published blocked diagnostic; verification exit 0 means
+byte recomputation only. See [current validation](G7-OPERATIONS-VALIDATION.md) for
+the JDK access diagnosis and exact local build evidence. G7 remains a proposal
+outside G0–G6. No real operational evidence was supplied and no gate is closed;
+`g7_closed=false`, `operation_authorized=false`, `scale_authorized=false`.
+
 The [G2 inventory and readiness report](G2-READINESS-INVENTORY.md) maps implementation, tests and remaining gaps. Overall G2 remains **INCOMPLETE**. The [source/use map](G2-SOURCE-USE-EVIDENCE.csv) contains no real-data grant. Before opening real inputs, resolve exact product/use, owner/reviewer and handling evidence with the existing permission checkers; old success or public availability is not permission.
 
 Run `.\test-g2-contracts.ps1` under JDK 21 for synthetic schema/journal/OMS/fill boundary tests. After building the JAR, run `.\test-g2-contracts.ps1 -JarPath $jar` and `.\test-g2-reproducibility.ps1 -JarPath $jar`. Both retain local evidence under printed directories; `-OutputRoot` selects the root. The latter freezes fictional inputs, independently decodes a frozen raw journal, runs the existing bar/L1 assumptions in separate JVMs with different locale/timezone settings, reconstructs each run, and byte-compares artifacts and synthetic quality records. It supplies no real market evidence or universal quality admission. No network, account or credentials are used.

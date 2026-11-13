@@ -1,5 +1,11 @@
 # Jane Street-Class System — Implementation Tracker
 
+G7 follow-up: the preserved isolated branch adds wrapper redaction and exact
+argument handling, role-evidence freshness and stronger event/correction bindings.
+See [completion evidence](../../Intra-Paper-System/docs/G7-OPERATIONS-VALIDATION.md)
+for current local validation and the JDK access diagnosis. Proposal status and all
+G0–G6 decisions remain unchanged; no operation or scale authority is granted.
+
 **Proposed G7 extension (2026-11-11):** [Proposal](G7-OPERATIONS-PROPOSAL.md), [evidence contract](../../Intra-Paper-System/docs/G7-OPERATIONS-EVIDENCE.md), and [validation](../../Intra-Paper-System/docs/G7-OPERATIONS-VALIDATION.md) describe an offline diagnostic extension outside the original G0–G6 roadmap. Owner adoption, real operating evidence, authenticated source/owner/reviewer identities and independent qualification remain absent. G7 cannot replace or repair earlier gates. `g7_closed=false`, `operation_authorized=false`, `scale_authorized=false`; no G0–G6 gate is closed by this work.
 
 **G1 foundation increment (2026-11-08):** [Research packet](G1-FOUNDATIONS-2026-11-08.md) provides learning/source evidence, five instrument candidates, 24 blank-amount cost components, three unapproved cards, variant history and an offline strict card/version facility. G0 OPEN and G1 INCOMPLETE pending genuine charter closure, private A15, owner learning/selection and independent review. See [validation](../sessions/2026-11-08-g1-foundations.md).

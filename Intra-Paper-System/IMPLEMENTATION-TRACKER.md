@@ -1,5 +1,10 @@
 # Implementation status
 
+G7 follow-up: strict redacted wrapper parsing, pinned-JDK access diagnosis,
+role-evidence freshness, artifact-event scope/period checks and normalized
+correction checks are recorded in [the completion evidence](docs/G7-OPERATIONS-VALIDATION.md).
+Local and hosted results remain separate; G7 remains proposed and non-authoritative.
+
 **Proposed G7 extension (2026-11-11):** The [offline operations evidence contract](docs/G7-OPERATIONS-EVIDENCE.md) and [proposal](../research/systems/G7-OPERATIONS-PROPOSAL.md) cover exact envelopes, missing/stale periods, drift, existing verifier adapters, normalized reconciliation and immutable review history. G7 is outside the original G0–G6 roadmap and requires owner adoption before becoming a project gate. Authentication adapters and real operational evidence remain absent; eligibility is unavailable. See [validation](docs/G7-OPERATIONS-VALIDATION.md). `g7_closed=false`, `operation_authorized=false`, `scale_authorized=false`; no G0–G6 decision or gate is closed by this work.
 
 **G3 strategy-evidence increment (2026-11-08):** [Current-state and candidate packet](../research/systems/g3-strategy-evidence-2026-11-08/README.md) is integrated as a historical evidence snapshot. MM and slower RV are NOT TESTABLE; zero market trials ran and all financial results remain null. No candidate performance rejection is claimed. G3 remains INCOMPLETE; G4 forward paper is unauthorized and G5 remains closed. The packet’s 14-suite/13-package validation was performed against its unchanged historical software base `0ae90aa`, not this consolidated main.

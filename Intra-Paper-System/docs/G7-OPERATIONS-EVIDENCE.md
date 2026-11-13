@@ -32,6 +32,20 @@ Set-Location Intra-Paper-System
 .\g7-operations.ps1 -Command append -JarPath $g7Jar -Dossier $dossier -History $oldHistory -Event $draft -Output $newGeneration
 ```
 
+The wrapper accepts only the full named options shown above, each followed by a
+nonempty value. Option names are case-sensitive as shown; command values are
+lowercase. Missing, duplicate, unknown, abbreviated, case-mismatched or extra
+arguments produce redacted `FAIL` JSON and exit 1; they never echo supplied
+values or paths. The complete argument shape is checked inside the diagnostic
+error boundary before opening paths. The wrapper verifies the pinned JDK release
+and captures launcher errors, releasing only G7 JSON with false authority flags.
+
+If access to the pinned JDK's `release` is denied, run the same verified toolchain
+under its authorized Windows identity. Do not skip vendor/version verification,
+substitute another JDK or weaken its ACL. The 2026-11-11 validation diagnosed a
+sandbox-account ACL denial; the normal owner could read the same file and execute
+Microsoft `21.0.13.0.2`. Details are in the validation record.
+
 The direct entry point, including in the production `intra-paper-system.jar`, is
 `com.mscient.intrapaper.ops.governance.G7Cli`:
 
@@ -125,6 +139,13 @@ identities and scope, precede the interval and remain unexpired at as-of. Missin
 expired, incomplete, mismatched or unauthenticated decisions cannot be repaired
 by this review.
 
+Owner/reviewer identity, authority, qualification and independence records,
+including those referenced by original gate decisions, use the owner's explicit
+`review_freshness_seconds` as their maximum declared observation age at `as_of`.
+Missing age or policy remains unknown; stale records produce
+`ROLE_EVIDENCE_STALE`. This is a document-freshness check, not a qualification or
+identity authentication adapter. Decision expiry remains a separate check.
+
 Observed domain identities are compared with the frozen approved envelope. Any
 strategy/build/parameter/cost/source/instrument/rule/route/hosting/risk/procedure
 or capacity change requires its configured human requalification path. Unlogged
@@ -165,6 +186,11 @@ records, self-comparison and exact mismatches fail; absent streams/windows/count
 values remain incomplete. Matching streams do not prove normalization or omitted
 account coverage.
 
+Normalized corrections must retain the prior record's order and instrument IDs.
+Repeated correction of the same prior record and field fails; provide a new
+retained source generation for subsequent financial corrections. This limited
+comparison does not implement broker correction accounting.
+
 ## Immutable history and human decisions
 
 The first event registers the exact manifest bytes and scope. Each event has the
@@ -173,7 +199,8 @@ the previous canonical event's SHA-256 and its exact subject/payload binding.
 Times are caller declarations; the chain is not a trusted timestamp service.
 Reordered/duplicate events, malformed signatures, wrong links/subjects and future
 or regressing chronology are rejected. Artifact, period and change registration
-retain their complete record payloads. A final `BUNDLE` event binds the exact
+retain their complete record payloads. Artifact registration also binds the exact
+review scope and the artifact's declared period. A final `BUNDLE` event binds the exact
 inventory/period/change bytes before decisions.
 
 `append` requires a complete next draft with its correct sequence/link. It

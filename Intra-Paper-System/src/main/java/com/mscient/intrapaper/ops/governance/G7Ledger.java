@@ -85,6 +85,8 @@ final class G7Ledger {
                 Map<String, Object> bound = obj(record);
                 if (logical.equals("EVIDENCE") && (list(e.get("evidence")).size() != 1 || !bound.get("id").equals(list(e.get("evidence")).getFirst())))
                     throw new IOException("Evidence event must bind its sole artifact record");
+                if (logical.equals("EVIDENCE") && (!scope.equals(e.get("scope")) || !Objects.equals(bound.get("period_id"), e.get("period_id"))))
+                    throw new IOException("Evidence event scope/period must match its artifact record");
                 if (logical.equals("PERIOD_EVIDENCE") && (!bound.get("period_id").equals(e.get("period_id")) || !scope.equals(e.get("scope"))))
                     throw new IOException("Period record scope mismatch");
                 if (logical.equals("CHANGE") && (!bound.get("history_event_id").equals(id) || !bound.get("scope").equals(e.get("scope"))

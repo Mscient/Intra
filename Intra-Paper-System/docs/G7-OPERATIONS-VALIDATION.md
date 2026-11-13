@@ -13,7 +13,78 @@ and two scripts were inspected and their original bytes/hashes retained under
 validation evidence. This is automated software review, not qualified independent
 human review.
 
-## Delivered scope and audit corrections
+## Preserved-checkout continuation (2026-11-13)
+
+The continuation started at `099a3cec7f227275a318e859763e524cc42f626f`
+on the same branch and worktree. Direct inspection found ten unstaged G7 files,
+no staged changes and no follow-up commit. The source, wrapper, test, evidence
+contract, both trackers, proposal and operating-guide diffs were reviewed in full.
+No repository `AGENTS.md` was found; the supplied `RTK.md` and repository
+`SESSION_PROTOCOL.md` were read. The user's isolated-branch/local-only instruction
+overrides the protocol's generic main/push instruction. All existing changes and
+validation generations were preserved. The original implementation session is
+historical; this continuation has a
+[separate session record](../../research/sessions/38309891-48d8-4e6a-82ad-2ddf6cf2c37a.md).
+
+The follow-up checks exact case-sensitive wrapper arguments inside the redacted
+error boundary, including original `pwsh -File` tokens because that host normalizes
+`-Name:value` in `$args`. Launcher failures are captured before releasing diagnostic
+JSON. The wrapper verifies the pinned JDK vendor/version. Role-document age uses
+the explicit `review_freshness_seconds` policy, including earlier-gate signer
+evidence. Artifact events bind the review scope and declared artifact period.
+Normalized corrections preserve order/instrument IDs and reject repeated correction
+of the same prior record/field. These checks do not authenticate roles or implement
+broker correction accounting. Cross-JVM checks also cover explain and append bytes.
+
+The retained `build/g7-validation/precommit-4463c1526d354957ac78db8d14d98123/`
+was inspected directly. Every entry in its `hashes.json` still matches: all nine
+G7 main/test files, three scripts, the JDK release/java/javac, standalone JAR and
+production JAR. Its source run passed **1,904 checks**; its production-JAR run
+passed **1,905 checks** (one extra expected-Build-Commit assertion). Each ran
+198 synthetic scenarios, 67 child processes and 34 independent schema checks.
+All 12 selected regression runners passed. Standalone builds matched exactly,
+with SHA-256 `de1737f7cdc3d81f515ed1d85d126eda1d33ebc9ea4f24374a7a82c9d972937c`.
+The production JAR SHA-256 was
+`139bc95cd4663ba0f5b3dcf77f2e2ef7c1577846e75bbd54d7abdb4da486f518`.
+Its manifest is explicitly **`Build-Commit: unknown-dirty`**, with tested HEAD
+`099a3cec7f227275a318e859763e524cc42f626f`; this is precommit validation of
+the modified bytes, not validation of a committed follow-up revision.
+
+Exact retained run command, from `Intra-Paper-System`:
+
+```powershell
+rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\finish-g7.ps1 -Phase precommit
+```
+
+The sandbox account again received `Access denied` reading the pinned JDK
+`release`. An approved run under the normal Windows identity read the same file
+and verified its original hashes, `IMPLEMENTOR="Microsoft"` and
+`JAVA_VERSION="21.0.13.0.2"`. No ACL, JDK or verification rule was changed.
+PowerShell 7 startup was also unavailable in the sandbox; the read-only audit ran
+under the normal identity. This tool-access identity is not authenticated evidence
+of an operational owner, reviewer or supplier.
+
+The local continuation driver is retained at
+`build/g7-validation/resume-validate.ps1`. It uses a new output generation each
+time, fresh Java 21 classes, all 12 regressions, two repeatable standalone builds,
+standalone explain/evaluate/verify exits 2/3/0, a fresh production build, packaged
+G7 tests with the expected manifest commit, both diff whitespace checks and
+before/after tracked-input hashes. It rejects dirty postcommit validation.
+The source-test JAR deliberately retains `unknown-dirty` even in a clean checkout;
+only the production/standalone package can carry the tested committed revision.
+Exact commands, from `Intra-Paper-System`, are:
+
+```powershell
+rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\resume-validate.ps1 -Phase precommit
+rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\resume-validate.ps1 -Phase postcommit
+```
+
+Fresh completion results are pending at this documentation snapshot. A run is
+successful only when its final `validation.json` reports `status=PASS`; absence
+of that record is not success. Local postcommit identity will be recorded separately
+after the reviewed source commit. Hosted CI has not run for this continuation.
+
+## Delivered scope and original audit corrections
 
 The seven governance classes implement strict schemas, a bounded UTF-8 parser,
 local snapshots/publication, immutable hash-chain generations, fixed offline
@@ -41,7 +112,7 @@ not substitute for either. `ELIGIBLE_FOR_HUMAN_REVIEW` is unavailable in this
 revision, including for matching synthetic evidence, AI review and valid signatures
 under supplied keys.
 
-## Local validation
+## Historical local validation (original implementation)
 
 Environment: Microsoft OpenJDK **21.0.13.0.2**, runtime
 **21.0.13.0.2+1-LTS**, Microsoft build **15780113**, 64-bit Windows;

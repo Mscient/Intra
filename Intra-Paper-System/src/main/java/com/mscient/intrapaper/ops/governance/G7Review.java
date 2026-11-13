@@ -255,7 +255,7 @@ public final class G7Review {
                 Map<String, Object> expectedHashes = new TreeMap<>();
                 for (Object id : list(g.get("artifacts"))) expectedHashes.put((String) id, artifactHash(id, gate));
                 if (!expectedHashes.equals(decision.get("source_artifact_hashes"))) block("GATE_ARTIFACT_IDENTITIES_MISMATCH", gate, "Bind every exact original gate artifact, including its path, size and bytes in the inventory.");
-                for (String key : List.of("identity_evidence", "authority_evidence", "qualification_evidence", "independence_evidence")) artifact(decision.get(key), gate + "." + key);
+                for (String key : List.of("identity_evidence", "authority_evidence", "qualification_evidence", "independence_evidence")) roleEvidence(decision.get(key), gate + "." + key);
                 if (decision.get("signer_id") == null) block("GATE_SIGNER_IDENTITY_ABSENT", gate, "Establish the genuine original human decision maker's identity and authority.");
                 if (!decision.get("signer_kind").equals("HUMAN")) block("GATE_NONHUMAN_OR_UNKNOWN_DECISION", gate, "AI reviews and unknown signers cannot qualify an earlier project gate.");
                 signature(decision);
@@ -429,11 +429,19 @@ public final class G7Review {
         }
         context(null, null, null);
     }
+    private void roleEvidence(Object id, String field) throws IOException {
+        Map<String, Object> a = artifact(id, field);
+        if (a == null) return;
+        if (rules == null || rules.get("review_freshness_seconds") == null || a.get("observed_at") == null)
+            missing("ROLE_EVIDENCE_FRESHNESS_UNKNOWN", field, "Supply original role evidence and an explicit owner review lifetime; no freshness duration is inferred.");
+        else if (Duration.between(time(a.get("observed_at")), asOf).compareTo(Duration.ofSeconds(integer(rules.get("review_freshness_seconds")))) > 0)
+            missing("ROLE_EVIDENCE_STALE", field, "Obtain current identity, authority, qualification or independence evidence under the declared review lifetime; freshness does not authenticate a person.");
+    }
     private void roles() throws IOException {
         Map<String, Object> owner = obj(manifest.get("owner")), reviewer = obj(manifest.get("reviewer"));
         context(null, Arrays.asList(owner.get("authority_evidence"), owner.get("identity_evidence"), reviewer.get("identity_evidence"), reviewer.get("qualification_evidence"), reviewer.get("independence_evidence")), null);
-        artifact(owner.get("authority_evidence"), "owner.authority"); artifact(reviewer.get("qualification_evidence"), "reviewer.qualifications"); artifact(reviewer.get("independence_evidence"), "reviewer.independence");
-        artifact(owner.get("identity_evidence"), "owner.identity"); artifact(reviewer.get("identity_evidence"), "reviewer.identity");
+        roleEvidence(owner.get("authority_evidence"), "owner.authority"); roleEvidence(reviewer.get("qualification_evidence"), "reviewer.qualifications"); roleEvidence(reviewer.get("independence_evidence"), "reviewer.independence");
+        roleEvidence(owner.get("identity_evidence"), "owner.identity"); roleEvidence(reviewer.get("identity_evidence"), "reviewer.identity");
         if (owner.get("id") == null || reviewer.get("id") == null || owner.get("kind").equals("UNKNOWN") || reviewer.get("kind").equals("UNKNOWN"))
             missing("HUMAN_IDENTITY_UNKNOWN", "reviewer", "Obtain genuine owner and reviewer identity/authority evidence; absent identity remains unknown.");
         if (owner.get("id") != null && owner.get("id").equals(reviewer.get("id")) || reviewer.get("kind").equals("AI") || owner.get("kind").equals("AI")) fail("SELF_OR_AI_REVIEW", "reviewer", "Obtain a distinct qualified independent human reviewer and human owner.");

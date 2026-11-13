@@ -30,7 +30,7 @@ public final class G7OperationsTest {
         jar = Path.of(G7Cli.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         if (args.length == 3) check(args[2].equals(G7Cli.buildCommit()), "packaged Build-Commit equals expected tested revision");
         prerequisiteCases(); coverageCases(); driftCases(); adapterCases(); reconciliationCases(); incidentCases();
-        historyCases(); decisionCases(); fileCases(); cliCases(); publishedContracts();
+        historyCases(); decisionCases(); fileCases(); cliCases(); wrapperArgumentCases(); publishedContracts();
         Map<String, Object> result = map("schema", "g7-synthetic-test-result/v1", "classification", "SYNTHETIC_TESTS_ONLY", "checks", checks,
                 "scenarios", scenarios, "child_processes", processes, "build_commit", G7Cli.buildCommit(), "code_sha256", G7Cli.codeHash(),
                 "limitations", limitations, "g7_closed", false, "operation_authorized", false, "scale_authorized", false);
@@ -99,6 +99,8 @@ public final class G7OperationsTest {
             obj(f.manifest.get("owner")).put("id", null);
         }, "BLOCKED", "HUMAN_IDENTITY_UNKNOWN", "REVIEWER_QUALIFICATIONS_UNAUTHENTICATED", "MISSING_EVIDENCE");
         accepted("self-review", f -> obj(f.manifest.get("reviewer")).put("id", obj(f.manifest.get("owner")).get("id")), "FAIL", "SELF_OR_AI_REVIEW");
+        accepted("stale-reviewer-qualification", f -> f.a(obj(f.manifest.get("reviewer")).get("qualification_evidence")).put("observed_at", AS_OF.minusSeconds(86401).toString()), "BLOCKED", "ROLE_EVIDENCE_STALE");
+        accepted("unknown-reviewer-freshness", f -> obj(f.manifest.get("rules")).put("review_freshness_seconds", null), "BLOCKED", "ROLE_EVIDENCE_FRESHNESS_UNKNOWN");
         accepted("ai-review", f -> obj(f.manifest.get("reviewer")).put("kind", "AI"), "FAIL", "SELF_OR_AI_REVIEW");
         accepted("ai-gate-decision", f -> { var d = read(f, "gates/G0-decision.json"); d.put("signer_kind", "AI"); f.replaceBytes("gates/G0-decision.json", d); }, "BLOCKED", "GATE_NONHUMAN_OR_UNKNOWN_DECISION");
         accepted("signed-unprovisioned-identity", f -> {
@@ -191,6 +193,11 @@ public final class G7OperationsTest {
         accepted("ledger-missing-stream", f -> { reconciliation(f); var d = read(f, "ledger/reconciliation.json"); list(d.get("streams")).removeIf(s -> "FEES".equals(obj(s).get("kind"))); f.replaceBytes("ledger/reconciliation.json", d); }, "BLOCKED", "RECONCILIATION_STREAM_MISSING");
         accepted("ledger-exact-decimal-spelling", f -> { reconciliation(f); reconcileEdit(f, ledger -> obj(obj(list(stream(ledger, "FEES").get("records")).getFirst()).get("values")).put("amount", "0.0")); }, "FAIL", "EXTERNAL_LEDGER_MISMATCH");
         accepted("ledger-bad-correction", f -> { reconciliation(f); reconcileEdit(f, ledger -> obj(list(stream(ledger, "CORRECTIONS").get("records")).getFirst()).put("prior_record_id", "omitted-original")); }, "FAIL", "INVALID_EXTERNAL_CORRECTION");
+        accepted("ledger-cross-order-correction", f -> { reconciliation(f); reconcileEdit(f, ledger -> obj(list(stream(ledger, "CORRECTIONS").get("records")).getFirst()).put("order_id", "OTHER_ORDER")); }, "FAIL", "INVALID_EXTERNAL_CORRECTION");
+        accepted("ledger-double-correction", f -> { reconciliation(f); reconcileEdit(f, ledger -> {
+            var s = stream(ledger, "CORRECTIONS"); var rows = new ArrayList<>(list(s.get("records")));
+            var second = cloneUnchecked(rows.getFirst()); second.put("record_id", "second-correction"); rows.add(second); s.put("records", rows); s.put("count", 2);
+        }); }, "FAIL", "INVALID_EXTERNAL_CORRECTION");
         accepted("ledger-duplicate-record", f -> { reconciliation(f); reconcileEdit(f, ledger -> { var s = stream(ledger, "ORDERS"); var rows = new ArrayList<>(list(s.get("records"))); rows.add(rows.getFirst()); s.put("records", rows); s.put("count", 2); }); }, "FAIL", "ADAPTER_REJECTED");
         accepted("ledger-self-comparison", f -> { reconciliation(f); f.replaceBytes("ledger/external-raw.txt", utf8(Files.readAllBytes(f.root.resolve("ledger/internal-raw.txt")))); }, "FAIL", "SELF_RECONCILIATION");
     }
@@ -233,6 +240,8 @@ public final class G7OperationsTest {
         corruptHistory("history-registration-replay", events -> events.add(cloneUnchecked(events.getFirst())), true);
         corruptHistory("history-future-event", events -> obj(events.getLast()).put("recorded_at", AS_OF.plusSeconds(1).toString()), true);
         corruptHistory("history-chronology", events -> obj(events.getLast()).put("occurred_at", AS_OF.plusSeconds(1).toString()), true);
+        corruptHistory("evidence-wrong-scope", events -> obj(events.get(2)).put("scope", "OTHER_SCOPE"), true);
+        corruptHistory("evidence-wrong-period", events -> obj(events.get(2)).put("period_id", ID), true);
         Fixture noncanonical = fixture("history-noncanonical"); noncanonical.write(); Files.writeString(noncanonical.root.resolve("history.json"), utf8(Files.readAllBytes(noncanonical.root.resolve("history.json"))) + "\n"); rejectedEvaluation(noncanonical, "history-noncanonical");
         Fixture corrected = fixture("valid-artifact-correction"); String oldId = corrected.id("roles/owner.txt");
         String newId = corrected.add("corrections/owner.txt", "PROVENANCE", "SYNTHETIC correction; original identity/qualification remains untrusted.\n"); corrected.correctionArtifacts.add(newId); byte[] old = corrected.write();
@@ -395,11 +404,21 @@ public final class G7OperationsTest {
         var verified = invoke("verify", f.root.toString(), first.toString()); check(verified.code == 0 && "BLOCKED".equals(verified.value.get("status")), "byte verification is independent of readiness");
         check(invoke("explain", f.root.toString()).code == 3, "explain dossier includes blocking findings");
         byte[] expected = Files.readAllBytes(first.resolve("report.json"));
+        byte[] explanation = null, appended = null;
+        var nextBundle = event("cross-process-bundle", "BUNDLE", hash(bytes(f.bundle)), null, AS_OF); link(history, nextBundle);
+        Path nextDraft = root.resolve("cross-process-draft.json"); Files.write(nextDraft, bytes(nextBundle));
         for (String[] settings : List.of(new String[]{"en", "US", "UTC"}, new String[]{"tr", "TR", "Pacific/Auckland"}, new String[]{"hi", "IN", "Asia/Kolkata"})) {
             Path result = root.resolve("jvm-report-" + settings[0]); List<String> args = javaArgs("-Duser.language=" + settings[0], "-Duser.country=" + settings[1], "-Duser.timezone=" + settings[2], "-cp", jar.toString(), G7Cli.class.getName(), "evaluate", f.root.toString(), result.toString()); child(args, 3);
             check(Arrays.equals(expected, Files.readAllBytes(result.resolve("report.json"))), "report byte identity across separate JVM/locale/timezone " + settings[0]);
             check(Arrays.equals(Files.readAllBytes(first.resolve("artifact.json")), Files.readAllBytes(result.resolve("artifact.json"))), "publication metadata byte identity " + settings[0]);
             child(javaArgs("-cp", jar.toString(), G7Cli.class.getName(), "verify", f.root.toString(), result.toString()), 0);
+            child(javaArgs("-Duser.language=" + settings[0], "-Duser.timezone=" + settings[2], "-cp", jar.toString(), G7Cli.class.getName(), "explain", f.root.toString()), 3);
+            byte[] explained = Files.readAllBytes(root.resolve("synthetic-child-" + processes + ".log"));
+            if (explanation != null) check(Arrays.equals(explanation, explained), "explain bytes deterministic across JVMs"); explanation = explained;
+            Path generation = root.resolve("jvm-append-" + settings[0]);
+            child(javaArgs("-Duser.language=" + settings[0], "-Duser.timezone=" + settings[2], "-cp", jar.toString(), G7Cli.class.getName(), "append", f.root.toString(), f.root.resolve("history.json").toString(), nextDraft.toString(), generation.toString()), 3);
+            byte[] generated = Files.readAllBytes(generation.resolve("history.json"));
+            if (appended != null) check(Arrays.equals(appended, generated), "append bytes deterministic across JVMs"); appended = generated;
         }
         Path selected = root.resolve("selected-original-history.json"); Files.write(selected, history); check(invoke("verify", f.root.toString(), first.toString(), selected.toString()).code == 0, "explicit canonical history verified");
         var truncated = new ArrayList<>(list(obj(parse(history)).get("events"))); truncated.removeLast(); Files.write(selected, chain(truncated));
@@ -416,6 +435,53 @@ public final class G7OperationsTest {
         child(List.of("C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoProfile", "-NonInteractive", "-File", project.resolve("g7-operations.ps1").toString(), "-Command", "evaluate", "-JarPath", jar.toString(), "-Dossier", f.root.toString(), "-Output", wrapper.toString()), 1);
         Fixture privacy = fixture("private-values-redacted"); privacy.a(privacy.id("observations/CASH.txt")).put("provenance", "PRIVATE_ACCOUNT_123 PRIVATE_LIMIT_987 PRIVATE_CREDENTIAL_456"); privacy.write(); String report = utf8(bytes(evaluate(privacy)));
         check(!report.contains("PRIVATE_ACCOUNT_123") && !report.contains("PRIVATE_LIMIT_987") && !report.contains("PRIVATE_CREDENTIAL_456") && !report.contains(privacy.root.toString()), "public diagnostics omit caller/private path/value text");
+    }
+    private static void wrapperArgumentCases() throws Exception {
+        String secret = "PRIVATE_SYNTHETIC_ARGUMENT";
+        List<String> prefix = List.of("C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoProfile", "-NonInteractive", "-File", project.resolve("g7-operations.ps1").toString());
+        List<String> valid = List.of("-Command", "explain", "-JarPath", jar.toString());
+        List<List<String>> invalid = new ArrayList<>(List.of(List.of(), List.of("-Command"),
+                List.of("-Command", secret), List.of("-JarPath", jar.toString()),
+                List.of("-Command", secret, "-JarPath", jar.toString()),
+                List.of("-Command", "evaluate", "-JarPath", jar.toString()),
+                List.of("-Command", "explain", "-JarPath"),
+                List.of("-Command", "-JarPath", jar.toString())));
+        for (List<String> suffix : List.of(List.of(secret), List.of("-Unknown", secret), List.of("-command", secret), List.of("-Output", secret),
+                List.of("-Command", "explain"), List.of("-JarPath", secret), List.of("-History", secret), List.of("-Event", secret))) {
+            List<String> arguments = new ArrayList<>(valid); arguments.addAll(suffix); invalid.add(arguments);
+        }
+        for (String command : List.of("Explain", "EXPLAIN", "evaluate ", "approve", "")) invalid.add(List.of("-Command", command, "-JarPath", jar.toString()));
+        for (String value : List.of("", " ", "-", "-Output", secret + "\n")) {
+            // Newline in a path also fails inside the redacted boundary.
+            invalid.add(List.of("-Command", "explain", "-JarPath", value));
+        }
+        invalid.add(List.of("-Command:explain", "-JarPath", jar.toString()));
+        invalid.add(List.of("--Command", "explain", "-JarPath", jar.toString()));
+        invalid.add(List.of("-Comm", "explain", "-JarPath", jar.toString()));
+        Fixture f = fixture("wrapper-case-sensitive-options"); byte[] history = f.write();
+        var next = event("wrapper-next-bundle", "BUNDLE", hash(bytes(f.bundle)), null, AS_OF); link(history, next);
+        Path draft = root.resolve("wrapper-draft.json"); Files.write(draft, bytes(next));
+        List<String> append = List.of("-Command", "append", "-JarPath", jar.toString(), "-Dossier", f.root.toString(),
+                "-History", f.root.resolve("history.json").toString(), "-Event", draft.toString(), "-Output", root.resolve("wrapper-case-output").toString());
+        for (int i = 0; i < append.size(); i += 2) {
+            List<String> wrongCase = new ArrayList<>(append); wrongCase.set(i, wrongCase.get(i).toLowerCase(Locale.ROOT)); invalid.add(wrongCase);
+            List<String> duplicate = new ArrayList<>(append); duplicate.add(append.get(i)); duplicate.add(append.get(i + 1)); invalid.add(duplicate);
+            List<String> missing = new ArrayList<>(append); missing.remove(i + 1); invalid.add(missing);
+        }
+        Path brokenJar = root.resolve(secret + ".jar"); Files.writeString(brokenJar, "SYNTHETIC invalid JAR");
+        invalid.add(List.of("-Command", "explain", "-JarPath", brokenJar.toString()));
+        for (List<String> arguments : invalid) {
+            scenarios++; List<String> command = new ArrayList<>(prefix); command.addAll(arguments); child(command, 1);
+            byte[] output = Files.readAllBytes(root.resolve("synthetic-child-" + processes + ".log"));
+            Map<String, Object> error = obj(parse(output)); authority(error);
+            check("FAIL".equals(error.get("status")) && "g7-error/v1".equals(error.get("schema")), "wrapper argument error is diagnostic JSON");
+            check(!utf8(output).contains(secret) && !utf8(output).contains(project.toString()) && !utf8(output).contains(jar.toString()), "wrapper rejects arguments without disclosing supplied values or paths");
+        }
+        check(!Files.exists(root.resolve("wrapper-case-output")), "malformed wrapper arguments never publish output");
+        List<String> validAppend = new ArrayList<>(prefix); validAppend.addAll(append); child(validAppend, 3);
+        check(Arrays.equals(extended(history, next), Files.readAllBytes(root.resolve("wrapper-case-output/history.json"))), "wrapper append retains exact deterministic generation");
+        child(List.of(prefix.getFirst(), "-NoProfile", "-NonInteractive", "-File", project.resolve("g7-operations.ps1").toString(),
+                "-Command", "verify", "-JarPath", jar.toString(), "-Dossier", root.resolve("packaged-cli-repeatability").toString(), "-Output", root.resolve("wrapper-report").toString()), 0);
     }
     private static List<String> javaArgs(String... args) {
         List<String> result = new ArrayList<>(); result.add(Path.of(System.getProperty("java.home"), "bin", "java.exe").toString()); result.addAll(List.of(args)); return result;

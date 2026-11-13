@@ -42,3 +42,9 @@ operation or scale authority.
 The [validation report](../../Intra-Paper-System/docs/G7-OPERATIONS-VALIDATION.md)
 and synthetic fixtures document software checks only. Hosted CI and local checks
 must be reported for their exact revisions separately.
+
+The completion follow-up preserves the existing isolated branch and adds strict
+redacted wrapper argument/launcher handling, role-document freshness under the
+declared review lifetime, exact artifact-event scope/period binding and rejection
+of cross-order or repeated normalized corrections. These software checks do not
+change the proposal's status or create human authentication or operating authority.
