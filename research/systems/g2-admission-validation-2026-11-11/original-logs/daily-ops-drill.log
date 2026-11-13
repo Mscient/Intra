@@ -1,0 +1,12 @@
+RUN=daily-ops-drill SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\synthetic-daily-ops-drill.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+PASS: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-clean-completion; outcome=COMPLETED
+FAIL: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-stale-inputs; outcome=COMPLETED
+INCOMPLETE: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-missing-acknowledgements; outcome=COMPLETED
+FAIL: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-open-positions; outcome=COMPLETED
+FAIL: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-unmatched-events; outcome=COMPLETED
+FAIL: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-hash-tampering; outcome=COMPLETED
+PASS: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-halted-session; outcome=HALTED
+PASS: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-settled-session; outcome=COMPLETED
+INCOMPLETE: caller-supplied diagnostic evidence; session=SYNTHETIC-2026-11-02; run=SYNTHETIC-missing-settlement-costs; outcome=COMPLETED
+Synthetic evidence rehearsal only: caller-supplied diagnostic evidence; G4 remains open.
+RESULT=PASS EXIT_CODE=0

@@ -1,0 +1,14 @@
+## codex/g2-remaining-engineering-2026-11-09...origin/main [ahead 3, behind 4]
+?? research/systems/g2-admission-validation-2026-11-11/
+3c774d2f2971c1ebe39d361e250057e9e872b971
+6c398f1e8d090a527f413d713dc7d294e411c548
+< 3c774d2f2971c1ebe39d361e250057e9e872b971 Fix exact build identity check in G2 packaged runner
+< 2fbb9fdf2ec9f47630135b0eb3cbf22596b4e6ed Validate G2 admission schemas without external resolution
+> 6c398f1e8d090a527f413d713dc7d294e411c548 Merge pull request #1 from Mscient/codex/g5-offline-readiness-20261108
+< fe71fd6d44424d73b01589f73907ff4a1dd153ba Implement bounded offline G2 evidence admission
+> 33e948eda54cadbeb913528a5d305122d8ca0f7d Inspect URL methods in offline package dependency check
+> 61e7b2973273310b60ab6bb7306fbefdefd256ba Index local G5 readiness implementation session
+> ea761703523455c896e7ace5db13af2fcdd21161 Add offline G5 dossier readiness and decision controls
+7d6f6c56424b4e50903121eaf8ee491a9ce15607
+origin	https://github.com/Mscient/Intra.git (fetch)
+origin	https://github.com/Mscient/Intra.git (push)

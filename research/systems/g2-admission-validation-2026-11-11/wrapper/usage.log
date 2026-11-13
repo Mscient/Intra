@@ -1,0 +1,1 @@
+Usage: G2AdmissionCli run <input.json> <new-artifact-directory> | verify <input.json> | verify-artifact <input.json> <artifact-directory>

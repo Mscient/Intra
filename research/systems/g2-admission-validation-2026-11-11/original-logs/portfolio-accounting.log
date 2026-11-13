@@ -1,0 +1,3 @@
+RUN=portfolio-accounting SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-portfolio-accounting.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+PortfolioAccountingLedger checks passed
+RESULT=PASS EXIT_CODE=0

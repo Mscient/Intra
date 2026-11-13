@@ -1,0 +1,6 @@
+QUERY=GitHub public Actions API; no credentials
+QUERIED_AT_UTC=2026-11-11T06:43:45.2064849Z
+{
+  "total_count": 0,
+  "workflow_runs": []
+}

@@ -1,0 +1,13 @@
+RUN=dataset-intended-use-drill SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\synthetic-dataset-intended-use-drill.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+ALLOWED 7561b6cbd4d14d861166e07f9abf715fc33252bbae28d9291c7de8fcb13f2211 (declared evidence only; G2 open)
+ALLOWED 7561b6cbd4d14d861166e07f9abf715fc33252bbae28d9291c7de8fcb13f2211 (declared evidence only; G2 open)
+INCOMPLETE 841f9031066b31c26cf71d77c7a3b4c7311e3c822cd6b54ca7ca2341a1f31dc1 (declared evidence only; G2 open)
+INCOMPLETE 841f9031066b31c26cf71d77c7a3b4c7311e3c822cd6b54ca7ca2341a1f31dc1 (declared evidence only; G2 open)
+DENIED d2aa9258bd71ce368cf35bca7296a0d4ef1bb4a7b01128248b32ae1c9c4a3500 (declared evidence only; G2 open)
+DENIED d2aa9258bd71ce368cf35bca7296a0d4ef1bb4a7b01128248b32ae1c9c4a3500 (declared evidence only; G2 open)
+DENIED 6a9b7c33aa0c53d2f6dbb4064f1af876968e15592baf4bcecf41fefd1858a473 (declared evidence only; G2 open)
+DENIED 6a9b7c33aa0c53d2f6dbb4064f1af876968e15592baf4bcecf41fefd1858a473 (declared evidence only; G2 open)
+ALLOWED 75e5112f9307340689ba283d4d1fb7459c43f585e7b25f16dbb50f2543de8592 (declared evidence only; G2 open)
+ALLOWED 75e5112f9307340689ba283d4d1fb7459c43f585e7b25f16dbb50f2543de8592 (declared evidence only; G2 open)
+PASS 10 synthetic CLI checks; reports retained at C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\dataset-intended-use-drill\853edaec00df43e2a1890f03e2d8a9cb; G2 remains open
+RESULT=PASS EXIT_CODE=0

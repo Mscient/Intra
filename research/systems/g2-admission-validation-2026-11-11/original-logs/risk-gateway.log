@@ -1,0 +1,29 @@
+RUN=risk-gateway SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-risk-gateway.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+Evidence directory: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\risk-gateway\25d04dedaec446769e031a4dc4300cf2
+java.version=21.0.13.0.2
+java.runtime.version=21.0.13.0.2+1-LTS
+java.vendor=Microsoft
+java.vendor.version=Microsoft-15780113
+java.vm.name=OpenJDK 64-Bit Server VM
+java.vm.version=21.0.13.0.2+1-LTS
+java.home=C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot
+os.name=Windows 11
+os.arch=amd64
+PASS append, restart and reservation lifecycle
+PASS accepted decisions and duplicate/conflicting IDs
+PASS ordering, invalid executions and session boundaries
+PASS daily-loss latch and closeout recovery
+PASS missing/stale inputs and extreme quantities
+PASS same-JVM writer leases and concurrent calls
+PASS hash-chain corruption and checkpoint rollback detection
+PASS canonical payloads and malformed binary inputs
+PASS semantic replay errors despite valid hash chains
+PASS field, collection, event and journal size limits
+PASS injected write and force uncertainty
+PASS missing/replaced journals, real I/O failures and rejected IDs
+PASS checkpoint configuration binding and constructor cleanup
+REPLAY_SHA256=c29af67dbe2c00a6c5dbdf76ebe595517e6737323041eabefc1957751c6d2d7b
+PASS: 447 checks in 13 groups. Offline, same-JVM concurrency only.
+Package SHA-256: 18cfb9a87207d208107c303fa8d78f23a9a10574fbf935db46ae19d6b9a73773
+Offline evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\risk-gateway\25d04dedaec446769e031a4dc4300cf2
+RESULT=PASS EXIT_CODE=0

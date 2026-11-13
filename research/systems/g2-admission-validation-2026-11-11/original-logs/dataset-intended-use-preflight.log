@@ -1,0 +1,4 @@
+RUN=dataset-intended-use-preflight SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-dataset-intended-use-preflight.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+PASS 300 synthetic dataset-permission preflight checks; G2 remains open
+Synthetic acceptance evidence retained at C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\dataset-intended-use-preflight\eda6b6f762b2416c89731689d239ac95
+RESULT=PASS EXIT_CODE=0

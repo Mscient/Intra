@@ -1,0 +1,6 @@
+RUN=portfolio-replay-engine SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-portfolio-replay-engine.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+PortfolioReplayEngine checks passed
+PortfolioExecutionCostSchedule checks passed
+PortfolioReplayArtifactVerifier v3 publication, tamper, signed partial, and deterministic replay checks passed
+PortfolioSettlement signed accounting, inputs, UTF-8, dates, charges, and atomicity checks passed
+RESULT=PASS EXIT_CODE=0

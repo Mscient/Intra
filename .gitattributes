@@ -7,3 +7,8 @@ Intra-Paper-System/schemas/g0-charter/** text eol=lf
 Intra-Paper-System/src/main/java/com/mscient/intrapaper/g0/** text eol=lf
 Intra-Paper-System/src/test/java/com/mscient/intrapaper/g0/** text eol=lf
 research/systems/g0-2026-11-08/** text eol=lf
+
+# Preserve exact retained G2 validation log/checksum bytes.
+# Treat retained CRLF terminators as line endings; still reject trailing spaces/tabs.
+research/systems/g2-admission-validation-2026-11-11/** -text whitespace=cr-at-eol
+research/systems/g2-admission-review-2026-11-13/** text eol=lf

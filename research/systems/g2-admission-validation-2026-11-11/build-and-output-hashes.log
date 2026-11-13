@@ -1,0 +1,7 @@
+SOURCE_JAR_BYTE_COMPARISON=report.json PASS SHA256=18e4af3659dc8b931597ac37e53cfda7a8deb7761ddb1152c62393b093989ff8
+SOURCE_JAR_BYTE_COMPARISON=artifact.json PASS SHA256=2a6f5829e1142cbac72c042217a78373e2617c9d8b02294f80ebfed7fbf4f07e
+5d094cb8d787d4b3fbaa8b055c98ddeb3b1e9abe806e53a6af7bae1b197672c7  C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2/package/intra-paper-system.jar
+65d23a3b6e1dfbfe2ae268899278bc1bdb63917c5ccd7094337ba8b242e4d77f  C:/Program Files/Microsoft/jdk-21.0.13.21-hotspot/bin/java.exe
+9d385fd280a0f8a9421ff870b894c5ff78dd094b9a36027d8f114e363e1fc4cb  C:/Program Files/Microsoft/jdk-21.0.13.21-hotspot/bin/javac.exe
+db0cd1babb32b58e316f1850bfbd4756566e089bcfc8e4d315c92f37bd8b8c07  C:/Program Files/Microsoft/jdk-21.0.13.21-hotspot/bin/jar.exe
+f5cc58569a90397a90899f0d02ec76bfedb7d208224e7d964b5e6d72c4c04924  C:/Program Files/Microsoft/jdk-21.0.13.21-hotspot/release

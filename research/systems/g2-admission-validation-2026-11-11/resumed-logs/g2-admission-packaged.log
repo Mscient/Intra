@@ -1,0 +1,7 @@
+RUN=g2-admission-packaged SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+G2 admission: 66 checks PASS; SYNTHETIC_OFFLINE_ONLY; G2_INCOMPLETE
+PASS report_id=7e4bda03e68ad5b5c702f022339aa144503900bafd5006982bc241a38fcd19ac scope=CONFIGURED_CHECKS_ONLY release_authorized=false g2_closed=false
+REJECTED_INPUT_OR_ARTIFACT: Reparse/device inputs are unsupported
+INDEPENDENT_JVM_BYTE_COMPARISON=PASS; JUNCTION_REJECTION=PASS
+G2 admission evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-resumed-3c774d2-20261111\packaged\557f7325ec3d46a3b1f273f9eca069b9
+RESULT=PASS EXIT_CODE=0

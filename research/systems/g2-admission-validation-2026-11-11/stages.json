@@ -1,0 +1,230 @@
+[
+  {
+    "stage": "daily-ops-drill",
+    "result": "PASS",
+    "evidence": "original-logs/daily-ops-drill.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "daily-ops-evidence",
+    "result": "PASS",
+    "evidence": "original-logs/daily-ops-evidence.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "daily-ops-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/daily-ops-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "data-permission-coverage-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/data-permission-coverage-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "data-permission-coverage-standalone-build",
+    "result": "PASS",
+    "evidence": "original-logs/data-permission-coverage-standalone-build.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "data-permission-coverage-standalone-test",
+    "result": "PASS",
+    "evidence": "original-logs/data-permission-coverage-standalone-test.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "data-permission-coverage",
+    "result": "PASS",
+    "evidence": "original-logs/data-permission-coverage.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "dataset-intended-use-drill",
+    "result": "PASS",
+    "evidence": "original-logs/dataset-intended-use-drill.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "dataset-intended-use-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/dataset-intended-use-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "dataset-intended-use-preflight",
+    "result": "PASS",
+    "evidence": "original-logs/dataset-intended-use-preflight.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "feed-audit-drill",
+    "result": "PASS",
+    "evidence": "original-logs/feed-audit-drill.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "feed-audit-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/feed-audit-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "feed-completeness-audit",
+    "result": "PASS",
+    "evidence": "original-logs/feed-completeness-audit.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g0-charter",
+    "result": "PASS",
+    "evidence": "original-logs/g0-charter.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g0-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/g0-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g2-admission",
+    "result": "PASS",
+    "evidence": "original-logs/g2-admission.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g2-contracts-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/g2-contracts-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g2-contracts",
+    "result": "PASS",
+    "evidence": "original-logs/g2-contracts.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g2-reproducibility",
+    "result": "PASS",
+    "evidence": "original-logs/g2-reproducibility.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "hypothesis-card-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/hypothesis-card-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "hypothesis-card",
+    "result": "PASS",
+    "evidence": "original-logs/hypothesis-card.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "incident-drill-packaged",
+    "result": "PASS",
+    "evidence": "original-logs/incident-drill-packaged.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "incident-drill",
+    "result": "PASS",
+    "evidence": "original-logs/incident-drill.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "instrument-sequence",
+    "result": "PASS",
+    "evidence": "original-logs/instrument-sequence.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "mapping-registry",
+    "result": "PASS",
+    "evidence": "original-logs/mapping-registry.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "operational-kill-controller",
+    "result": "PASS",
+    "evidence": "original-logs/operational-kill-controller.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-accounting",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-accounting.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-replay-engine",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-replay-engine.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-risk-audit",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-risk-audit.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-risk-replay",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-risk-replay.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-settlement-audit",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-settlement-audit.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "portfolio-trial-evaluation",
+    "result": "PASS",
+    "evidence": "original-logs/portfolio-trial-evaluation.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "production-build",
+    "result": "PASS",
+    "evidence": "original-logs/production-build.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "risk-gateway-process",
+    "result": "PASS",
+    "evidence": "original-logs/risk-gateway-process.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "risk-gateway",
+    "result": "PASS",
+    "evidence": "original-logs/risk-gateway.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "synchronized-bar-frames",
+    "result": "PASS",
+    "evidence": "original-logs/synchronized-bar-frames.log",
+    "mode": "RETAINED_COMPLETED"
+  },
+  {
+    "stage": "g2-admission-packaged",
+    "result": "PASS",
+    "evidence": "resumed-logs/g2-admission-packaged.log",
+    "mode": "RESUMED"
+  },
+  {
+    "stage": "manifest-check",
+    "result": "PASS",
+    "evidence": "resumed-logs/manifest-check.log",
+    "mode": "RESUMED"
+  }
+]

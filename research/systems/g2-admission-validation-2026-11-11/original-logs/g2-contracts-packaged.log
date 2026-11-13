@@ -1,0 +1,4 @@
+RUN=g2-contracts-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-g2-contracts.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+G2 contracts: 365 checks PASS; SYNTHETIC_OFFLINE_ONLY
+G2 evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\g2-contracts-packaged\f07fb8a9b68a4b6784b1f59fbf48cfda
+RESULT=PASS EXIT_CODE=0

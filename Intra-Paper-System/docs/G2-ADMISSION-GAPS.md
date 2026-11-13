@@ -19,3 +19,9 @@
 | Operational campaign and readiness | Missing operational evidence | No lawful live telemetry/session campaign, intended-environment power-loss/RPO/RTO verification, external watchdog, manual kill/release proof, account reconciliation or G4 completion. No live route exists. |
 
 The new synthetic checks validate failures as well as configured positive cases. Local source/JAR/matrix evidence and hosted CI are reported separately. G0/G2/G4/G5 statuses do not change through synthetic success. No candidate source is promoted; no real data was opened; no permission, market-correctness, profitability, trading-readiness or operational-readiness claim follows.
+
+## Exact-build completion evidence — 2026-11-11
+
+The bounded admission software was validated at `3c774d2`: 66 source and 66 production-JAR assertions, six schema cases per mode, source/JAR and separate-JVM byte identity, 15 wrapper cases, wrong-commit rejection and tampered/rehashed artifact rejection. All 38 selected matrix stages have PASS evidence (36 retained completed stages plus two resumed stages); the original matrix was interrupted and has no overall summary. No uninterrupted rerun or hosted success is claimed. [Completion record and logs](../../research/systems/2026-11-09-g2-admission-validation.md).
+
+The audit confirms permission-before-resource-path ordering within this command. Permission documents and report metadata are caller-authorized control inputs; the checker is not a universal access interception layer. Resource bytes and ordered event references are bound, while capture truth, semantic record boundaries, normalized derivation and reference authority remain unverified. No additional production change was required by this continuation audit. **G2 remains INCOMPLETE** in every external-evidence dimension above.

@@ -1,0 +1,4 @@
+RUN=hypothesis-card-packaged SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-hypothesis-card.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+Hypothesis card: 168 checks PASS; SYNTHETIC SOFTWARE ONLY; market_evidence=false approval_authenticated=false g1_closed=false
+SYNTHETIC SOFTWARE evidence retained: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\hypothesis-card-packaged\ad6bd221f517404184f43b06ffe0afa1
+RESULT=PASS EXIT_CODE=0

@@ -1,0 +1,3 @@
+RUN=data-permission-coverage-standalone-build SCRIPT=C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\build-data-permission-coverage.ps1 SOURCE_COMMIT=3c774d2f2971c1ebe39d361e250057e9e872b971
+C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-admission-ci-3c774d2\data-permission-coverage-standalone\6737810441bd4a1ab135db990abc2755\data-permission-coverage.jar
+RESULT=PASS EXIT_CODE=0

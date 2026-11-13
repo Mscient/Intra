@@ -41,6 +41,8 @@ Generate fresh, local synthetic fixtures with:
 .\test-g2-admission.ps1 -JarPath 'C:\path\to\clean\intra-paper-system.jar' -ExpectedCommit '<full-40-character-commit>' -OutputRoot .\build\g2-admission-jar
 ```
 
+See [schema and fixture instructions](../schemas/g2-admission/README.md) for local schema checks and the exact validation record. A runner interrupted before its final summary is not a completed result; preserve that directory and use a new OutputRoot when resuming the missing stage.
+
 Each invocation creates a unique directory containing `environment.log`, `checks.log`, fixtures, valid artifacts, negative artifacts and separate-process comparison logs. The valid template is `fixtures/valid-input/admission.json`. Synthetic raw/lifecycle bytes come from `examples/feed-audit/inputs/complete`. The normalized/mapping/calendar files, processing files and permission declarations are generated test data, not market/reference evidence or approved candidates. The fixture labelled CALLER_DECLARED also contains only synthetic bytes and exercises the INCOMPLETE boundary.
 
 There are 9 mandatory resource roles: RAW_INPUT, LIFECYCLE_INPUT, NORMALIZED_DATA, TOKEN_MAPPING, SESSION_CALENDAR, DECODER, SCHEMA, BUILD and FEED_EVIDENCE. Additional FEED_REFERENCE resources bind every schedule, policy, provenance, decoder reference, mapping or quote file followed by the feed audit. Required roles occur once; FEED_REFERENCE may repeat. The generated valid fixture uses 12 resources. Each has a unique logical ID and relative path, contiguous order, exact lowercase SHA-256, explicit byte bound, observation time and three permission-document paths plus an explicit as-of date.

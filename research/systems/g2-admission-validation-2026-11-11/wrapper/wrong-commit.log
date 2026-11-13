@@ -1,0 +1,5 @@
+Exception: C:\Users\prash\AppData\Local\Temp\codex-intra-origin-20261103\g2-remaining-engineering-2026-11-09\Intra-Paper-System\test-g2-admission.ps1:38
+Line |
+  38 |          throw 'Production JAR Build-Commit does not match exact expec …
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Production JAR Build-Commit does not match exact expected commit.

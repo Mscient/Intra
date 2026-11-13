@@ -171,3 +171,9 @@ This is local validation; GitHub provisioning and artifact uploads require an
 authorized hosted run. The local checks inspect upload conditions and resolve
 artifact paths without invoking GitHub or using credentials. No hosted success,
 push or merge is implied.
+
+## Admission branch validation — 2026-11-11
+
+At `3c774d2`, the 21-source-suite / 38-stage matrix has complete PASS evidence assembled from 36 previously completed stages and two resumed stages. The original process was interrupted without a summary; its logs were preserved. Exact production-JAR admission, local schema checks, byte comparisons, wrapper exits, rehashed-artifact rejection and manifest identity passed. No hosted run exists for this commit in the public Actions query. [Evidence and integration limits](../../research/systems/2026-11-09-g2-admission-validation.md).
+
+The stored `origin/main` ref `6c398f1` contains unintegrated G5 code and CI additions. Its freshness is unverified: the supplied continuation context records a fetch failure because `github.com` could not resolve. The retained public Actions query is historical and supplies no hosted success. This local branch's validation does not cover the G2/G5 combination. No push/merge/rebase/reset was performed; the user requires local-only commits, overriding the publication steps in SESSION_PROTOCOL.md.
