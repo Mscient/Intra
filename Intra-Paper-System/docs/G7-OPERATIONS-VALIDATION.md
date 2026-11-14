@@ -60,7 +60,7 @@ The sandbox account again received `Access denied` reading the pinned JDK
 `release`. An approved run under the normal Windows identity read the same file
 and verified its original hashes, `IMPLEMENTOR="Microsoft"` and
 `JAVA_VERSION="21.0.13.0.2"`. No ACL, JDK or verification rule was changed.
-PowerShell 7 startup was also unavailable in the sandbox; the read-only audit ran
+Sandbox PowerShell 7 invocations stalled without output; the read-only audit ran
 under the normal identity. This tool-access identity is not authenticated evidence
 of an operational owner, reviewer or supplier.
 
@@ -70,19 +70,101 @@ time, fresh Java 21 classes, all 12 regressions, two repeatable standalone build
 standalone explain/evaluate/verify exits 2/3/0, a fresh production build, packaged
 G7 tests with the expected manifest commit, both diff whitespace checks and
 before/after tracked-input hashes. It rejects dirty postcommit validation.
+`-PackagedOnly` is permitted only in the postcommit phase; it repeats the fresh
+production build and complete packaged G7/schema suite, manifest/hash/input checks
+and whitespace checks. It records source/regression suites as `NOT_RERUN`, rather
+than claiming they ran again. Source and regression results belong to the full
+precommit run. The original full-precommit driver bytes were retained separately
+as `build/g7-validation/resume-validate-precommit-driver.ps1` before adding this
+postcommit option; each run's `hashes.json` binds its actual driver version.
 The source-test JAR deliberately retains `unknown-dirty` even in a clean checkout;
 only the production/standalone package can carry the tested committed revision.
 Exact commands, from `Intra-Paper-System`, are:
 
 ```powershell
 rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\resume-validate.ps1 -Phase precommit
-rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\resume-validate.ps1 -Phase postcommit
+rtk proxy pwsh -NoProfile -NonInteractive -File .\build\g7-validation\resume-validate.ps1 -Phase postcommit -PackagedOnly
 ```
 
-Fresh completion results are pending at this documentation snapshot. A run is
-successful only when its final `validation.json` reports `status=PASS`; absence
-of that record is not success. Local postcommit identity will be recorded separately
-after the reviewed source commit. Hosted CI has not run for this continuation.
+### Observed completion results
+
+Fresh precommit evidence is retained at
+`build/g7-validation/resume-precommit-2ceda3bf79834988b66b488e5fb98e14/`.
+Its final `validation.json` reports `status=PASS`. It ran 1,904 source checks,
+1,905 packaged checks, 198 scenarios and 67 child processes in each suite,
+34 independent schema checks in each suite, all 12 selected regression runners,
+two byte-identical standalone builds, standalone CLI exits 2/3/0, a fresh
+production build, both whitespace checks and unchanged tracked-input hashes.
+The source-test JAR SHA-256 is
+`f6485600cec1ec983551ec585359ff53c369d77877996f8209e07c7b887c4994`.
+The standalone JAR SHA-256 is
+`de1737f7cdc3d81f515ed1d85d126eda1d33ebc9ea4f24374a7a82c9d972937c`.
+The production JAR SHA-256 is
+`955fc9dce90db7e3604d281d145f9851ab42b4b5a05c38373b347e5e1fc10ba6`.
+Tested HEAD was `099a3cec7f227275a318e859763e524cc42f626f` plus the reviewed
+modifications. All precommit package manifests are explicitly `unknown-dirty`.
+None identifies a tested committed follow-up revision.
+
+The reviewed twelve-file source/documentation increment was committed locally as
+**`2b49b2a92e1390cba18e4541ee44b256e4fe4bef`**. The checkout was clean before
+and after its postcommit run at
+`build/g7-validation/resume-postcommit-93f86d102e084d90a8382e7e18dcaf0b/`.
+That run's final `validation.json` reports `status=PASS`, `clean_checkout=true`,
+and identical `tested_head`/`build_commit` values for this exact commit.
+
+| Clean committed production check | Observed result |
+| --- | --- |
+| Fresh Java 21 production compilation/build | PASS; no old classes reused. |
+| Production `Build-Commit` | `2b49b2a92e1390cba18e4541ee44b256e4fe4bef`, checked against Git and the packaged CLI. |
+| Production JAR SHA-256 | `3f172994adb3e1c407cec3bf3370275489c95cea97ace6897dca68786b61f610` |
+| Complete packaged G7 suite | 1,905 checks; 198 scenarios; 67 child processes; no skipped-case limitations emitted. |
+| Independent schema validation | 34 checks passed; all 19 schema exports match executable definitions. |
+| Packaged CLI/reproducibility | evaluate, verify, explain, append; false authority flags; report/publication, explain and appended-history bytes agree across separate locale/timezone JVMs. |
+| Local file/publication checks | Malformed arguments and launcher errors redacted; malformed/schema/tamper, path/alias/link, collision/concurrency and publication failure cases passed. |
+| Git/input identity | Both whitespace checks passed; tracked-input hashes, HEAD and clean status unchanged. |
+| Source/regression/standalone reruns in this postcommit phase | NOT_RERUN; their PASS evidence is the full precommit run above. |
+
+The production artifact is
+`resume-postcommit-93f86d102e084d90a8382e7e18dcaf0b/production/intra-paper-system.jar`
+under the validation root. `production-manifest.txt`, `packaged.log`,
+`packaged/ef4fa5f62e4b4b88907c92e011e66958/focused-result.json`,
+`tracked-input-hashes.json` and `hashes.json` retain exact machine evidence.
+
+Fresh environment: **Microsoft OpenJDK 21.0.13.0.2**, runtime
+**21.0.13.0.2+1-LTS**, Microsoft build **15780113**, 64-bit Windows;
+PowerShell **7.6.10**. `JAVA_HOME` was
+`C:\Users\prash\AppData\Local\Programs\Microsoft\OpenJDK21\jdk-21.0.13.0.2+1`.
+No dependencies, data or toolchain replacements were downloaded.
+
+| Pinned toolchain file | SHA-256 |
+| --- | --- |
+| `release` | `f5cc58569a90397a90899f0d02ec76bfedb7d208224e7d964b5e6d72c4c04924` |
+| `bin/java.exe` | `65d23a3b6e1dfbfe2ae268899278bc1bdb63917c5ccd7094337ba8b242e4d77f` |
+| `bin/javac.exe` | `9d385fd280a0f8a9421ff870b894c5ff78dd094b9a36027d8f114e363e1fc4cb` |
+| Current continuation validation driver | `cecb639e699ad0ee2020b64dfc22f82d7c444085c9efaf86f647b4ce4c170b25` |
+
+The report/session/index follow-up changes documentation only. After final edits,
+the full precommit command is repeated before that local evidence commit, followed
+by the clean postcommit command for its own exact revision. For evidence-only
+follow-up commits, exact clean package identities are written after successful
+validation to the generated local
+[final committed validation record](../build/g7-validation/FINAL-COMMITTED-VALIDATION.md)
+and their run's `validation.json`. Earlier JAR hashes must not be applied to a later
+documentation commit. Generated local records are separate from tracked source.
+
+### Hosted CI status
+
+**NOT_RUN for the exact G7 follow-up revisions.** No network, push or merge was
+performed. Historical hosted results from other commits do not apply. The existing
+hosted driver selects 20 source suites and does not invoke G7; this completion ran
+G7 plus the 12 relevant local regression runners, rather than claiming the entire
+hosted matrix or a hosted G7 result.
+
+All results are synthetic software checks. They do not establish human identity,
+reviewer qualification or independence, evidence authenticity or completeness,
+legal compliance, profitability or trading readiness. No real operational evidence
+was supplied, no G0–G6 gate is closed, repaired or replaced, and G7 remains proposed.
+`g7_closed=false`, `operation_authorized=false`, `scale_authorized=false`.
 
 ## Delivered scope and original audit corrections
 
@@ -178,10 +260,11 @@ portfolio-risk-audit, portfolio-settlement-audit, risk-gateway, risk-gateway-pro
 portfolio-risk-replay, incident-drill, g2-contracts and portfolio-trial-evaluation.
 Generated work stays in fresh local validation directories.
 
-The commit-identified production JAR must be built and checked after the local
-source commit; no dirty precommit artifact is presented as that build. Its exact
-commit/hash and packaged test result are recorded in the post-commit validation
-update. No hosted result is implied.
+These historical original-source/standalone artifacts do not identify a committed
+production build. The continuation section records the later follow-up package
+for its own exact revision. That result does not validate the original committed
+implementation or turn either dirty historical package into committed evidence.
+No hosted result is implied.
 
 ## Boundaries and remaining human work
 
