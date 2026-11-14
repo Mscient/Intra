@@ -1,5 +1,7 @@
 package com.mscient.intrapaper.simulation;
 
+import com.mscient.intrapaper.data.StrictJsonParser;
+import java.math.BigDecimal;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,8 +15,6 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** Verifies the output files recorded by one completed run's manifest. */
 public final class RunArtifactVerifier {
@@ -45,12 +45,6 @@ public final class RunArtifactVerifier {
             "signals.csv", "orders.csv", "order-events.csv", "fills.csv", "fee-breakdowns.csv",
             "trades.csv", "equity.csv", "sessions.csv", "settlements.csv", "settlement-charges.csv",
             "settlement-cost-lines.csv", "evaluation-partitions.csv", "option-valuation.csv", "summary.json");
-    private static final Pattern RUN_ID = Pattern.compile(
-            "\"run_id\"\\s*:\\s*\"([0-9a-f]{24})\"");
-    private static final Pattern OUTPUT_SECTION = Pattern.compile(
-            "\"output_file_sha256\"\\s*:\\s*\\{([^}]*)\\}", Pattern.DOTALL);
-    private static final Pattern OUTPUT_ENTRY = Pattern.compile(
-            "\"([A-Za-z0-9._-]+)\"\\s*:\\s*\"([0-9a-f]{64})\"");
 
     private RunArtifactVerifier() { }
 
@@ -66,21 +60,33 @@ public final class RunArtifactVerifier {
         if (!Files.isRegularFile(manifestPath, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Run manifest is missing or is not a regular file");
         }
-        String manifest = Files.readString(manifestPath);
-        Matcher runIdMatcher = RUN_ID.matcher(manifest);
-        if (!runIdMatcher.find()) throw new IOException("Run manifest has no valid run_id");
-        String runId = runIdMatcher.group(1);
+        Object parsed = StrictJsonParser.parse(Files.readString(manifestPath));
+        if (!(parsed instanceof Map<?, ?> manifest)) throw new IOException("Run manifest must be a JSON object");
+        if (!(manifest.get("schema_version") instanceof BigDecimal schema)
+                || schema.stripTrailingZeros().scale() > 0
+                || schema.compareTo(BigDecimal.ONE) < 0 || schema.compareTo(BigDecimal.valueOf(15)) > 0) {
+            throw new IOException("Unsupported run manifest schema_version");
+        }
+        if ((schema.intValueExact() >= 15 || manifest.containsKey("performance_claim_eligible"))
+                && !Boolean.FALSE.equals(manifest.get("performance_claim_eligible"))) {
+            throw new IOException("Run manifest must remain performance-ineligible");
+        }
+        if (!(manifest.get("run_id") instanceof String runId) || !runId.matches("[0-9a-f]{24}")) {
+            throw new IOException("Run manifest has no valid top-level run_id");
+        }
         if (!runId.equals(folderName.toString())) {
             throw new IOException("Run manifest ID does not match the run folder name");
         }
 
-        Matcher sectionMatcher = OUTPUT_SECTION.matcher(manifest);
-        if (!sectionMatcher.find()) throw new IOException("Run manifest has no output_file_sha256 section");
-        Matcher entryMatcher = OUTPUT_ENTRY.matcher(sectionMatcher.group(1));
+        if (!(manifest.get("output_file_sha256") instanceof Map<?, ?> hashes)) {
+            throw new IOException("Run manifest has no output_file_sha256 object");
+        }
         Map<String, String> expectedHashes = new TreeMap<>();
-        while (entryMatcher.find()) {
-            String name = entryMatcher.group(1);
-            String hash = entryMatcher.group(2);
+        for (Map.Entry<?, ?> entry : hashes.entrySet()) {
+            if (!(entry.getKey() instanceof String name) || !(entry.getValue() instanceof String hash)
+                    || !hash.matches("[0-9a-f]{64}")) {
+                throw new IOException("Malformed output hash entry");
+            }
             if (!OUTPUT_FILES.contains(name)) throw new IOException("Unexpected file in output hash list: " + name);
             if (expectedHashes.putIfAbsent(name, hash) != null) {
                 throw new IOException("Duplicate output hash entry: " + name);

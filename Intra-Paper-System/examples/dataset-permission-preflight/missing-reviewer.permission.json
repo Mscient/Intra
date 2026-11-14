@@ -1,0 +1,55 @@
+{
+  "schema_version": "1",
+  "evidence_set_id": "SYNTHETIC-PERMISSION-SET",
+  "classification": "SYNTHETIC",
+  "completeness": "COMPLETE",
+  "records": [
+    {
+      "record_id": "SYNTHETIC-GRANT-1",
+      "manifest_sha256": "337a43e820d48ba58a7c56e704641a3a16ea961c5beed43633050eeb00de6164",
+      "effect": "ALLOW",
+      "record_state": "ACTIVE",
+      "source_id": "SYNTHETIC-SOURCE",
+      "product_id": "SYNTHETIC-HISTORICAL-BARS",
+      "data_type": "OHLCV",
+      "instruments": [
+        "SYNTH-FUT-202611"
+      ],
+      "data_start": "2026-11-01",
+      "data_end": "2026-11-06",
+      "purposes": [
+        "SIMULATION",
+        "BACKTEST"
+      ],
+      "effective_from": "2026-11-07",
+      "effective_through": "2026-11-08",
+      "storage_locations": [
+        "SYNTHETIC-LOCAL-RESEARCH",
+        "SYNTHETIC-LOCAL-BACKUP"
+      ],
+      "max_retention_days": 3,
+      "retain_until": "2026-11-09",
+      "derived_outputs": [
+        "AGGREGATE_METRICS",
+        "CHARTS"
+      ],
+      "sharing_modes": [
+        "NONE"
+      ],
+      "sharing_recipients": [
+        "NONE"
+      ],
+      "shared_material": [
+        "NONE"
+      ],
+      "owner": "SYNTHETIC-OWNER",
+      "owner_approval": "APPROVED",
+      "owner_approval_reference": "synthetic:owner-approval-not-real-evidence",
+      "reviewer": "SYNTHETIC-QUALIFIED-REVIEWER",
+      "review_status": "APPROVED",
+      "reviewed_on": "2026-11-07",
+      "evidence_reference": "synthetic:fictional-permission-not-a-contract",
+      "evidence_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  ]
+}

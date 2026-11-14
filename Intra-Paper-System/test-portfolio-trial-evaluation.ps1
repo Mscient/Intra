@@ -29,6 +29,7 @@ try {
         ForEach-Object { $_.FullName })
     $testSources = @(
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\evaluation\portfolio\PortfolioTrialEvaluationTest.java'),
+        (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\evaluation\portfolio\PortfolioHoldoutReleaseTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayEngineTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioExecutionCostScheduleTest.java'),
         (Join-Path $projectRoot 'src\test\java\com\mscient\intrapaper\simulation\portfolio\PortfolioReplayArtifactVerifierTest.java'),
@@ -40,12 +41,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Focused check compilation failed with exit code $LASTEXITCODE" }
     $testNames = @(
         'com.mscient.intrapaper.evaluation.portfolio.PortfolioTrialEvaluationTest',
+        'com.mscient.intrapaper.evaluation.portfolio.PortfolioHoldoutReleaseTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioReplayEngineTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioExecutionCostScheduleTest',
         'com.mscient.intrapaper.simulation.portfolio.PortfolioReplayArtifactVerifierTest'
     )
     foreach ($testName in $testNames) {
-        & $java -cp "$mainClasses;$testClasses" $testName $projectRoot
+        $testArgument = if ($testName -eq 'com.mscient.intrapaper.evaluation.portfolio.PortfolioHoldoutReleaseTest') { $runRoot } else { $projectRoot }
+        & $java -cp "$mainClasses;$testClasses" $testName $testArgument
         if ($LASTEXITCODE -ne 0) { throw "$testName failed with exit code $LASTEXITCODE" }
     }
 } finally {

@@ -1,0 +1,9 @@
+OFFLINE_OPERATIONAL_DRILL_V1
+scenario_id=process-restart
+classification=SYNTHETIC_ONLY
+sequence,action,target,expected,required_evidence
+1,SETUP,SYNTHETIC_V1,PASS,result.properties;log.txt;inputs.csv
+2,RUN,REPLAY,PASS,result.properties;log.txt;inputs.csv
+3,INJECT,PROCESS_RESTART,PASS,result.properties;log.txt;inputs.csv
+4,RUN,PROCESS_RESTART,PASS,result.properties;log.txt;inputs.csv
+5,RECOVER,PROCESS_RESTART,PASS,result.properties;log.txt;inputs.csv

@@ -56,6 +56,10 @@ public final class IntraPaperCli {
 
     public static void main(String[] args) {
         try {
+            if (args.length >= 1 && (args[0].equals("paper-run") || args[0].equals("paper-verify") || args[0].equals("paper-stop"))) {
+                com.mscient.intrapaper.paper.PaperCli.run(args);
+                return;
+            }
             if (args.length == 1 && (args[0].equals("--help") || args[0].equals("help"))) {
                 usage();
                 return;
@@ -517,6 +521,9 @@ public final class IntraPaperCli {
                 + "  java -jar intra-paper-system.jar run <bars.csv> <run.properties>\n"
                 + "  java -jar intra-paper-system.jar verify <run-folder>\n"
                 + "  java -jar intra-paper-system.jar oms-recover <run-folder>\n"
+                + "  java -jar intra-paper-system.jar paper-run <bars.csv> <run.properties> <session-dir> [max-events]\n"
+                + "  java -jar intra-paper-system.jar paper-verify <bars.csv> <run.properties> <session-dir>\n"
+                + "  java -jar intra-paper-system.jar paper-stop <session-dir>\n"
                 + "  java -jar intra-paper-system.jar journal-verify <quote-journal>\n"
                 + "  java -jar intra-paper-system.jar quote-quality-report <quote-journal> <maximum-age-ms> <maximum-future-skew-ms>\n"
                 + "  java -jar intra-paper-system.jar quote-coverage-report <quote-journal> <coverage-plan.csv>\n"

@@ -19,7 +19,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,92 +125,172 @@ public final class BacktestEngine {
         Objects.requireNonNull(dataset, "dataset");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(strategy, "strategy");
-        String strategyId = Objects.requireNonNull(strategy.id(), "strategy.id");
-        if (strategyId.isBlank() || !strategyId.equals(strategyId.strip())) {
-            throw new IllegalArgumentException("Strategy ID must be non-empty and trimmed");
+        dataset.requireCompleteSimulationCoverage();
+        Session session = new Session(dataset, config, strategy, checkpointStore, false);
+        for (int i = session.startBarIndex; i < dataset.bars().size(); i++) {
+            session.process(i, null, true);
         }
-        Map<String, String> strategyParameters = Map.copyOf(strategy.parameters());
-        List<Bar> bars = dataset.bars();
-        List<StrategySignal> signals = new ArrayList<>();
-        List<SimOrder> orders = new ArrayList<>();
-        List<SimOrderEvent> events = new ArrayList<>();
-        List<SimFill> fills = new ArrayList<>();
-        List<SimFeeBreakdown> feeBreakdowns = new ArrayList<>();
-        List<SimTrade> trades = new ArrayList<>();
-        List<SimSettlement> settlements = new ArrayList<>();
-        List<SimSettlementChargeBreakdown> settlementChargeBreakdowns = new ArrayList<>();
-        List<SimSettlementCostLine> settlementCostLines = new ArrayList<>();
-        List<EquityPoint> curve = new ArrayList<>();
-        BigDecimal realized = BigDecimal.ZERO;
-        BigDecimal fees = BigDecimal.ZERO;
-        BigDecimal slippage = BigDecimal.ZERO;
-        BigDecimal averageEntry = BigDecimal.ZERO;
-        int positionLots = 0;
-        Pending pending = null;
-        OpenTrade openTrade = null;
-        LocalDate activeSession = null;
-        BigDecimal netAtPriorClose = BigDecimal.ZERO;
-        int riskHalts = 0;
-        RiskGate riskGate = new RiskGate(config);
-        BigDecimal highWater = BigDecimal.ZERO;
-        BigDecimal maxDrawdown = BigDecimal.ZERO;
-        int startBarIndex = 0;
-        if (checkpointStore != null) {
-            try {
-                var restored = checkpointStore.restore(dataset, config, strategy);
-                if (restored.isPresent()) {
-                    BacktestCheckpoint checkpoint = restored.orElseThrow().latest();
-                    signals.addAll(restored.orElseThrow().signals());
-                    orders.addAll(restored.orElseThrow().orders());
-                    events.addAll(restored.orElseThrow().orderEvents());
-                    fills.addAll(restored.orElseThrow().fills());
-                    feeBreakdowns.addAll(restored.orElseThrow().feeBreakdowns());
-                    trades.addAll(restored.orElseThrow().trades());
-                    curve.addAll(restored.orElseThrow().equityCurve());
-                    realized = checkpoint.realizedPnlInr();
-                    fees = checkpoint.feesPaidInr();
-                    slippage = checkpoint.slippageInr();
-                    averageEntry = checkpoint.averageEntryPrice();
-                    positionLots = checkpoint.positionLots();
-                    pending = checkpoint.pending() == null ? null : new Pending(
-                            checkpoint.pending().orderIndex(), checkpoint.pending().targetLots(),
-                            checkpoint.pending().decisionSession());
-                    openTrade = checkpoint.openTrade() == null ? null : new OpenTrade(
-                            checkpoint.openTrade().entryTimestamp(), checkpoint.openTrade().targetLots(),
-                            checkpoint.openTrade().remainingEntryBasis(), checkpoint.openTrade().remainingQuantity(),
-                            checkpoint.openTrade().remainingEntryFee(), checkpoint.openTrade().exitStarted());
-                    activeSession = checkpoint.activeSession();
-                    netAtPriorClose = checkpoint.netAtPriorClose();
-                    riskHalts = checkpoint.riskHalts();
-                    riskGate.restore(checkpoint.riskGate());
-                    highWater = checkpoint.highWaterInr();
-                    maxDrawdown = checkpoint.maxDrawdownInr();
-                    startBarIndex = checkpoint.nextBarIndex();
+        return session.finish();
+    }
+
+    /** Incremental operating mode of the same strategy/risk/OMS/accounting loop. */
+    public Session paperSession(ValidatedDataset referenceData, RunConfig config, Strategy strategy) {
+        return new Session(referenceData, config, strategy, null, true);
+    }
+
+    public static final class Session {
+        private final ValidatedDataset dataset;
+        private final RunConfig config;
+        private final Strategy strategy;
+        private final BacktestCheckpointStore checkpointStore;
+        private final boolean paper;
+        private final String strategyId;
+        private final Map<String, String> strategyParameters;
+        private final List<Bar> bars;
+        private QuoteExecutionBook quoteBook;
+        private final java.time.Duration interval;
+        private List<StrategySignal> signals = new ArrayList<>();
+        private List<SimOrder> orders = new ArrayList<>();
+        private List<SimOrderEvent> events = new ArrayList<>();
+        private List<SimFill> fills = new ArrayList<>();
+        private List<SimFeeBreakdown> feeBreakdowns = new ArrayList<>();
+        private List<SimTrade> trades = new ArrayList<>();
+        private List<SimSettlement> settlements = new ArrayList<>();
+        private List<SimSettlementChargeBreakdown> settlementChargeBreakdowns = new ArrayList<>();
+        private List<SimSettlementCostLine> settlementCostLines = new ArrayList<>();
+        private List<EquityPoint> curve = new ArrayList<>();
+        private BigDecimal realized = BigDecimal.ZERO;
+        private BigDecimal fees = BigDecimal.ZERO;
+        private BigDecimal slippage = BigDecimal.ZERO;
+        private BigDecimal averageEntry = BigDecimal.ZERO;
+        private int positionLots = 0;
+        private Pending pending = null;
+        private OpenTrade openTrade = null;
+        private LocalDate activeSession = null;
+        private BigDecimal netAtPriorClose = BigDecimal.ZERO;
+        private int riskHalts = 0;
+        private final RiskGate riskGate;
+        private BigDecimal highWater = BigDecimal.ZERO;
+        private BigDecimal maxDrawdown = BigDecimal.ZERO;
+        private int startBarIndex = 0;
+
+        private Session(ValidatedDataset dataset, RunConfig config, Strategy strategy,
+                BacktestCheckpointStore checkpointStore, boolean paper) {
+            this.dataset = Objects.requireNonNull(dataset);
+            this.config = Objects.requireNonNull(config);
+            this.strategy = Objects.requireNonNull(strategy);
+            this.checkpointStore = checkpointStore;
+            this.paper = paper;
+            this.strategyId = strategy.id();
+            if (strategyId == null || strategyId.isBlank() || !strategyId.equals(strategyId.strip()))
+                throw new IllegalArgumentException("Strategy ID must be non-empty and trimmed");
+            this.strategyParameters = Map.copyOf(strategy.parameters());
+            this.bars = paper ? new ArrayList<>() : dataset.bars();
+            this.riskGate = new RiskGate(config);
+            this.interval = IntervalSupport.duration(config.interval());
+            if (checkpointStore != null) {
+                try {
+                    var restored = checkpointStore.restore(dataset, config, strategy);
+                    if (restored.isPresent()) {
+                        BacktestCheckpoint checkpoint = restored.orElseThrow().latest();
+                        signals.addAll(restored.orElseThrow().signals());
+                        orders.addAll(restored.orElseThrow().orders());
+                        events.addAll(restored.orElseThrow().orderEvents());
+                        fills.addAll(restored.orElseThrow().fills());
+                        feeBreakdowns.addAll(restored.orElseThrow().feeBreakdowns());
+                        trades.addAll(restored.orElseThrow().trades());
+                        curve.addAll(restored.orElseThrow().equityCurve());
+                        realized = checkpoint.realizedPnlInr();
+                        fees = checkpoint.feesPaidInr();
+                        slippage = checkpoint.slippageInr();
+                        averageEntry = checkpoint.averageEntryPrice();
+                        positionLots = checkpoint.positionLots();
+                        pending = checkpoint.pending() == null ? null : new Pending(
+                                checkpoint.pending().orderIndex(), checkpoint.pending().targetLots(),
+                                checkpoint.pending().decisionSession());
+                        openTrade = checkpoint.openTrade() == null ? null : new OpenTrade(
+                                checkpoint.openTrade().entryTimestamp(), checkpoint.openTrade().targetLots(),
+                                checkpoint.openTrade().remainingEntryBasis(), checkpoint.openTrade().remainingQuantity(),
+                                checkpoint.openTrade().remainingEntryFee(), checkpoint.openTrade().exitStarted());
+                        activeSession = checkpoint.activeSession();
+                        netAtPriorClose = checkpoint.netAtPriorClose();
+                        riskHalts = checkpoint.riskHalts();
+                        riskGate.restore(checkpoint.riskGate());
+                        highWater = checkpoint.highWaterInr();
+                        maxDrawdown = checkpoint.maxDrawdownInr();
+                        startBarIndex = checkpoint.nextBarIndex();
+                    }
+                } catch (IOException invalidCheckpoint) {
+                    throw new UncheckedIOException("Unable to restore deterministic replay checkpoint", invalidCheckpoint);
                 }
-            } catch (IOException invalidCheckpoint) {
-                throw new UncheckedIOException("Unable to restore deterministic replay checkpoint", invalidCheckpoint);
+            }
+            if (config.executionModel() != ExecutionModel.BAR_NEXT_OPEN) {
+                quoteBook = new QuoteExecutionBook(paper ? null : dataset.quoteHistory().orElseThrow(),
+                        config.quoteSourceName().orElseThrow(), dataset.bars().getFirst().instrumentId(),
+                        new QuoteQualityPolicy(config.quoteMaximumAge(), config.quoteMaximumFutureSkew()));
+                quoteBook.restoreConsumed(fills);
             }
         }
-        QuoteExecutionBook quoteBook = null;
-        if (config.executionModel() != ExecutionModel.BAR_NEXT_OPEN) {
-            quoteBook = new QuoteExecutionBook(dataset.quoteHistory().orElseThrow(),
-                    config.quoteSourceName().orElseThrow(), bars.getFirst().instrumentId(),
-                    new QuoteQualityPolicy(config.quoteMaximumAge(), config.quoteMaximumFutureSkew()));
-            quoteBook.restoreConsumed(fills);
+
+        public void quote(com.mscient.intrapaper.marketdata.MarketQuote quote) {
+            if (!paper) throw new IllegalStateException("Only paper sessions accept incremental quotes");
+            if (quoteBook != null) quoteBook.append(quote);
+            if (lastObserved != null && quoteBook != null) {
+                lastMark = lastObserved.tickSize().multiply(BigDecimal.valueOf(quote.bidPriceTicks()));
+                lastMarkTime = quote.receivedAtUtc();
+                BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(lastMark);
+                BigDecimal net = realized.add(unrealized).subtract(fees);
+                var evaluation = riskGate.markToMarket(net);
+                if (evaluation.newlyHalted()) {
+                    riskHalts++;
+                    events.add(new SimOrderEvent(lastMarkTime, "", "RISK_HALT", "DAILY_LOSS_LIMIT_AT_QUALIFIED_QUOTE"));
+                }
+                highWater = highWater.max(net);
+                maxDrawdown = maxDrawdown.max(highWater.subtract(net));
+            }
         }
-        var interval = IntervalSupport.duration(config.interval());
 
-        for (int i = startBarIndex; i < bars.size(); i++) {
-            Bar bar = bars.get(i);
-            Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
-                    ? bar.timestamp() : bar.timestamp().minus(interval);
-            Instant barEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
-                    ? bar.timestamp() : bar.timestamp().plus(interval);
-            boolean sameSessionNextBar = i + 1 < bars.size() && bars.get(i + 1).sessionDate().equals(bar.sessionDate());
-            boolean nextBarIsLastSessionBar = sameSessionNextBar
-                    && (i + 2 >= bars.size() || !bars.get(i + 2).sessionDate().equals(bar.sessionDate()));
-            boolean nextBarEligible = i + 1 < bars.size() && (sameSessionNextBar || config.allowNextSessionOrders());
+        public void advance(Bar bar, Instant receivedAt, boolean entriesAllowed) {
+            if (!paper) throw new IllegalStateException("Only paper sessions accept incremental bars");
+            bars.add(Objects.requireNonNull(bar));
+            lastObserved = bar;
+            lastMark = bar.close();
+            lastMarkTime = receivedAt;
+            process(bars.size() - 1, Objects.requireNonNull(receivedAt), entriesAllowed);
+        }
 
+        public void suspend(Instant time, String reason) {
+            if (pending != null) {
+                SimOrder order = orders.get(pending.orderIndex());
+                updateOrder(orders, pending.orderIndex(), null, null, "EXPIRED_SESSION_BOUNDARY", reason);
+                events.add(new SimOrderEvent(time, order.orderId(), "EXPIRED_SESSION_BOUNDARY", reason));
+                pending = null;
+            }
+            events.add(new SimOrderEvent(time, "", "PAPER_SAFETY_STOP", reason));
+        }
+
+        public int completedBars() { return bars.size(); }
+        public int pendingOrders() { return pending == null ? 0 : 1; }
+
+        private Bar lastObserved;
+        private BigDecimal lastMark;
+        private Instant lastMarkTime;
+
+        /** An observed opening price contains no completed-bar high/low/close. */
+        public void opening(Bar opening, Instant receivedAt) {
+            if (!paper) throw new IllegalStateException("Incremental open requires paper mode");
+            lastObserved = opening;
+            lastMark = opening.open();
+            lastMarkTime = receivedAt;
+            executePending(opening, bars.size(), receivedAt);
+        }
+
+        public void executeAtQuote(Bar opening, Instant receivedAt) {
+            if (!paper) throw new IllegalStateException("Quote clock requires paper mode");
+            executePending(opening, bars.size(), receivedAt);
+        }
+
+        private void executePending(Bar bar, int i, Instant barStart) {
             if (activeSession == null || !activeSession.equals(bar.sessionDate())) {
                 if (activeSession != null && config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
                     throw new IllegalStateException("Open position crossed session boundary under "
@@ -226,6 +305,8 @@ public final class BacktestEngine {
                 events.add(new SimOrderEvent(barStart, "", "RISK_SESSION_RESET", "session=" + activeSession));
             }
 
+            if (paper && pending != null && orders.get(pending.orderIndex()).decisionTimestamp()
+                    .plus(config.decisionToArrivalLatency()).isAfter(barStart)) return;
             if (pending != null) {
                 int targetLots = pending.targetLots();
                 int deltaLots = targetLots - positionLots;
@@ -319,6 +400,9 @@ public final class BacktestEngine {
                     if (riskRejection == null && optionStressCheck != null && optionStressCheck.rejected()) {
                         riskRejection = optionStressCheck.reason();
                     }
+                    if (paper) events.add(new SimOrderEvent(executionTimestamp, "", "RISK_FILL_DECISION",
+                            "order_id=" + order.orderId() + "; reason=" + (quoteMiss ? "NO_QUALIFIED_EXECUTION"
+                                    : riskRejection == null ? "ENTRY_LIMITS_PASSED_OR_REDUCING_EXIT" : riskRejection)));
                     if (quoteMiss) {
                         // The IOC residual is canceled; position and displayed liquidity remain unchanged.
                     } else if (riskRejection != null) {
@@ -407,7 +491,31 @@ public final class BacktestEngine {
                 pending = null;
             }
 
-            if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
+        }
+
+        private void process(int i, Instant receivedAt, boolean entriesAllowed) {
+            Bar bar = bars.get(i);
+            Instant barStart = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_START
+                    ? bar.timestamp() : bar.timestamp().minus(interval);
+            Instant barEnd = config.timestampRole() == com.mscient.intrapaper.reference.TimestampRole.BAR_END
+                    ? bar.timestamp() : bar.timestamp().plus(interval);
+            boolean sameSessionNextBar = i + 1 < bars.size() && bars.get(i + 1).sessionDate().equals(bar.sessionDate());
+            boolean nextBarIsLastSessionBar = sameSessionNextBar
+                    && (i + 2 >= bars.size() || !bars.get(i + 2).sessionDate().equals(bar.sessionDate()));
+            boolean nextBarEligible = i + 1 < bars.size() && (sameSessionNextBar || config.allowNextSessionOrders());
+
+            if (paper) {
+                var window = dataset.sessionCalendar().get(bar.sessionDate());
+                Instant lastTimestamp = window.lastBarTimestamp().orElseThrow();
+                sameSessionNextBar = bar.timestamp().isBefore(lastTimestamp);
+                nextBarIsLastSessionBar = bar.timestamp().plus(interval).equals(lastTimestamp);
+                nextBarEligible = sameSessionNextBar;
+                if (receivedAt.isAfter(barEnd)) barEnd = receivedAt;
+            }
+
+            if (!paper) executePending(bar, i, barStart);
+
+            if (!paper && config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
                     && !sameSessionNextBar && positionLots != 0) {
                 throw new IllegalStateException("AUTO_FLATTEN_SESSION_END could not close the position by the final session bar: "
                         + bar.sessionDate());
@@ -415,7 +523,7 @@ public final class BacktestEngine {
 
             BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(bar.close());
             BigDecimal net = realized.add(unrealized).subtract(fees);
-            List<Bar> availableBars = Collections.unmodifiableList(bars.subList(0, i + 1));
+            List<Bar> availableBars = List.copyOf(bars.subList(0, i + 1));
             StrategySignal signal = Objects.requireNonNull(strategy.evaluate(availableBars, barEnd),
                     "Strategy returned a null signal");
             if (signal.barNumber() != i + 1 || !signal.decisionTimestamp().equals(barEnd)
@@ -427,6 +535,7 @@ public final class BacktestEngine {
                 throw new IllegalStateException("Strategy targetLots cannot be negative in the long-only simulator");
             }
             signals.add(signal);
+            if (paper) events.add(new SimOrderEvent(barEnd, "", "STRATEGY_DECISION", signal.toString()));
             if (net.compareTo(highWater) > 0) highWater = net;
             BigDecimal drawdown = highWater.subtract(net);
             if (drawdown.compareTo(maxDrawdown) > 0) maxDrawdown = drawdown;
@@ -455,7 +564,7 @@ public final class BacktestEngine {
                 reason = "SCALE_IN_BEYOND_ORIGINAL_ENTRY_TARGET";
             }
 
-            if (config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
+            if (!paper && config.crossSessionPositionPolicy() == CrossSessionPositionPolicy.AUTO_FLATTEN_SESSION_END
                     && nextBarIsLastSessionBar) {
                 if (positionLots > 0 || targetLots > 0) {
                     targetLots = 0;
@@ -468,6 +577,12 @@ public final class BacktestEngine {
             curve.add(new EquityPoint(barEnd, bar.sessionDate(), bar.close(), positionUnits(positionLots, bar.lotSize()),
                     realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
 
+            if (paper) events.add(new SimOrderEvent(barEnd, "", "RISK_DECISION",
+                    "target_lots=" + targetLots + "; reason=" + reason + "; halted=" + riskGate.halted()));
+            if (!entriesAllowed && targetLots > positionLots) {
+                events.add(new SimOrderEvent(barEnd, "", "RISK_ENTRY_ORDER_REJECTED", "PAPER_ENTRIES_DISABLED"));
+                targetLots = positionLots;
+            }
             if (targetLots != positionLots) {
                 String throttleReason = targetLots > positionLots ? riskGate.registerEntryOrder(barEnd) : null;
                 if (throttleReason != null) {
@@ -482,6 +597,8 @@ public final class BacktestEngine {
                     }
                 }
             }
+            if (paper) events.add(new SimOrderEvent(barEnd, "", "POSITION_UPDATE",
+                    "units=" + positionUnits(positionLots, bar.lotSize()) + "; net_pnl_inr=" + net));
             netAtPriorClose = net;
             int completedBars = i + 1;
             if (checkpointStore != null && config.checkpointIntervalBars() > 0
@@ -493,84 +610,116 @@ public final class BacktestEngine {
             }
         }
 
-        if (dataset.expirySettlement().isPresent()) {
-            ExpirySettlement settlement = dataset.expirySettlement().orElseThrow();
-            Bar lastBar = bars.getLast();
-            BigDecimal exitValuePerUnit = settlementExitValue(settlement, lastBar);
-            int settledUnits = positionUnits(positionLots, lastBar.lotSize());
-            SimSettlementChargeBreakdown settlementCharges = settlementChargeBreakdown(
-                    dataset, settlement, lastBar, exitValuePerUnit, settledUnits);
-            BigDecimal optionIntrinsic = lastBar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
-                    ? exitValuePerUnit : BigDecimal.ZERO;
-            List<com.mscient.intrapaper.provenance.SettlementCostSchedule.ChargeLine> additionalLines =
-                    dataset.settlementCostSchedule().map(schedule -> schedule.calculate(settlement.settlementDate(),
-                            lastBar.contractKind(), settlement.settlementValue(), optionIntrinsic, settledUnits))
-                            .orElseGet(List::of);
-            for (var line : additionalLines) {
-                settlementCostLines.add(new SimSettlementCostLine(settlement.settlementTimestamp(), line.componentCode(),
-                        line.basis(), line.calculationBase(), line.rate(), line.chargeInr(), line.gstBps(),
-                        line.gstTaxableBaseInr(), line.gstInr(), line.sourceReference()));
-            }
-            BigDecimal additionalSettlementFees = additionalLines.stream()
-                    .map(line -> line.chargeInr().add(line.gstInr())).reduce(BigDecimal.ZERO, BigDecimal::add);
-            settlementCharges = settlementCharges.withAdditionalSettlementFees(additionalSettlementFees,
-                    dataset.settlementCostSchedule().isPresent());
-            BigDecimal settlementFee = settlementCharges.totalInr();
-            settlementChargeBreakdowns.add(settlementCharges);
-            fees = fees.add(settlementFee);
-            BigDecimal settlementGross = BigDecimal.ZERO;
-            if (positionLots > 0) {
-                if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
-                ClosedSlice closed = openTrade.close(exitValuePerUnit, settledUnits, settlementFee);
-                settlementGross = closed.grossPnl();
-                realized = realized.add(closed.grossPnl());
-                String tradeId = String.format("T%07d", trades.size() + 1);
-                trades.add(new SimTrade(tradeId, lastBar.instrumentId(), openTrade.entryTimestamp,
-                        settlement.settlementTimestamp(), settledUnits, closed.entryPrice(),
-                        exitValuePerUnit, settlementGross, closed.fees(), settlementGross.subtract(closed.fees())));
-                positionLots = 0;
-                averageEntry = BigDecimal.ZERO;
-                openTrade = null;
-            }
-            settlements.add(new SimSettlement(lastBar.instrumentId(), settlement.settlementDate(),
-                    settlement.settlementTimestamp(), settlement.kind(), settlement.settlementValue(),
-                    exitValuePerUnit, settledUnits, settlementGross, settlementFee, settlement.sourceReference()));
-            BigDecimal settlementNet = realized.subtract(fees);
-            RiskGate.Evaluation settlementRisk = riskGate.markToMarket(settlementNet);
-            if (settlementRisk.newlyHalted()) {
-                riskHalts++;
-                events.add(new SimOrderEvent(settlement.settlementTimestamp(), "", "RISK_HALT",
-                        "EXPIRY_SETTLEMENT; session_loss_inr=" + settlementRisk.sessionLossInr().toPlainString()));
-            }
-            BigDecimal settlementHighWater = settlementNet.max(highWater);
-            BigDecimal settlementDrawdown = settlementHighWater.subtract(settlementNet);
-            if (settlementDrawdown.compareTo(maxDrawdown) > 0) maxDrawdown = settlementDrawdown;
-            highWater = settlementHighWater;
-            int lastIndex = curve.size() - 1;
-            EquityPoint priorPoint = curve.get(lastIndex);
-            curve.set(lastIndex, new EquityPoint(settlement.settlementTimestamp(), settlement.settlementDate(),
-                    priorPoint.close(), 0, realized, BigDecimal.ZERO, fees, settlementNet,
-                    riskGate.halted() ? "HALTED_SESSION" : "SETTLED"));
+        public BacktestResult snapshot() {
+            return paper ? paperSnapshot() : finish();
         }
 
-        if (config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
-            throw new IllegalStateException("Open position remains at end of replay under "
-                    + config.crossSessionPositionPolicy());
+        private BacktestResult paperSnapshot() {
+            BigDecimal mark = lastMark == null ? BigDecimal.ZERO : lastMark;
+            BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(mark);
+            BigDecimal net = realized.add(unrealized).subtract(fees);
+            int units = lastObserved == null ? 0 : positionUnits(positionLots, lastObserved.lotSize());
+            List<EquityPoint> points = new ArrayList<>(curve);
+            List<SessionAudit> audits = new ArrayList<>();
+            if (lastObserved != null) {
+                points.add(new EquityPoint(lastMarkTime, lastObserved.sessionDate(), mark, units,
+                        realized, unrealized, fees, net, riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
+                var window = dataset.sessionCalendar().get(lastObserved.sessionDate());
+                long expected = java.time.Duration.between(window.firstBarTimestamp().orElseThrow(),
+                        window.lastBarTimestamp().orElseThrow()).dividedBy(interval) + 1;
+                audits.add(new SessionAudit(lastObserved.sessionDate(), expected, bars.size(),
+                        expected == bars.size(), 0, units, realized, unrealized, fees, slippage, net,
+                        orders.size(), fills.size(), trades.size(), riskHalts,
+                        riskGate.halted() ? "HALTED_SESSION" : "OPEN"));
+            }
+            BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades,
+                    List.of(), List.of(), List.of(), List.of(), audits, points, realized, unrealized,
+                    fees, slippage, net, maxDrawdown, units, riskHalts, "PAPER_PLUMBING_ONLY", strategyId, strategyParameters);
+            if (lastObserved != null) RunLedgerReconciler.requireConsistent(result);
+            return result;
         }
-        Bar last = bars.getLast();
-        BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(last.close());
-        BigDecimal net = realized.add(unrealized).subtract(fees);
-        String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
-        List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
-        List<OptionValuationObservation> optionValuations = OptionValuationAnalyzer.evaluate(dataset, fills, settlements);
-        BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements,
-                settlementChargeBreakdowns, settlementCostLines, optionValuations, sessionAudits, curve,
-                realized, unrealized, fees, slippage,
-                net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
-        RunLedgerReconciler.requireConsistent(result);
-        RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
-        RunLedgerReconciler.requireFillCostsConsistent(result, config, dataset);
-        return result;
+
+        private BacktestResult finish() {
+
+            if (dataset.expirySettlement().isPresent()) {
+                ExpirySettlement settlement = dataset.expirySettlement().orElseThrow();
+                Bar lastBar = bars.getLast();
+                BigDecimal exitValuePerUnit = settlementExitValue(settlement, lastBar);
+                int settledUnits = positionUnits(positionLots, lastBar.lotSize());
+                SimSettlementChargeBreakdown settlementCharges = settlementChargeBreakdown(
+                        dataset, settlement, lastBar, exitValuePerUnit, settledUnits);
+                BigDecimal optionIntrinsic = lastBar.contractKind() == com.mscient.intrapaper.reference.ContractKind.OPTION
+                        ? exitValuePerUnit : BigDecimal.ZERO;
+                List<com.mscient.intrapaper.provenance.SettlementCostSchedule.ChargeLine> additionalLines =
+                        dataset.settlementCostSchedule().map(schedule -> schedule.calculate(settlement.settlementDate(),
+                                lastBar.contractKind(), settlement.settlementValue(), optionIntrinsic, settledUnits))
+                                .orElseGet(List::of);
+                for (var line : additionalLines) {
+                    settlementCostLines.add(new SimSettlementCostLine(settlement.settlementTimestamp(), line.componentCode(),
+                            line.basis(), line.calculationBase(), line.rate(), line.chargeInr(), line.gstBps(),
+                            line.gstTaxableBaseInr(), line.gstInr(), line.sourceReference()));
+                }
+                BigDecimal additionalSettlementFees = additionalLines.stream()
+                        .map(line -> line.chargeInr().add(line.gstInr())).reduce(BigDecimal.ZERO, BigDecimal::add);
+                settlementCharges = settlementCharges.withAdditionalSettlementFees(additionalSettlementFees,
+                        dataset.settlementCostSchedule().isPresent());
+                BigDecimal settlementFee = settlementCharges.totalInr();
+                settlementChargeBreakdowns.add(settlementCharges);
+                fees = fees.add(settlementFee);
+                BigDecimal settlementGross = BigDecimal.ZERO;
+                if (positionLots > 0) {
+                    if (openTrade == null) throw new IllegalStateException("Open position has no trade state at expiry settlement");
+                    ClosedSlice closed = openTrade.close(exitValuePerUnit, settledUnits, settlementFee);
+                    settlementGross = closed.grossPnl();
+                    realized = realized.add(closed.grossPnl());
+                    String tradeId = String.format("T%07d", trades.size() + 1);
+                    trades.add(new SimTrade(tradeId, lastBar.instrumentId(), openTrade.entryTimestamp,
+                            settlement.settlementTimestamp(), settledUnits, closed.entryPrice(),
+                            exitValuePerUnit, settlementGross, closed.fees(), settlementGross.subtract(closed.fees())));
+                    positionLots = 0;
+                    averageEntry = BigDecimal.ZERO;
+                    openTrade = null;
+                }
+                settlements.add(new SimSettlement(lastBar.instrumentId(), settlement.settlementDate(),
+                        settlement.settlementTimestamp(), settlement.kind(), settlement.settlementValue(),
+                        exitValuePerUnit, settledUnits, settlementGross, settlementFee, settlement.sourceReference()));
+                BigDecimal settlementNet = realized.subtract(fees);
+                RiskGate.Evaluation settlementRisk = riskGate.markToMarket(settlementNet);
+                if (settlementRisk.newlyHalted()) {
+                    riskHalts++;
+                    events.add(new SimOrderEvent(settlement.settlementTimestamp(), "", "RISK_HALT",
+                            "EXPIRY_SETTLEMENT; session_loss_inr=" + settlementRisk.sessionLossInr().toPlainString()));
+                }
+                BigDecimal settlementHighWater = settlementNet.max(highWater);
+                BigDecimal settlementDrawdown = settlementHighWater.subtract(settlementNet);
+                if (settlementDrawdown.compareTo(maxDrawdown) > 0) maxDrawdown = settlementDrawdown;
+                highWater = settlementHighWater;
+                int lastIndex = curve.size() - 1;
+                EquityPoint priorPoint = curve.get(lastIndex);
+                curve.set(lastIndex, new EquityPoint(settlement.settlementTimestamp(), settlement.settlementDate(),
+                        priorPoint.close(), 0, realized, BigDecimal.ZERO, fees, settlementNet,
+                        riskGate.halted() ? "HALTED_SESSION" : "SETTLED"));
+            }
+
+            if (config.crossSessionPositionPolicy().requiresFlatAtSessionEnd() && positionLots != 0) {
+                throw new IllegalStateException("Open position remains at end of replay under "
+                        + config.crossSessionPositionPolicy());
+            }
+            Bar last = bars.getLast();
+            BigDecimal unrealized = openTrade == null ? BigDecimal.ZERO : openTrade.unrealizedPnl(last.close());
+            BigDecimal net = realized.add(unrealized).subtract(fees);
+            String classification = config.syntheticFixture() ? "SYNTHETIC_PLUMBING_ONLY" : "REPLAY_DIAGNOSTIC_ONLY";
+            List<SessionAudit> sessionAudits = reconcileSessions(dataset, config, curve, events, fills, trades);
+            List<OptionValuationObservation> optionValuations = OptionValuationAnalyzer.evaluate(dataset, fills, settlements);
+            BacktestResult result = new BacktestResult(signals, orders, events, fills, feeBreakdowns, trades, settlements,
+                    settlementChargeBreakdowns, settlementCostLines, optionValuations, sessionAudits, curve,
+                    realized, unrealized, fees, slippage,
+                    net, maxDrawdown, positionUnits(positionLots, last.lotSize()), riskHalts, classification, strategyId, strategyParameters);
+            RunLedgerReconciler.requireConsistent(result);
+            RunLedgerReconciler.requireRiskLimitsConsistent(result, config, dataset);
+            RunLedgerReconciler.requireFillCostsConsistent(result, config, dataset);
+            return result;
+        }
     }
 
     private static void saveCheckpoint(BacktestCheckpointStore checkpointStore, ValidatedDataset dataset,
@@ -661,7 +810,7 @@ public final class BacktestEngine {
         for (LocalDate date = first; !date.isAfter(last); date = date.plusDays(1)) {
             LocalDate sessionDate = date;
             var calendarEntry = dataset.sessionCalendar().get(date);
-            if (!calendarEntry.open()) continue;
+            if (calendarEntry == null || !calendarEntry.open() || !barsByDate.containsKey(date)) continue;
             List<Bar> sessionBars = barsByDate.get(date);
             List<EquityPoint> points = pointsByDate.get(date);
             EquityPoint end = points.getLast();

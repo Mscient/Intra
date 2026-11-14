@@ -152,13 +152,17 @@ public final class OmsRunRecovery {
                 "reference_open_price", "fill_price", "modeled_slippage_inr", "fee_inr", "margin_per_lot_inr",
                 "margin_source_reference", "position_units_after", "execution_model", "quote_source",
                 "quote_sequence", "quote_received_at_utc", "reference_execution_price");
+        List<String> quoteAuditHeaders = new ArrayList<>(quoteExecutionHeaders);
+        quoteAuditHeaders.addAll(List.of("quote_exchange_timestamp_utc", "quote_age_ms", "quote_receive_age_ms",
+                "quote_spread_ticks", "configured_latency_ms", "execution_assumptions_source"));
         if (!table.headers().equals(priorHeaders) && !table.headers().equals(currentHeaders)
-                && !table.headers().equals(quoteExecutionHeaders)) {
+                && !table.headers().equals(quoteExecutionHeaders) && !table.headers().equals(quoteAuditHeaders)) {
             throw new IOException("Unexpected CSV schema in recovered execution ledger");
         }
         List<ExecutionEvent> events = new ArrayList<>();
         Map<String, Integer> positionAfterByExecutionId = new HashMap<>();
         for (Map<String, String> row : table.rows()) {
+            if (table.headers().equals(quoteAuditHeaders)) verifyQuoteAudit(row);
             String id = required(row, "order_id");
             OrderInfo order = orders.get(id);
             if (order == null) throw new IOException("Execution refers to unknown order: " + id);
@@ -221,6 +225,30 @@ public final class OmsRunRecovery {
         }
         return new ExecutionRestore(ledger, Map.copyOf(executedUnitsByOrder),
                 events.size() - uniqueCount, units);
+    }
+
+    private static void verifyQuoteAudit(Map<String,String> row) throws IOException {
+        List<String> auditFields = List.of("quote_exchange_timestamp_utc", "quote_age_ms", "quote_receive_age_ms",
+                "quote_spread_ticks", "configured_latency_ms", "execution_assumptions_source");
+        if (row.get("execution_model").equals("BAR_NEXT_OPEN")) {
+            if (auditFields.stream().anyMatch(field -> !row.get(field).isEmpty())) throw new IOException("Bar fill has quote audit fields");
+            return;
+        }
+        try {
+            Instant fill = Instant.parse(row.get("timestamp"));
+            Instant received = Instant.parse(row.get("quote_received_at_utc"));
+            Instant exchange = Instant.parse(row.get("quote_exchange_timestamp_utc"));
+            if (Long.parseLong(row.get("quote_receive_age_ms")) != java.time.Duration.between(received,fill).toMillis()
+                    || Long.parseLong(row.get("quote_age_ms")) != java.time.Duration.between(exchange,fill).toMillis()
+                    || Long.parseLong(row.get("quote_receive_age_ms")) < 0
+                    || Long.parseLong(row.get("quote_spread_ticks")) <= 0
+                    || Long.parseLong(row.get("configured_latency_ms")) < 0
+                    || !row.get("execution_assumptions_source").matches("CALLER_CONFIG_UNVERIFIED:[0-9a-f]{64}")) {
+                throw new IOException("Quote execution audit does not reconcile");
+            }
+        } catch (IllegalArgumentException | java.time.DateTimeException invalid) {
+            throw new IOException("Malformed quote execution audit",invalid);
+        }
     }
 
     private static int applySettlement(Path path, int netPosition) throws IOException {

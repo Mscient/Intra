@@ -22,9 +22,16 @@ public final class QuoteJournalReader {
      * If the method throws, the caller must discard any state accumulated by the consumer.
      */
     public static QuoteJournalSummary replay(Path path, Consumer<MarketQuote> consumer) throws IOException {
+        return replay(Files.newInputStream(path), consumer);
+    }
+
+    static QuoteJournalSummary replay(java.nio.channels.FileChannel channel, Consumer<MarketQuote> consumer) throws IOException {
+        return replay(JournalChannelInput.borrow(channel), consumer);
+    }
+
+    private static QuoteJournalSummary replay(InputStream raw, Consumer<MarketQuote> consumer) throws IOException {
         Objects.requireNonNull(consumer, "consumer");
-        try (InputStream raw = Files.newInputStream(path);
-             BufferedInputStream buffered = new BufferedInputStream(raw)) {
+        try (BufferedInputStream buffered = new BufferedInputStream(raw)) {
             long bytesRead = readAndVerifyHeader(buffered);
             byte[] previousHash = QuoteHashChain.genesisHash();
             long eventCount = 0;

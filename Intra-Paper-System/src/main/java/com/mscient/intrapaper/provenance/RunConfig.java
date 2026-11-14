@@ -84,7 +84,8 @@ public record RunConfig(
         Optional<String> researchVariantId,
         Optional<Path> researchStrategyCardPath,
         Optional<Path> evaluationSplitPlanPath,
-        String trialParameterConfigSha256) {
+        String trialParameterConfigSha256,
+        Optional<com.mscient.intrapaper.permission.PermissionAdmission.Inputs> permissionInputs) {
 
     public record OptionStressRiskLimits(BigDecimal maxLossInr, BigDecimal underlyingShockPercent,
             BigDecimal volatilityShockPoints, BigDecimal exitHaircutPerUnitInr) {
@@ -106,6 +107,7 @@ public record RunConfig(
     private static final Set<String> ALLOWED = Set.of(
             "dataset.id", "dataset.source_name", "dataset.acquired_at_utc", "dataset.timezone", "dataset.timestamp_role",
             "dataset.interval", "dataset.rights_status", "dataset.rights_reference", "dataset.synthetic_fixture",
+            "permission.manifest_file", "permission.manifest_sha256", "permission.record_file",
             "reference.snapshot_id", "reference.source_name", "reference.retrieved_at_utc", "reference.effective_from",
             "reference.file", "calendar.file", "rules.file", "settlement.file", "strategy.fast_bars", "strategy.slow_bars", "strategy.lots",
             "risk.max_position_lots", "risk.max_notional_inr", "risk.margin_per_lot_inr", "risk.max_margin_inr",
@@ -159,6 +161,13 @@ public record RunConfig(
         }
         if (!synthetic && dataStatus != DataRightsStatus.AUTHORIZED_LOCAL_REPLAY) {
             throw new IllegalArgumentException("Non-synthetic replay requires AUTHORIZED_LOCAL_REPLAY and a data-rights reference");
+        }
+        int permissionSettings = (optional(p, "permission.manifest_file").isPresent() ? 1 : 0)
+                + (optional(p, "permission.manifest_sha256").isPresent() ? 1 : 0)
+                + (optional(p, "permission.record_file").isPresent() ? 1 : 0);
+        if ((permissionSettings != 0 && permissionSettings != 3) || (!synthetic && permissionSettings != 3)) {
+            throw new IllegalArgumentException("Data-permission preflight requires permission.manifest_file, "
+                    + "permission.manifest_sha256 and permission.record_file together for non-synthetic datasets");
         }
         String allowCrossSessionText = required(p, "orders.allow_next_session").toLowerCase(java.util.Locale.ROOT);
         if (!Set.of("true", "false").contains(allowCrossSessionText)) {
@@ -360,7 +369,12 @@ public record RunConfig(
                 variantId,
                 strategyCardPath,
                 splitPlanPath,
-                trialParameterConfigSha256);
+                trialParameterConfigSha256,
+                permissionSettings == 0 ? Optional.empty() : Optional.of(
+                        new com.mscient.intrapaper.permission.PermissionAdmission.Inputs(
+                                resolve(base, required(p, "permission.manifest_file")),
+                                required(p, "permission.manifest_sha256"),
+                                resolve(base, required(p, "permission.record_file")))));
     }
 
     private static String researchIdentifier(String value, String key) {

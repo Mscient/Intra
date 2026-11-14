@@ -1,0 +1,3 @@
+effective_from,effective_through,contract_kind,component_code,basis,rate,gst_bps,gst_on_charge,source_reference
+2030-05-06,2030-05-06,FUTURE,FIXED,FIXED_PER_SETTLEMENT,1,0,false,SYNTHETIC_ONLY
+2030-05-06,2030-05-06,OPTION,FIXED,FIXED_PER_SETTLEMENT,1,0,false,SYNTHETIC_ONLY

@@ -1,30 +1,30 @@
 # Nifty Futures and Options Paper System — Build Roadmap
 
-- **Status:** Offline backtesting core includes configurable approximate margin, maintenance liquidation, expiry settlement support, and a dated Angel One master importer. The 18 engine tests pass; the importer was exercised on the current master and read-only authentication/quotes succeeded. No orders were submitted.
-- **Reviewed:** 2026-11-02 (Asia/Kolkata).
+- **Status:** Current implementation is the integrated offline Java 21 `Intra-Paper-System/` in this repository. G0 remains open. Current evidence is recorded in [the 2026-11-14 checkout reconciliation](../../Intra-Paper-System/docs/OFFLINE-COMPLETION-2026-11-14.md).
+- **Reviewed:** Checkout reconciled 2026-11-14 (Asia/Kolkata); external source/rule review remains open.
 - **Final system design:** [NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md](NIFTY-INTRADAY-PAPER-SYSTEM-DESIGN.md) defines the platform architecture and all ten strategy/execution-system designs.
-- **User-selected broker:** Angel One SmartAPI.
+- **Candidate read-only source:** Angel One SmartAPI, subject to G0 permissions, retention, route eligibility and operating review. No connection is enabled.
 - **User-selected instruments:** Nifty index futures and Nifty index options.
 - **Target:** A local, cost-aware backtest and paper simulator within the project's 90-day target. Strategy validation depends on data gates and is a separate outcome.
 
 ## 1. Existing baseline
 
-The HFT 2 repository is a research and planning record. Experiment code belongs in the separate `Intra-Systems-Lab`; do not add SmartAPI credentials, account connectivity, broker order routing, or experiment code to HFT 2.
+This repository contains the research documents and the existing `Intra-Paper-System/` implementation. Continue that system for research, replay, and paper simulation. Historical lab notes are specifications and evidence context, not another product to build or permission to connect. Private inputs, credentials and run artifacts stay outside Git.
 
-The Wave A offline lab already has fixed S01-S03 signal definitions and a runner for NIFTY 50 index candles. The latest recorded smoke input covers only part of the 2026-11-02 session; a completed-session refresh is scheduled for later today. The 2026-10-30 SmartAPI sample also has a reproduced closing-period timestamp gap. Those index results are signal markouts only, not contract P&L, trade fills, or evidence of a profitable strategy. See the [Wave A plan](SAME-DAY-MVP-BUILD-PLAN.md), [signal specification](WAVE-A-SIGNAL-SPEC.md), and [instrument/data matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md).
+Historical Wave A notes describe S01–S03 index-signal definitions and a partial 2026-11-02 smoke session, including a then-pending completed-session refresh and a 2026-10-30 closing-period gap. Those runs were not reverified in this checkout review. Index markouts remain separate from dated-contract executable P&L. See the [Wave A plan](SAME-DAY-MVP-BUILD-PLAN.md), [signal specification](WAVE-A-SIGNAL-SPEC.md), and [instrument/data matrix](INSTRUMENT-DATA-CAPABILITY-MATRIX.md).
 
-**System boundary:** the separate local `Intra-Paper-System` project holds the paper/backtest product. It shares one simulation core between historical replay and paper mode. Keep the existing `Intra-Systems-Lab` offline and strategy-isolated; exchange only reviewed specifications, data manifests, and result summaries. HFT 2 remains documentation and review only.
+**System boundary:** one integrated `Intra-Paper-System/`. Deterministic local replay, risk, fills, accounting and reporting are implemented; future read-only paper ingestion must feed these components. The connected paper clock/adapter is not implemented and remains G0-dependent. The simulated broker remains local and separate from any future data adapter.
 
-**Implementation status (2026-11-02):** local commits `c568543`, `3cde788`, `e86a465`, `5ef40d9`, `f3e8d27`, `f9f32f9`, and `ecd6fbc` establish the Python CLI, CSV templates/loaders, dated-contract model, quality gate, deterministic replay, signal-file and unvalidated SMA/no-op strategies, futures/options accounting, risk/session checks, fee configuration, local order lifecycle and cancellation, quote-to-minute-bar builder, read-only SmartAPI adapter, hashed reports, synthetic CLI smoke, `.env` support, and Angel One instrument-master normalization. The offline engine adds dated expiry settlement inputs, complete-session close proxies, configurable approximate futures/short-option margin, initial-margin rejection, maintenance-margin liquidation, and settlement hashes in run manifests. The 18 standard-library tests from the engine-completion commit pass; the current import was also exercised against Angel One's daily master, yielding 1,706 NIFTY rows (1 index, 3 futures, and 1,702 options). Read-only authentication/logout and FULL quotes for NIFTY spot, the front future, and near-expiry ATM call/put succeeded. No broker orders were submitted, and no strategy result has been generated. The dated price history, exact fees/margin rules, and local data-use terms still need review.
+**Historical record, not current verification (2026-11-02):** earlier notes cited Python commits `c568543`, `3cde788`, `e86a465`, `5ef40d9`, `f3e8d27`, `f9f32f9`, and `ecd6fbc`, 18 tests, a daily-master import of 1,706 NIFTY rows, and read-only authentication/quote smoke checks. Those claims concern another recorded revision/environment and were not reproduced here. They do not establish a Java adapter, present account authorization, historical contract coverage, or data rights. No account access or capture occurred in this implementation session.
 
-Current release limits: CSV only; no exchange holiday calendar, exact exchange SPAN/ELM margin, physical delivery, queue model, or full depth simulation. The daily instrument-master importer creates an allowlist effective from its explicit snapshot date and is not a historical contract master. Margin rates are configurable approximations, not exchange requirements. Expiry uses supplied dated settlement prices or a clearly flagged complete-session final-bar proxy; partial expiry data without settlement remain open. The fee and risk values in the example config are placeholders. Expired-contract coverage, historical price coverage, and lawful local data retention remain unresolved gates.
+Current checkout: strict local bars/quotes, dated instruments and explicit session/rule calendars, local next-open/L1 IOC execution, risk controls, itemized dated costs, supplied settlement inputs, reconciliation, manifests, deterministic replay and offline operational evidence tools. Exact SPAN/ELM, daily variation margin, physical delivery, passive queue calibration, production paper-clock integration, authorized history and reviewed all-in costs remain open. Settlement requires explicit supported dated inputs; this implementation does not invent final-bar settlement proxies or forced liquidation prices.
 
 ## 2. Scope and operating modes
 
-The MVP has two modes that use the same strategy interface, contract model, risk checks, fee model, and paper fill simulator:
+The design has two modes; historical replay is available, while connected paper mode is planned after G0. Both must use the same strategy, dated instruments, risk, fee model and local simulator:
 
 1. **Historical replay:** read a frozen, locally staged dataset and advance a deterministic event clock. Each run records its code version, rule/config version, dataset and instrument-master hashes, cost-model version, and run ID.
-2. **Live-data paper mode:** poll read-only FULL market-data snapshots, record local receive time, build completed one-minute bars, generate simulated order intents, and update only the local paper portfolio. No method or fallback sends an order to Angel One.
+2. **Planned live-data paper mode, disabled pending G0:** a reviewed read-only source supplies timestamped observations and completed bars to the existing core. Connection type, quote-to-bar completeness, clock policy and recovery require implementation and validation. No order API or fallback is permitted.
 
 The market-data adapter and the simulated broker must be separate modules. Keep credentials in the user's local secret store and outside Git, logs, test fixtures, and run manifests. The paper runtime may connect to market-data endpoints only. Do not include or call SmartAPI place, modify, or cancel order endpoints. The system should stop creating new simulated entries when data are stale, disconnected, malformed, outside the configured session, or mapped to an unknown contract.
 
@@ -47,7 +47,7 @@ Before a multi-expiry backtest, select one of these lawful data paths: an archiv
 ```mermaid
 flowchart LR
     H[Authorized historical files] --> N[Normalize and validate]
-    W[Read-only Angel market data] --> N
+    W[Planned read-only source after G0] --> N
     N --> E[Timestamped market events]
     T[Replay clock or paper clock] --> E
     E --> S[Strategy interface]
@@ -82,19 +82,19 @@ Use a dated, configurable cost model for brokerage and applicable exchange, stat
 
 | Period | Work | Gate to continue |
 |---|---|---|
-| Weeks 1–2 | Close the Wave A data review: check the scheduled 2 Nov completed-session result, establish timestamp start/end meaning, and cross-check the 30 Oct close gap with an alternate interval or authorized source. Define the paper-system data contract and new project boundary. | A reproducible sample passes session, timestamp, and provenance checks, or remains explicitly blocked with a named data gap. |
-| Weeks 3–4 | Initial separate scaffold, CSV bar/quote schemas, dated-contract model, deterministic bar replay, run manifest, and local historical mode are implemented. Fifteen focused tests pass, including a synthetic CLI backtest and deterministic ledger-file output. | Replay on authorized dated inputs and contract-master/data-source setup remain pending. |
-| Weeks 5–6 | Shared futures/options paper accounting, contract sizing, configurable fees, local order lifecycle, daily-loss/exposure/order-rate limits, and NSE session gates are implemented. Core accounting/risk fixtures pass. | Dated futures data and a verified fee schedule still gate P&L interpretation. |
-| Weeks 7–8 | Contract-level option premium accounting, settlement input loading, cash expiry settlement, approximate margin gates, maintenance liquidation, and 18-test synthetic coverage are implemented in the separate local project. | Verify against authorized dated settlements, reviewed exchange/broker margin rules, and dated options/futures data; exact SPAN/ELM and physical delivery are outside current scope. |
-| Weeks 9–10 | Read-only FULL-quote polling, local quote capture, one-minute bar building, stale/out-of-order/session blocking, and quote replay use the shared simulator. | Exercise disconnect/stale-data behavior and document data terms before a user-authorized market-data session. No live order route exists. |
-| Weeks 11–13 | Run at least 20 paper sessions across futures and options where data are available; reconcile simulated positions and daily P&L; publish reviewed run summaries back to HFT 2. | Paper records are complete and reproducible. Strategy performance remains unvalidated unless adequate historical/forward samples, costs, and fills support a separate conclusion. |
+| Weeks 1–2 | Qualify timestamps, complete sessions, source permissions and dated instruments; freeze the research card and private risk limits. | G0/G1 remain open until their required evidence exists. |
+| Weeks 3–4 | Strengthen the existing Java local replay, provenance, input validation and automated tests. | Current results come from the checkout reconciliation, not historical Python test counts. |
+| Weeks 5–6 | Reconcile futures/options accounting, fills, dated costs, risk and session controls. | Authorized dated data and reviewed schedules still gate economic interpretation. |
+| Weeks 7–8 | Validate explicit contract settlement, option premium accounting and supplied margin inputs. | No invented settlement, exchange-margin or maintenance-liquidation assumptions. |
+| Weeks 9–10 | After G0, implement read-only ingestion and a paper clock feeding the same core, with disconnect/stale-data and restart handling. | No connected adapter or qualifying forward session is currently verified. |
+| Weeks 11–13 | Begin qualified forward paper sessions and daily reconciliation; continue beyond the illustrative schedule as needed. | G4 requires 60 complete sessions, 20 consecutive passing pre-open checks, drills, reconciliations and no unresolved severe incidents. |
 
 The 90-day target is an operational paper/backtest system, not a promise of a profitable strategy or adequate multi-expiry validation. If expired-contract data cannot be secured, the system can be operational while the corresponding historical-performance gate remains closed.
 
 ## 6. First-release completion checks
 
 - Futures and options are represented as dated, independently identifiable contracts; metadata is never guessed from a current token.
-- Replay and paper mode use the same simulator and accounting code in the new system project.
+- Replay and future paper mode must use the existing simulator and accounting components in this system.
 - Every signal, risk decision, simulated order transition, fill, fee, and position change has a timestamped explanation in the run ledger.
 - Data gaps, stale quotes, unknown contract mappings, and incomplete sessions are explicit and prevent unsafe simulated entries or invalid scoring.
 - A run can be reproduced from saved configuration, code/rule version, data hashes, instrument master, and cost/fill-model versions.
@@ -109,7 +109,7 @@ Market-data terms are a separate gate. The NSE policy covers use, storage, shari
 
 ## 8. Decisions recorded and next actions
 
-**Recorded:** Angel One SmartAPI; both Nifty futures and Nifty options; futures first, options second; separate paper-system repository; no live order routing.
+**Recorded:** Nifty dated futures first, then dated options, within this existing integrated system; no live order routing. Angel One is a candidate data route subject to current G0 review.
 
 **Next actions:**
 

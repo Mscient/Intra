@@ -1,0 +1,10 @@
+OFFLINE_OPERATIONAL_DRILL_V1
+scenario_id=all-components
+classification=SYNTHETIC_ONLY
+sequence,action,target,expected,required_evidence
+1,SETUP,SYNTHETIC_V1,PASS,result.properties;log.txt;inputs.csv
+2,RUN,REPLAY,PASS,result.properties;log.txt;inputs.csv
+3,RUN,RISK,PASS,result.properties;log.txt;inputs.csv
+4,RUN,SETTLEMENT,PASS,result.properties;log.txt;inputs.csv
+5,RUN,RECONCILIATION,PASS,result.properties;log.txt;inputs.csv
+6,RUN,DAILY_OPS,PASS,result.properties;log.txt;inputs.csv

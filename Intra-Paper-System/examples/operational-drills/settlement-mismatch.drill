@@ -1,0 +1,12 @@
+OFFLINE_OPERATIONAL_DRILL_V1
+scenario_id=settlement-mismatch
+classification=SYNTHETIC_ONLY
+sequence,action,target,expected,required_evidence
+1,SETUP,SYNTHETIC_V1,PASS,result.properties;log.txt;inputs.csv
+2,RUN,REPLAY,PASS,result.properties;log.txt;inputs.csv
+3,INJECT,SETTLEMENT_MISMATCH,PASS,result.properties;log.txt;inputs.csv
+4,RUN,SETTLEMENT,FAIL,result.properties;log.txt;inputs.csv
+5,RUN,RECONCILIATION,FAIL,result.properties;log.txt;inputs.csv
+6,RECOVER,SETTLEMENT_MISMATCH,PASS,result.properties;log.txt;inputs.csv
+7,RUN,SETTLEMENT,PASS,result.properties;log.txt;inputs.csv
+8,RUN,RECONCILIATION,PASS,result.properties;log.txt;inputs.csv

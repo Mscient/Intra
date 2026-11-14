@@ -220,6 +220,7 @@ public final class PortfolioReplayEngine {
     /** Replays only frames backed by individually validated datasets and records their provenance hash. */
     public Result run(ValidatedPortfolioDataset dataset) {
         Objects.requireNonNull(dataset, "dataset");
+        dataset.datasetsByInstrument().values().forEach(com.mscient.intrapaper.data.ValidatedDataset::requireCompleteSimulationCoverage);
         PortfolioSettlementEvents.validateSelection(dataset, config.settlementInstruments(), settlementEvents);
         return run(dataset.frames(), dataset.datasetsSha256());
     }

@@ -1,0 +1,2 @@
+effective_from,effective_to,max_gross_notional_inr,max_session_loss_inr,max_caller_supplied_margin_proxy_inr,max_mark_age_seconds,max_source_age_days,source_id
+2030-05-06,2030-05-06,1000,4,1000,60,0,SYNTHETIC_RISK

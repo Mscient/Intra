@@ -21,7 +21,15 @@ public final class RunIdentity {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, trial.isPresent() ? "INTRA_RUN_ID_V11_TRIAL" : "INTRA_RUN_ID_V10");
+                write(output, trial.isPresent() ? "INTRA_RUN_ID_V15_TRIAL" : "INTRA_RUN_ID_V14");
+                // Bind every admitted byte input, including rules and permission evidence.
+                // File paths and the properties hash alone cannot detect an edited sidecar.
+                Map<String, String> inputHashes = new TreeMap<>(dataset.manifest().inputFileSha256());
+                output.writeInt(inputHashes.size());
+                for (Map.Entry<String, String> input : inputHashes.entrySet()) {
+                    write(output, input.getKey());
+                    write(output, input.getValue());
+                }
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());

@@ -42,14 +42,22 @@ final class QuoteExecutionBook {
 
     QuoteExecutionBook(VerifiedQuoteHistory history, String source, String instrumentId,
             QuoteQualityPolicy qualityPolicy) {
-        Objects.requireNonNull(history, "history");
         this.source = requireNonBlank(source, "source");
         this.instrumentId = requireNonBlank(instrumentId, "instrumentId");
         this.qualityPolicy = Objects.requireNonNull(qualityPolicy, "qualityPolicy");
-        List<MarketQuote> matching = history.quotes().stream()
+        List<MarketQuote> matching = (history == null ? List.<MarketQuote>of() : history.quotes()).stream()
                 .filter(quote -> quote.source().equals(source) && quote.instrumentId().equals(instrumentId))
                 .sorted(RECEIVED_ORDER).toList();
-        this.byStream = Map.of(new StreamKey(source, instrumentId), matching);
+        this.byStream = Map.of(new StreamKey(source, instrumentId), new java.util.ArrayList<>(matching));
+    }
+
+    void append(MarketQuote quote) {
+        if (!quote.source().equals(source) || !quote.instrumentId().equals(instrumentId))
+            throw new IllegalArgumentException("Quote does not match configured stream");
+        var history = byStream.get(new StreamKey(source, instrumentId));
+        if (!history.isEmpty() && RECEIVED_ORDER.compare(history.getLast(), quote) >= 0)
+            throw new IllegalArgumentException("Incremental quotes must preserve receive/sequence ordering");
+        history.add(quote);
     }
 
     Decision evaluate(Instant arrival, ExecutionEvent.Side side, long requestedUnits, int lotSize,

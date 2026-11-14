@@ -73,6 +73,14 @@ public record ValidatedDataset(
         return true;
     }
 
+    /** Gap overrides expose input diagnostics, never permission to simulate through missing information. */
+    public void requireCompleteSimulationCoverage() {
+        if (completeSessionCount != openSessionCount || timestampSpacingAnomalies != 0 || estimatedMissingIntervals != 0) {
+            throw new IllegalArgumentException("INCOMPLETE_DATA: diagnostic gap overrides permit validation only; "
+                    + "simulation requires complete supplied sessions without spacing anomalies");
+        }
+    }
+
     private static ValidatedDataset loadInternal(java.nio.file.Path barsPath, RunConfig config,
             boolean portfolioValidation) throws IOException {
         BarsCsvReader.ReadResult barsRead = BarsCsvReader.readWithHash(barsPath, config);
@@ -299,8 +307,10 @@ public record ValidatedDataset(
         componentCostSchedule.ifPresent(schedule -> inputs.put("component-cost-schedule", schedule.sha256()));
         marginRequirementSchedule.ifPresent(schedule -> inputs.put("margin-requirement-schedule", schedule.sha256()));
         expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
+        settlementCostSchedule.ifPresent(schedule -> inputs.put("settlement-cost-schedule", schedule.sha256()));
         quoteHistory.ifPresent(history -> inputs.put("quote-journal", history.fileSha256()));
         optionValuationInputs.ifPresent(schedule -> inputs.put("option-valuation-inputs", schedule.sha256()));
+        com.mscient.intrapaper.permission.PermissionAdmission.require(barsPath, config, bars, inputs);
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),

@@ -24,8 +24,16 @@ public final class FeedLifecycleJournalReader {
 
     public static FeedLifecycleSummary replay(Path path, Consumer<FeedLifecycleEvent> consumer) throws IOException {
         Objects.requireNonNull(path, "path");
+        return replay(Files.newInputStream(path), consumer);
+    }
+
+    static FeedLifecycleSummary replay(java.nio.channels.FileChannel channel, Consumer<FeedLifecycleEvent> consumer) throws IOException {
+        return replay(JournalChannelInput.borrow(channel), consumer);
+    }
+
+    private static FeedLifecycleSummary replay(InputStream file, Consumer<FeedLifecycleEvent> consumer) throws IOException {
         Objects.requireNonNull(consumer, "consumer");
-        try (InputStream file = Files.newInputStream(path); BufferedInputStream input = new BufferedInputStream(file)) {
+        try (BufferedInputStream input = new BufferedInputStream(file)) {
             byte[] header = readExactly(input, FeedLifecycleFormat.header().length, "truncated feed lifecycle journal header");
             if (!Arrays.equals(header, FeedLifecycleFormat.header())) throw new IOException("Unsupported feed lifecycle journal header");
             byte[] previous = QuoteHashChain.genesisHash();

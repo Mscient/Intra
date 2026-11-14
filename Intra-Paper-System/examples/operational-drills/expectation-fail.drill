@@ -1,0 +1,6 @@
+OFFLINE_OPERATIONAL_DRILL_V1
+scenario_id=expectation-fail
+classification=SYNTHETIC_ONLY
+sequence,action,target,expected,required_evidence
+1,SETUP,SYNTHETIC_V1,PASS,result.properties;log.txt;inputs.csv
+2,RUN,DAILY_OPS,FAIL,result.properties;log.txt;inputs.csv

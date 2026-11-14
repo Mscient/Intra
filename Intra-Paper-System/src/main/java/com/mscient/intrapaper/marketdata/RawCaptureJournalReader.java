@@ -25,7 +25,16 @@ public final class RawCaptureJournalReader {
     private RawCaptureJournalReader() { }
 
     public static RawCaptureSummary replay(Path path, Consumer<RawMarketMessage> consumer) throws IOException {
-        try (InputStream file = Files.newInputStream(path); BufferedInputStream input = new BufferedInputStream(file)) {
+        return replay(Files.newInputStream(path), consumer);
+    }
+
+    static RawCaptureSummary replay(java.nio.channels.FileChannel channel, Consumer<RawMarketMessage> consumer) throws IOException {
+        return replay(JournalChannelInput.borrow(channel), consumer);
+    }
+
+    private static RawCaptureSummary replay(InputStream file, Consumer<RawMarketMessage> consumer) throws IOException {
+        java.util.Objects.requireNonNull(consumer, "consumer");
+        try (BufferedInputStream input = new BufferedInputStream(file)) {
             byte[] header = readExactly(input, RawCaptureFormat.header().length, "truncated raw capture header");
             if (!Arrays.equals(header, RawCaptureFormat.header())) throw new IOException("Unsupported raw capture journal header");
             byte[] previous = QuoteHashChain.genesisHash();

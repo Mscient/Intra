@@ -1,0 +1,11 @@
+# Local worktrees and retained build, test, and review output.
+/angelone-historical-ingestion-worktree/
+/g[0-9]-*/
+/offline-correctness-*/
+/verification-*/
+/source-review-local/
+/*-console.log
+
+# Helpers and drafts tied to the local worktree layout.
+/g3-session-draft.md
+/g6-packaged-acceptance.ps1

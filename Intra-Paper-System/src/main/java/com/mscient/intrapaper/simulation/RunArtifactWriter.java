@@ -32,6 +32,8 @@ public final class RunArtifactWriter {
 
     public WrittenRun write(Path outputRoot, String runId, ValidatedDataset data,
             RunConfig config, BacktestResult result) throws IOException {
+        Map<Long, com.mscient.intrapaper.marketdata.MarketQuote> quotes = new java.util.HashMap<>();
+        data.quoteHistory().ifPresent(history -> history.quotes().forEach(quote -> quotes.put(quote.sequenceNumber(), quote)));
         var researchTrial = ResearchTrialBinding.resolve(config, data, result.strategyId());
         var evaluationPartitions = EvaluationPartitionReport.create(config, data, result.sessionAudits());
         Path outputRootAbsolute = outputRoot.toAbsolutePath().normalize();
@@ -62,14 +64,24 @@ public final class RunArtifactWriter {
                         "timestamp,order_id,event,detail",
                         result.orderEvents().stream().map(event -> row(event.timestamp(), event.orderId(), event.event(), event.detail())).toList()));
                 writeNew(stagingFolder.resolve("fills.csv"), csv(
-                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,margin_per_lot_inr,margin_source_reference,position_units_after,execution_model,quote_source,quote_sequence,quote_received_at_utc,reference_execution_price",
-                        result.fills().stream().map(fill -> row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
+                        "fill_id,order_id,timestamp,side,quantity_units,reference_open_price,fill_price,modeled_slippage_inr,fee_inr,margin_per_lot_inr,margin_source_reference,position_units_after,execution_model,quote_source,quote_sequence,quote_received_at_utc,reference_execution_price,quote_exchange_timestamp_utc,quote_age_ms,quote_receive_age_ms,quote_spread_ticks,configured_latency_ms,execution_assumptions_source",
+                        result.fills().stream().map(fill -> {
+                            var quote = fill.quoteSequence() == 0 ? null : quotes.get(fill.quoteSequence());
+                            if (fill.quoteSequence() != 0 && quote == null) throw new IllegalStateException("Missing fill quote audit source");
+                            return row(fill.fillId(), fill.orderId(), fill.timestamp(), fill.side(),
                             fill.quantityUnits(), fill.referenceOpenPrice(), fill.fillPrice(), fill.slippageCostInr(),
                             fill.feeInr(), fill.marginPerLotInr(), fill.marginSourceReference(),
                             fill.positionUnitsAfter(), fill.executionModel(), fill.quoteSource() == null ? "" : fill.quoteSource(),
                             fill.quoteSequence() == 0 ? "" : fill.quoteSequence(),
                             fill.quoteReceivedAt() == null ? "" : fill.quoteReceivedAt().toString(),
-                            fill.referenceExecutionPrice())).toList()));
+                            fill.referenceExecutionPrice(),
+                            quote == null ? "" : quote.exchangeTimestampUtc().map(Object::toString).orElse(""),
+                            quote == null ? "" : quote.exchangeTimestampUtc().map(time -> java.time.Duration.between(time, fill.timestamp()).toMillis()).map(Object::toString).orElse(""),
+                            quote == null ? "" : java.time.Duration.between(quote.receivedAtUtc(), fill.timestamp()).toMillis(),
+                            quote == null ? "" : quote.askPriceTicks() - quote.bidPriceTicks(),
+                            quote == null ? "" : config.decisionToArrivalLatency().toMillis(),
+                            quote == null ? "" : "CALLER_CONFIG_UNVERIFIED:" + config.configSha256());
+                        }).toList()));
                 writeNew(stagingFolder.resolve("fee-breakdowns.csv"), csv(
                         "fill_id,cost_model,contract_kind,traded_value_inr,legacy_fee_inr,brokerage_inr,exchange_transaction_inr,ipft_contribution_inr,sebi_turnover_inr,stt_inr,stamp_duty_inr,gst_taxable_base_inr,gst_inr,total_fee_inr",
                         result.feeBreakdowns().stream().map(fee -> row(fee.fillId(), fee.costModel(), fee.contractKind(),
@@ -301,8 +313,11 @@ public final class RunArtifactWriter {
         data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
         data.optionValuationInputs().ifPresent(schedule -> inputHashes.put("option_valuation_inputs", schedule.sha256()));
         evaluationPartitions.ifPresent(report -> inputHashes.put("evaluation_split_plan", report.splitPlanSha256()));
+        data.manifest().inputFileSha256().forEach((id, hash) -> {
+            if (id.startsWith("permission-")) inputHashes.put(id, hash);
+        });
         return "{\n"
-                + "  \"schema_version\": 14,\n"
+                + "  \"schema_version\": 15,\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -364,7 +379,7 @@ public final class RunArtifactWriter {
                                 + ", \"bytes_read\": " + history.summary().bytesRead() + "}")
                         .orElse("null") + ",\n"
                 + "  \"passive_orders_supported\": false,\n"
-                + "  \"partial_fills_supported\": false,\n"
+                + "  \"partial_fills_supported\": " + config.executionModel().name().equals("L1_PARTIAL_IOC") + ",\n"
                 + "  \"cost_model\": {\"status\": " + q(config.costStatus()) + ", \"evidence_reference\": "
                 + optionalJson(config.costEvidenceReference()) + ", \"slippage_ticks\": " + config.slippageTicks()
                 + ", \"slippage_ticks_source\": " + q(data.componentCostSchedule().isPresent()

@@ -21,7 +21,7 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
     private RawCaptureJournalWriter(FileChannel channel, FileLock lock) { this.channel = channel; this.lock = lock; }
 
     public static RawCaptureJournalWriter create(Path path) throws IOException {
-        FileChannel channel = FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        FileChannel channel = FileChannel.open(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
             writeFully(channel, ByteBuffer.wrap(RawCaptureFormat.header()));
@@ -34,12 +34,24 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         }
     }
 
-    /** Verifies the complete existing capture before restoring its hash state and resuming append. */
+    /** Diagnostic resume; removal of complete trailing frames requires an independent anchor to detect. */
     public static RawCaptureJournalWriter resume(Path path) throws IOException {
+        return resumeInternal(path, null);
+    }
+
+    /** Operational recovery requires an exact separately retained full-journal summary. */
+    public static RawCaptureJournalWriter resume(Path path, RawCaptureSummary expected) throws IOException {
+        return resumeInternal(path, java.util.Objects.requireNonNull(expected, "expected"));
+    }
+
+    private static RawCaptureJournalWriter resumeInternal(Path path, RawCaptureSummary expected) throws IOException {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
-            RawCaptureSummary summary = RawCaptureJournalReader.replay(path, ignored -> { });
+            RawCaptureSummary summary = RawCaptureJournalReader.replay(channel, ignored -> { });
+            if (expected != null && !expected.equals(summary)) {
+                throw new IOException("Raw capture journal does not match the retained recovery checkpoint");
+            }
             if (summary.bytesRead() != channel.size()) throw new IOException("Raw capture journal changed while it was being verified");
             channel.position(channel.size());
             RawCaptureJournalWriter writer = new RawCaptureJournalWriter(channel, lock);
@@ -53,6 +65,12 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
 
     public synchronized String append(RawMarketMessage message) throws IOException {
         if (closed || failed) throw new IOException(closed ? "Raw capture journal is closed" : "Raw capture journal failed and cannot continue");
+        try {
+            if (channel.size() != channel.position()) throw new IOException("Raw capture journal length changed while the writer was active");
+        } catch (IOException uncertainty) {
+            failed = true;
+            throw uncertainty;
+        }
         byte[] payload = RawCaptureEncoder.encode(message);
         if (payload.length > RawCaptureFormat.MAX_PAYLOAD_BYTES + 65_536) throw new IllegalArgumentException("Encoded capture record exceeds limit");
         byte[] nextHash = QuoteHashChain.nextHash(previousHash, payload);
@@ -68,6 +86,20 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         }
         previousHash = nextHash;
         return QuoteHashChain.hex(nextHash);
+    }
+
+    /** Verify through the owned channel: Windows mandatory locks prohibit a second reader handle. */
+    public synchronized RawCaptureSummary verifiedSummary() throws IOException {
+        if (closed || failed) throw new IOException("Raw capture journal is closed or failed");
+        long appendPosition = channel.position();
+        try {
+            if (channel.size() != appendPosition) throw new IOException("Raw journal length changed");
+            RawCaptureSummary summary = RawCaptureJournalReader.replay(channel, ignored -> { });
+            if (summary.bytesRead() != appendPosition || !summary.finalHashHex().equals(QuoteHashChain.hex(previousHash)))
+                throw new IOException("Raw journal no longer matches writer state");
+            return summary;
+        } catch (IOException | RuntimeException error) { failed = true; throw error; }
+        finally { channel.position(appendPosition); }
     }
 
     private static void writeFully(FileChannel channel, ByteBuffer data) throws IOException {

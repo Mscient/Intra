@@ -1,0 +1,38 @@
+[
+  {
+    "fixture": "clean-completion",
+    "status": "PASS"
+  },
+  {
+    "fixture": "stale-inputs",
+    "status": "FAIL"
+  },
+  {
+    "fixture": "missing-acknowledgements",
+    "status": "INCOMPLETE"
+  },
+  {
+    "fixture": "open-positions",
+    "status": "FAIL"
+  },
+  {
+    "fixture": "unmatched-events",
+    "status": "FAIL"
+  },
+  {
+    "fixture": "hash-tampering",
+    "status": "FAIL"
+  },
+  {
+    "fixture": "halted-session",
+    "status": "PASS"
+  },
+  {
+    "fixture": "settled-session",
+    "status": "PASS"
+  },
+  {
+    "fixture": "missing-settlement-costs",
+    "status": "INCOMPLETE"
+  }
+]

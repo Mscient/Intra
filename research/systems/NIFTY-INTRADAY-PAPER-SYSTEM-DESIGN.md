@@ -1,16 +1,16 @@
 # Nifty Intraday Trading System — Final Design
 
-- **Status:** Final architecture and strategy-portfolio design for the research/paper release. Data qualification and strategy validation remain open.
-- **Version:** 1.0
-- **Reviewed:** 2026-11-02 (Asia/Kolkata)
-- **Market/broker scope:** NSE Nifty instruments; Angel One SmartAPI for read-only market data.
+- **Status:** Research architecture for the existing integrated Java 21 `Intra-Paper-System/`; G0 and downstream evidence gates remain open.
+- **Version:** 1.1 — checkout reconciliation
+- **Reviewed:** 2026-11-14 checkout review (Asia/Kolkata); external rules and source permissions not revalidated.
+- **Market/data scope:** Nifty dated futures first, then options. Angel One is a candidate read-only source, disabled pending G0.
 - **System scope:** S01–S10 research systems and their isolated backtest/paper workflow.
 
 ## 1. Purpose
 
 This is the consolidated design for the Nifty intraday system. It completes the system-level architecture and defines all ten strategy or execution candidates tracked in [SYSTEM_TRACKER.md](https://github.com/Mscient/Intra/blob/main/research/systems/SYSTEM_TRACKER.md). The [ten-system research review](https://github.com/Mscient/Intra/blob/main/research/systems/TOP-10-TRADING-SYSTEMS.md) remains the evidence review, and the [Wave A signal specification](https://github.com/Mscient/Intra/blob/main/research/systems/WAVE-A-SIGNAL-SPEC.md) remains the exact signal rulebook for S01–S03. The [paper-system roadmap](PAPER-TRADING-BACKTESTING-ROADMAP.md) remains the build and delivery schedule.
 
-“HFT” is the project label. The current design is a Python research and paper system using retail data access. It is not an exchange-colocated, sub-millisecond trading platform. It does not route live orders. The system cannot claim strategy profitability or execution quality until the corresponding dated contract data, cost assumptions, fill model, and validation gates pass.
+“HFT” is the research label. The implemented system is Java 21, with deterministic local bars/quote replay and no connected adapter or broker route. A future paper clock must feed the existing simulation core. Strategy profitability and execution quality remain unproven. Current verification is recorded in [the checkout reconciliation](../../Intra-Paper-System/docs/OFFLINE-COMPLETION-2026-11-14.md).
 
 ## 2. Objectives and boundaries
 
@@ -26,12 +26,12 @@ This is the consolidated design for the Nifty intraday system. It completes the 
 
 | Area | Responsibility | Boundary |
 |---|---|---|
-| HFT 2 research repository | Design documents, source reviews, trackers, and reviewed non-executable summaries | No broker credentials, raw restricted market data, experiment code, or order routing |
-| `Intra-Systems-Lab` | Isolated strategy experiments, one run space per system, frozen local inputs, run manifests and outputs | Separate environment; network disabled during replay; no broker SDK, secrets, application database, or order route |
-| `Intra-Paper-System` | Shared local backtest and live-data paper simulator | Read-only market data only; simulated orders and portfolio only; no broker place/modify/cancel methods |
-| Angel One SmartAPI | Read-only market-data source for this release | Authentication and market-data calls do not authorize or imply live order routing |
+| Research documents in this repository | Source reviews, strategy specifications, trackers and reviewed summaries | No credentials or licensed rows; historical claims do not authorize connectivity |
+| Historical `Intra-Systems-Lab` notes | Existing candidate specifications and prior evidence context | No separate product is proposed or built by this work |
+| `Intra-Paper-System/` | Integrated research, historical replay, local simulation, risk, accounting and reports | Private run artifacts stay outside Git; future paper ingestion reuses this core |
+| Candidate read-only market-data source | Future ingestion after permission and operating review | No account/data access while G0 is open; no order endpoints |
 
-The lab-to-document flow is one-way: frozen authorized inputs enter an isolated run, and only reviewed summaries and manifest identifiers return to HFT 2. The paper simulator and research lab remain separate products; reviewed strategy rules and data manifests can be shared, but raw licensed data, run state, secrets, and experiment code do not move into HFT 2.
+The active implementation remains this one integrated system. Historical lab specifications may inform reviewed strategy cards. Keep licensed rows, account details, credentials, budgets and private run state outside Git; share only reviewed summaries and reproducible non-private identities.
 
 ### Operating modes
 
@@ -39,16 +39,16 @@ The lab-to-document flow is one-way: frozen authorized inputs enter an isolated 
 |---|---|---|---|
 | Historical backtest | Frozen local CSV input | Deterministic event/bar replay | Simulated decisions, orders, fills, portfolio and report |
 | Saved-quote replay | Frozen local quote capture | Recorded event/receive order | Same simulator and accounting as backtest |
-| Live-data paper | Read-only SmartAPI FULL quotes; completed one-minute bars built locally | Paper clock with local receive-time tracking | Local simulated portfolio; no broker orders |
+| Planned live-data paper, disabled pending G0 | Reviewed read-only adapter, not implemented here | Paper clock and restart coordinator still required | Same local simulation/risk/accounting; no broker orders |
 
-The documented first-release implementation is CSV-only. It uses a Python CLI, dated contract records, data-quality checks, deterministic replay, a local order lifecycle, futures/options accounting, configured fees and risk limits, quote-to-minute-bar construction, a read-only SmartAPI adapter, and hashed manifests/reports. The separate system repository records 18 engine tests passing and read-only quote/authentication smoke checks; these were not rerun as part of this document update.
+Earlier versions described a Python CLI, 18 tests, quote-to-bar construction and authentication/quote smoke checks in another environment. Those are historical reports and are not evidence for this checkout. The current Java implementation supports local replay, dated contracts/calendar/rules, risk and accounting, explicit settlement inputs, L1 IOC assumptions, manifest and deterministic replay verification, and offline operational controls. A connected adapter and complete forward paper runtime remain open.
 
 ## 3. End-to-end system flow
 
 ```mermaid
 flowchart LR
     HIST[Authorized historical CSVs] --> VALID[Parse, normalize, validate]
-    API[Read-only FULL quote polling] --> CAP[Capture and build completed bars]
+    API[Planned read-only data after G0] --> CAP[Pending ingest and bar validation]
     CAP --> VALID
     VALID --> CLOCK[Backtest, quote-replay, or paper clock]
     CLOCK --> SIGNAL[One isolated strategy]
@@ -99,7 +99,7 @@ S01–S03 have fixed signal-only baselines on NIFTY 50 one-minute bars. S04–S1
 
 Before simulated submission, the independent risk layer checks instrument allowlist, contract validity, session, stale/missing data, order size, lot multiples, notional and gross exposure, open positions/orders, order rate, daily loss, short-position policy, expiry restrictions, and available configured margin. It records each decision and reason.
 
-Limits and example fees in the current implementation are placeholders until reviewed and dated. Configurable approximate futures and short-option margin and maintenance liquidation are implemented, but they are not exchange SPAN/ELM requirements. Missing or unreviewed values prevent economic interpretation. A risk breach, stale feed, unknown contract, session cutoff, or ledger fault blocks new simulated entries.
+Configured risk, dated fee and supplied margin inputs remain unverified until independently reviewed. Margin values/proxies are not SPAN/ELM. Automatic maintenance liquidation and daily exchange variation margin are not implemented. Supported data, session, contract, order-rate, exposure and loss checks reject entries independently of strategy decisions.
 
 ### 4.5 Orders, fills, and accounting
 
@@ -112,11 +112,11 @@ Fill rules are explicit and versioned:
 - Passive limit order: a candle touching a limit does not establish a fill. Without order-event and queue-position data, report a conservative no-fill case or a clearly labeled queue sensitivity; do not present a snapshot-depth touch as a primary result.
 - Partial fills, expiry handling, slippage, and rejections are configuration/model assumptions, not hidden inside strategy logic.
 
-The ledger separates futures variation P&L from options premium cash flows and reports gross/net P&L, fee components, exposure, turnover, drawdown, realized/unrealized values, fill rates, and reconciliation warnings. Options P&L is contract-premium based, not an underlying-index mark. Expiry settlement uses dated settlement input or a clearly flagged complete-session final-bar proxy. Partial expiry data without settlement remain open; physical delivery is outside the current release.
+The ledgers distinguish futures price P&L and options premium accounting, retain fee/slippage components and independently reconcile position basis, realized/unrealized values and equity. Model option valuations are diagnostics only. Supported expiry settlement requires explicit dated identity, events, values and cost policy; no final-bar settlement proxy is invented. Daily exchange variation margin and physical delivery remain unsupported.
 
 ### 4.6 Paper-data adapter and operations
 
-The paper adapter uses read-only historical-candle and FULL-quote endpoints; the documented implementation polls snapshots and builds completed one-minute bars. It records local receive time and rate-limit, disconnect, stale, out-of-order, malformed, and unknown-contract events. On a gap or disconnect it blocks new entries until valid data resume and pass freshness checks. Reconnection does not repair missing intervals.
+A future paper adapter may use only the reviewed source and read-only endpoints after G0. It must record receive times and lifecycle events, validate completed-bar coverage, and block new entries on gaps, disconnects, stale/malformed observations or unknown contracts. It must feed the existing core and require reconciliation before recovery. Current Java components analyze saved journals and synthetic drills; they do not constitute a connected adapter. Reconnection cannot repair missing observations.
 
 No live order methods, routes, IDs, or fallback behavior are present in the paper adapter. Secrets remain in a local secret store or ignored environment file and must not appear in Git, test fixtures, manifests, or logs. Raw private data and run outputs remain outside the documentation repository unless terms permit otherwise.
 
@@ -239,12 +239,12 @@ There is no fallback to a broker order route under any failure condition.
 
 ## 8. Current implementation limits and open gates
 
-The separate paper-system roadmap records the following implementation and readiness boundaries as of 2026-11-02:
+The current integrated Java checkout has these limits (2026-11-14):
 
-- CSV-only storage; no exchange holiday calendar, exact SPAN/ELM margin, physical delivery, queue model, or full-depth simulation.
-- Margin is configurable and approximate, not an exchange requirement. Example fees/risk values still need reviewed dated schedules.
-- Daily instrument-master import is effective from its snapshot date; it is not a historical contract master.
-- Expiry settlement needs supplied dated settlement prices or a flagged complete-session final-bar proxy. Partial expiry data without settlement remain open.
+- Local CSV and framed journals; explicit dated instrument and calendar/rule inputs are supported. Source truth and currentness remain unverified.
+- Margin is a supplied value/proxy, not exchange SPAN/ELM. Dated costs are modeled but tariff completeness and authenticity require review.
+- Current contract snapshots cannot substitute for historical effective-dated contract metadata.
+- Expiry settlement requires supplied supported dated event/value inputs and explicit charges. No invented liquidation/settlement prices; physical delivery and daily variation margin are unsupported.
 - SmartAPI expired-contract history, lawful local retention, and multi-expiry futures/options coverage remain unconfirmed or unavailable; current-contract-only data cannot support an unbiased multi-expiry result.
 - The 30 Oct 2026 NIFTY index candle sample has a reproduced closing-period timestamp gap; the full 2 Nov session refresh/review is pending in the recorded baseline.
 - No strategy has passed validation, no qualifying market-derived result is reported, and no live orders have been submitted.
@@ -253,7 +253,7 @@ Before performance scoring: close the timestamp/session data review; confirm dat
 
 ## 9. Delivery gates
 
-1. **Isolation:** separate lab, environment, inputs, outputs, and no order route are reviewed.
+1. **Isolation:** reviewed private input/output boundaries within the existing system; no broker order route.
 2. **Data:** source terms, timestamps, session coverage, contract mappings, missingness, and hashes pass for the specific system.
 3. **Rules:** signal, parent order where applicable, exits, costs, fills, variants, benchmark, and thresholds are frozen before validation.
 4. **Replay:** identical frozen inputs, code, rules, and seed reproduce the same decisions, orders, fills, and ledger.
@@ -261,7 +261,7 @@ Before performance scoring: close the timestamp/session data review; confirm dat
 6. **Paper operations:** complete sessions are captured and reconciled; disconnect/stale-data behavior is visible. This is operational evidence only.
 7. **Strategy evidence:** adequate dated data, chronological holdout, realistic costs, fill sensitivity, and independent review support a separately stated outcome.
 
-The 90-day target is an operational local paper/backtest system. It does not guarantee that every candidate becomes testable or profitable. S04–S10 proceed only when their individual input gates pass.
+The 90-day sequence is illustrative. G4 requires 60 complete forward sessions, 20 consecutive passing pre-open checks, daily reconciliations, successful drills and no unresolved severe incidents. The design does not guarantee testability or profitability; each candidate remains gated on its evidence.
 
 ## 10. System portfolio status
 

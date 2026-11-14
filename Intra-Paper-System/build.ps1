@@ -32,9 +32,20 @@ if (-not $classesRootAbsolute.StartsWith($buildRootPrefix, [System.StringCompari
 }
 New-Item -ItemType Directory -Force -Path $classesRootAbsolute | Out-Null
 try {
-    & $javac --release 21 -encoding UTF-8 -d $classesRootAbsolute @sources
+    # An argument file avoids Windows' process command-line limit as source count grows.
+    $sourceArgumentPath = Join-Path $classesRootAbsolute 'javac-sources.args'
+    $sourceArguments = @($sources | ForEach-Object { '"' + $_.Replace('\', '/') + '"' })
+    [System.IO.File]::WriteAllLines($sourceArgumentPath, $sourceArguments, [System.Text.UTF8Encoding]::new($false))
+    & $javac --release 21 -encoding UTF-8 -d $classesRootAbsolute ("@" + $sourceArgumentPath)
     if ($LASTEXITCODE -ne 0) {
         throw "javac failed with exit code $LASTEXITCODE"
+    }
+    Remove-Item -LiteralPath $sourceArgumentPath -Force
+    $resourceRoot = Join-Path $projectRoot 'src\main\resources'
+    if (Test-Path -LiteralPath $resourceRoot) {
+        Get-ChildItem -LiteralPath $resourceRoot -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $classesRootAbsolute -Recurse -Force
+        }
     }
     $buildCommit = 'unknown'
     $gitCommand = Get-Command git -ErrorAction SilentlyContinue

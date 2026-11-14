@@ -268,8 +268,20 @@ public final class BacktestCheckpointStore implements AutoCloseable {
         buffer.get(storedHash);
         if (!MessageDigest.isEqual(storedHash, digest(payload))) throw new IOException("Checkpoint payload hash mismatch: " + path);
         try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(payload))) {
-            input.setObjectInputFilter(BacktestCheckpointStore::filter);
-            Object value = input.readObject();
+            String[] rejectedType = { "resource limit" };
+            input.setObjectInputFilter(info -> {
+                var status = filter(info);
+                if (status == ObjectInputFilter.Status.REJECTED && info.serialClass() != null) {
+                    rejectedType[0] = info.serialClass().getName();
+                }
+                return status;
+            });
+            Object value;
+            try {
+                value = input.readObject();
+            } catch (java.io.InvalidClassException rejected) {
+                throw new IOException("Checkpoint serialization rejected: " + rejectedType[0], rejected);
+            }
             if (!(value instanceof BacktestCheckpoint checkpoint) || input.read() != -1) {
                 throw new IOException("Unexpected checkpoint payload object or trailing data: " + path);
             }
@@ -311,7 +323,10 @@ public final class BacktestCheckpointStore implements AutoCloseable {
                 || name.equals("java.lang.Long") || name.equals("java.lang.Boolean")
                 || name.equals("java.lang.Number") || name.equals("java.lang.Enum")
                 || name.equals("java.math.BigDecimal") || name.equals("java.math.BigInteger")
-                || name.equals("java.time.Ser")
+                // ObjectInputStream checks the concrete object returned by java.time.Ser's
+                // readResolve as well as the proxy. Permit only the two stored time types.
+                || name.equals("java.time.Ser") || name.equals("java.time.Instant")
+                || name.equals("java.time.LocalDate")
                 || name.equals("java.util.ArrayList") || name.equals("java.util.HashMap")
                 || name.equals("java.util.TreeMap") || name.equals("java.util.CollSer")
                 || name.startsWith("java.util.Collections$Unmodifiable")

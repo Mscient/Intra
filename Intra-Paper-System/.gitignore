@@ -23,3 +23,6 @@ journals/
 output/
 build/
 target/
+
+# Legacy synthetic test output; current runner isolates fixtures under build/.
+/fixture-*/

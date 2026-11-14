@@ -1,0 +1,7 @@
+record_type,start_utc,end_utc,completeness,source_reference
+ORDER,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
+FILL,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
+FEE,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
+POSITION,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
+CASH,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
+SETTLEMENT,2030-05-06T03:45:00Z,2030-05-06T03:49:00Z,COMPLETE,synthetic caller coverage
