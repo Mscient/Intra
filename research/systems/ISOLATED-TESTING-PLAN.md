@@ -1,27 +1,27 @@
 # Isolated Testing Plan for the Ten Trading Systems
 
-**Purpose:** Evaluate ten strategy and execution archetypes as independent research experiments while keeping all test code and runs outside the complete HFT 2 application and broker path.
-**Project:** Nifty intraday paper-trading research; India; Python; own account; retail broker API; no paid tick feed at the outset.
-**Status:** Wave A has a separate offline smoke-test runner in `Intra-Systems-Lab` (local commit `e720fec`, 13 unit tests). It has no broker connection or order routing and is not a strategy backtest. Wave B and C remain plans; no system has passed strategy validation.
+**Purpose:** Evaluate ten strategy and execution archetypes as independent research runs within the integrated `Intra-Paper-System` project.
+**Project:** Nifty futures first and options next; India; Java 21; deterministic offline replay and local simulated orders.
+**Status:** Earlier Wave A Python/lab records are historical. The current checkout provides the shared Java replay, risk, accounting, cost, and evidence core. No candidate has passed its required external strategy/readiness gates.
 
 ## 1. Isolation boundary
 
-### Separate lab repository
+### Per-strategy isolation
 
-Run all experiments in a separate repository named `Intra-Systems-Lab`, outside the HFT 2 application repository. Do not place experiment code inside the app package or import application modules. The HFT 2 repository should contain this plan, the system tracker, and reviewed result summaries only. No experiment executable code is promoted into the application under this plan.
+Keep experiment implementations in `Intra-Paper-System` and isolate each strategy's preregistration, frozen data/configuration, fitted state, and run outputs. Reuse the existing simulation, OMS, accounting, risk, and cost components. Results cannot promote a strategy without its evidence gates.
 
 ### Separate environment and data flow
 
-- Use a separate Python environment and one run directory per system and experiment. Pin package versions and record the lab commit hash.
+- Use the project's Java 21 runtime and one run directory per system and experiment. Record build identity and input hashes. Separate Python environments are reserved for optional independent numerical validation tools.
 - Keep the broker SDK, API credentials, live order-routing code, production configuration, and application database out of the lab. Runs must have no route to submit orders.
 - Stage legally usable market-data snapshots into read-only lab input directories. Store dataset manifests and hashes with each run. Keep licensed raw data outside Git unless its license explicitly permits committing it.
 - Disable network access during backtests and replays after data staging. Save outputs only to that system's own run directory.
-- Use a shared lab-only data schema and metric implementation for comparability. Each system has its own code, config, parameters, and output directory; systems cannot read one another's signals, fitted parameters, or results.
-- Return only a reviewed, non-executable summary and run manifest to the HFT 2 repository. Do not copy code, secrets, raw restricted data, or broker-state files back.
+- Use the project's common dated-input schemas and metric contracts for comparability. Each system keeps its own config, parameters, and output directory; systems cannot read one another's signals, fitted parameters, or results.
+- Keep reviewed summaries, manifests, and source in the integrated repository; secrets, restricted raw data, and broker-state files remain outside Git.
 
 This gives us a one-way boundary:
 
-`HFT 2 research brief -> frozen lab inputs -> isolated system run -> reviewed summary -> HFT 2 research record`
+`Research brief -> frozen authorized inputs -> isolated strategy run in Intra-Paper-System -> reviewed summary and evidence record`
 
 There is no return path from the lab into application runtime or order routing.
 

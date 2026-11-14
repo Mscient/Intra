@@ -32,6 +32,7 @@ public final class RunArtifactWriter {
 
     public WrittenRun write(Path outputRoot, String runId, ValidatedDataset data,
             RunConfig config, BacktestResult result) throws IOException {
+        data.requireSimulationReady(config);
         var researchTrial = ResearchTrialBinding.resolve(config, data, result.strategyId());
         var evaluationPartitions = EvaluationPartitionReport.create(config, data, result.sessionAudits());
         Path outputRootAbsolute = outputRoot.toAbsolutePath().normalize();
@@ -301,8 +302,12 @@ public final class RunArtifactWriter {
         data.quoteHistory().ifPresent(history -> inputHashes.put("quote_journal", history.fileSha256()));
         data.optionValuationInputs().ifPresent(schedule -> inputHashes.put("option_valuation_inputs", schedule.sha256()));
         evaluationPartitions.ifPresent(report -> inputHashes.put("evaluation_split_plan", report.splitPlanSha256()));
+        data.manifest().inputFileSha256().forEach((id, hash) -> {
+            if (id.startsWith("permission-")) inputHashes.put(id, hash);
+        });
         return "{\n"
-                + "  \"schema_version\": 14,\n"
+                + "  \"schema_version\": 15,\n"
+                + "  \"run_identity_format\": " + q(RunIdentity.formatVersion(config)) + ",\n"
                 + "  \"run_id\": " + q(runId) + ",\n"
                 + "  \"run_commit_id\": " + q(config.commitId()) + ",\n"
                 + "  \"dataset_id\": " + q(config.datasetId()) + ",\n"
@@ -427,6 +432,7 @@ public final class RunArtifactWriter {
                 + "  \"result_classification\": " + q(result.resultClassification()) + ",\n"
                 + "  \"performance_claim_eligible\": false,\n"
                 + "  \"input_file_sha256\": " + mapJson(inputHashes) + ",\n"
+                + "  \"dataset_input_file_sha256\": " + mapJson(RunIdentity.datasetInputHashes(data)) + ",\n"
                 + "  \"output_file_sha256\": " + mapJson(outputHashes) + "\n"
                 + "}\n";
     }

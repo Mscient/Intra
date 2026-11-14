@@ -1,0 +1,12 @@
+OFFLINE_OPERATIONAL_DRILL_V1
+scenario_id=ledger-mismatch
+classification=SYNTHETIC_ONLY
+sequence,action,target,expected,required_evidence
+1,SETUP,SYNTHETIC_V1,PASS,result.properties;log.txt;inputs.csv
+2,RUN,REPLAY,PASS,result.properties;log.txt;inputs.csv
+3,INJECT,LEDGER_MISMATCH,PASS,result.properties;log.txt;inputs.csv
+4,RUN,RECONCILIATION,FAIL,result.properties;log.txt;inputs.csv
+5,RUN,DAILY_OPS,FAIL,result.properties;log.txt;inputs.csv
+6,RECOVER,LEDGER_MISMATCH,PASS,result.properties;log.txt;inputs.csv
+7,RUN,RECONCILIATION,PASS,result.properties;log.txt;inputs.csv
+8,RUN,DAILY_OPS,PASS,result.properties;log.txt;inputs.csv

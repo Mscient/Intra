@@ -1,0 +1,8 @@
+# Retained local verification output and synthetic temporary fixtures.
+/Intra-Paper-System/fixture-*/
+/review-package*/
+/verification-*/
+/vbuild*/
+/vcore*/
+/vfinal/
+/vfull*/

@@ -10,7 +10,7 @@
 
 This is the consolidated design for the Nifty intraday system. It completes the system-level architecture and defines all ten strategy or execution candidates tracked in [SYSTEM_TRACKER.md](https://github.com/Mscient/Intra/blob/main/research/systems/SYSTEM_TRACKER.md). The [ten-system research review](https://github.com/Mscient/Intra/blob/main/research/systems/TOP-10-TRADING-SYSTEMS.md) remains the evidence review, and the [Wave A signal specification](https://github.com/Mscient/Intra/blob/main/research/systems/WAVE-A-SIGNAL-SPEC.md) remains the exact signal rulebook for S01–S03. The [paper-system roadmap](PAPER-TRADING-BACKTESTING-ROADMAP.md) remains the build and delivery schedule.
 
-“HFT” is the project label. The current design is a Python research and paper system using retail data access. It is not an exchange-colocated, sub-millisecond trading platform. It does not route live orders. The system cannot claim strategy profitability or execution quality until the corresponding dated contract data, cost assumptions, fill model, and validation gates pass.
+“HFT” is the project label. The current implementation is the integrated Java 21 `Intra-Paper-System` research, deterministic backtest, and local paper simulation core. Dated futures come first and options follow within this project. Data rights, current market rules, costs, margins, execution assumptions, and observed paper evidence must pass their external gates before readiness or profitability claims.
 
 ## 2. Objectives and boundaries
 
@@ -26,12 +26,12 @@ This is the consolidated design for the Nifty intraday system. It completes the 
 
 | Area | Responsibility | Boundary |
 |---|---|---|
-| HFT 2 research repository | Design documents, source reviews, trackers, and reviewed non-executable summaries | No broker credentials, raw restricted market data, experiment code, or order routing |
-| `Intra-Systems-Lab` | Isolated strategy experiments, one run space per system, frozen local inputs, run manifests and outputs | Separate environment; network disabled during replay; no broker SDK, secrets, application database, or order route |
-| `Intra-Paper-System` | Shared local backtest and live-data paper simulator | Read-only market data only; simulated orders and portfolio only; no broker place/modify/cancel methods |
-| Angel One SmartAPI | Read-only market-data source for this release | Authentication and market-data calls do not authorize or imply live order routing |
+| Repository research records | Design documents, source reviews, trackers, and reviewed summaries alongside the implementation | Licensed raw inputs and secrets stay outside Git |
+| Per-strategy runs | Frozen inputs, preregistration, separate outputs and evaluation splits within the integrated project | Offline replay; no shared fitted state or hidden trial reuse |
+| `Intra-Paper-System` | Java 21 simulation, local OMS, risk, accounting, costs, settlement, replay, and evidence tools | Local simulated orders; connected read-only data/paper clock still require implementation and evidence |
+| Angel One SmartAPI | Candidate read-only market-data source | Account access, real capture, and broker routing are outside this implementation increment |
 
-The lab-to-document flow is one-way: frozen authorized inputs enter an isolated run, and only reviewed summaries and manifest identifiers return to HFT 2. The paper simulator and research lab remain separate products; reviewed strategy rules and data manifests can be shared, but raw licensed data, run state, secrets, and experiment code do not move into HFT 2.
+Research and replay use the same integrated project. Each strategy keeps its own frozen inputs, configuration, trial record, and output folder. Historical replay and future read-only paper operation must share the simulation core and explicit risk/cost contracts. Earlier Python/lab records are historical context, not the current runtime architecture.
 
 ### Operating modes
 
@@ -39,9 +39,9 @@ The lab-to-document flow is one-way: frozen authorized inputs enter an isolated 
 |---|---|---|---|
 | Historical backtest | Frozen local CSV input | Deterministic event/bar replay | Simulated decisions, orders, fills, portfolio and report |
 | Saved-quote replay | Frozen local quote capture | Recorded event/receive order | Same simulator and accounting as backtest |
-| Live-data paper | Read-only SmartAPI FULL quotes; completed one-minute bars built locally | Paper clock with local receive-time tracking | Local simulated portfolio; no broker orders |
+| Planned live-data paper | Authorized read-only market data | Paper clock with local receive-time tracking, not yet integrated | Local simulated portfolio; external operating evidence required |
 
-The documented first-release implementation is CSV-only. It uses a Python CLI, dated contract records, data-quality checks, deterministic replay, a local order lifecycle, futures/options accounting, configured fees and risk limits, quote-to-minute-bar construction, a read-only SmartAPI adapter, and hashed manifests/reports. The separate system repository records 18 engine tests passing and read-only quote/authentication smoke checks; these were not rerun as part of this document update.
+The checked-out implementation uses a dependency-free Java 21 CLI, frozen dated bar/quote inputs, instrument/calendar/rule validation, deterministic checkpointed replay, local OMS transitions including partial IOC fills, signed portfolio accounting, supplied settlement/cost inputs, risk/loss controls, and artifact/evaluation/operations tools. Current local test evidence is recorded in the [offline verification report](../../Intra-Paper-System/docs/OFFLINE-VERIFICATION.md). Historical Python test and account-smoke claims do not establish the current checkout's readiness.
 
 ## 3. End-to-end system flow
 

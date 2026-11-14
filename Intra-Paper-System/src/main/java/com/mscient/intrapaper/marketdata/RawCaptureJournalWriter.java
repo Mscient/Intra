@@ -34,12 +34,24 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         }
     }
 
-    /** Verifies the complete existing capture before restoring its hash state and resuming append. */
+    /** Diagnostic resume; removal of complete trailing frames requires an independent anchor to detect. */
     public static RawCaptureJournalWriter resume(Path path) throws IOException {
+        return resumeInternal(path, null);
+    }
+
+    /** Operational recovery requires an exact separately retained full-journal summary. */
+    public static RawCaptureJournalWriter resume(Path path, RawCaptureSummary expected) throws IOException {
+        return resumeInternal(path, java.util.Objects.requireNonNull(expected, "expected"));
+    }
+
+    private static RawCaptureJournalWriter resumeInternal(Path path, RawCaptureSummary expected) throws IOException {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
             RawCaptureSummary summary = RawCaptureJournalReader.replay(path, ignored -> { });
+            if (expected != null && !expected.equals(summary)) {
+                throw new IOException("Raw capture journal does not match the retained recovery checkpoint");
+            }
             if (summary.bytesRead() != channel.size()) throw new IOException("Raw capture journal changed while it was being verified");
             channel.position(channel.size());
             RawCaptureJournalWriter writer = new RawCaptureJournalWriter(channel, lock);
@@ -53,6 +65,12 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
 
     public synchronized String append(RawMarketMessage message) throws IOException {
         if (closed || failed) throw new IOException(closed ? "Raw capture journal is closed" : "Raw capture journal failed and cannot continue");
+        try {
+            if (channel.size() != channel.position()) throw new IOException("Raw capture journal length changed while the writer was active");
+        } catch (IOException uncertainty) {
+            failed = true;
+            throw uncertainty;
+        }
         byte[] payload = RawCaptureEncoder.encode(message);
         if (payload.length > RawCaptureFormat.MAX_PAYLOAD_BYTES + 65_536) throw new IllegalArgumentException("Encoded capture record exceeds limit");
         byte[] nextHash = QuoteHashChain.nextHash(previousHash, payload);

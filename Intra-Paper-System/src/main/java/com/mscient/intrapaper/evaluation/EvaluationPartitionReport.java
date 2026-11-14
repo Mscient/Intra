@@ -78,6 +78,8 @@ public record EvaluationPartitionReport(String splitPlanSha256, List<PartitionSu
         Objects.requireNonNull(sessionAudits, "sessionAudits");
         if (config.evaluationSplitPlanPath().isEmpty()) return Optional.empty();
 
+        dataset.requireSimulationReady(config);
+
         Path splitPath = config.evaluationSplitPlanPath().orElseThrow();
         EvaluationSplitPlan split = EvaluationSplitPlan.load(splitPath, dataset);
         Map<LocalDate, SessionAudit> auditsByDate = new HashMap<>();

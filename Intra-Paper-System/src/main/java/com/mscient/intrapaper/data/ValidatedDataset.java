@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Inputs after schema, full-session boundary, provenance, and as-of instrument checks pass. */
+/** Checked inputs; diagnostic gap overrides do not imply admission to simulation or scoring. */
 public record ValidatedDataset(
         List<Bar> bars,
         InstrumentMasterSnapshot instrumentMaster,
@@ -47,8 +47,36 @@ public record ValidatedDataset(
         long openSessionCount,
         long completeSessionCount) {
 
+    /** Diagnostic inspection may retain gaps within the explicitly configured allowance. */
     public static ValidatedDataset load(java.nio.file.Path barsPath, RunConfig config) throws IOException {
         return loadInternal(barsPath, config, false);
+    }
+
+    /** Ordinary simulation/scoring always requires every supplied session to be complete. */
+    public static ValidatedDataset loadForSimulation(java.nio.file.Path barsPath, RunConfig config) throws IOException {
+        ValidatedDataset dataset = load(barsPath, config);
+        dataset.requireSimulationReady(config);
+        return dataset;
+    }
+
+    public boolean simulationReady() {
+        return openSessionCount > 0 && completeSessionCount == openSessionCount
+                && timestampSpacingAnomalies == 0 && estimatedMissingIntervals == 0
+                && bars.size() == expectedBarCount;
+    }
+
+    /** Shared fail-closed boundary for callers that already hold diagnostically checked inputs. */
+    public void requireSimulationReady(RunConfig config) {
+        java.util.Objects.requireNonNull(config, "config");
+        if (!simulationReady()) {
+            throw new IllegalArgumentException("INCOMPLETE_DATA: diagnostic inspection only; simulation/scoring requires "
+                    + "complete sessions; complete_sessions=" + completeSessionCount + "/" + openSessionCount
+                    + "; observed_bars=" + bars.size() + "; expected_bars=" + expectedBarCount
+                    + "; spacing_anomalies=" + timestampSpacingAnomalies
+                    + "; missing_intervals=" + estimatedMissingIntervals
+                    + "; quality.allow_intrasession_gaps=" + config.allowIntraSessionGaps()
+                    + "; quality.max_missing_intervals_per_session=" + config.maxMissingIntervalsPerSession());
+        }
     }
 
     /** Only the portfolio loader may defer the legacy event requirement to its own event validation. */
@@ -299,8 +327,10 @@ public record ValidatedDataset(
         componentCostSchedule.ifPresent(schedule -> inputs.put("component-cost-schedule", schedule.sha256()));
         marginRequirementSchedule.ifPresent(schedule -> inputs.put("margin-requirement-schedule", schedule.sha256()));
         expirySettlement.ifPresent(settlement -> inputs.put("expiry-settlement", settlement.sha256()));
+        settlementCostSchedule.ifPresent(schedule -> inputs.put("settlement-cost-schedule", schedule.sha256()));
         quoteHistory.ifPresent(history -> inputs.put("quote-journal", history.fileSha256()));
         optionValuationInputs.ifPresent(schedule -> inputs.put("option-valuation-inputs", schedule.sha256()));
+        com.mscient.intrapaper.permission.PermissionAdmission.require(barsPath, config, bars, inputs);
         DatasetManifest manifest = new DatasetManifest(
                 1,
                 config.datasetId(),

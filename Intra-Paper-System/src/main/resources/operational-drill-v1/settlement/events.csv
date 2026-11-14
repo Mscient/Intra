@@ -1,0 +1,3 @@
+instrument_id,expiry,settlement_date,settlement_method,settlement_value_per_unit_inr,source_id,source_reference
+F,2030-05-06,2030-05-06,CASH_FUTURES_FINAL_PRICE,110,SYNTHETIC,synthetic future settlement
+O,2030-05-06,2030-05-06,CASH_OPTION_PAYOFF,5,SYNTHETIC,synthetic option payoff

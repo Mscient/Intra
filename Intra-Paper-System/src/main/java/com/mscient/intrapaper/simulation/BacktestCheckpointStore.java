@@ -68,7 +68,7 @@ public final class BacktestCheckpointStore implements AutoCloseable {
     private int lastNextBarIndex;
     private String lastCheckpointSha256 = GENESIS_HASH;
     private int savedSignalCount;
-    private int savedOrderCount;
+    private final Map<String, SimOrder> savedOrders = new HashMap<>();
     private int savedOrderEventCount;
     private int savedFillCount;
     private int savedFeeBreakdownCount;
@@ -112,6 +112,7 @@ public final class BacktestCheckpointStore implements AutoCloseable {
         if (files.isEmpty()) return Optional.empty();
         List<StrategySignal> signals = new ArrayList<>();
         List<SimOrder> orders = new ArrayList<>();
+        Map<String, Integer> orderIndices = new HashMap<>();
         List<SimOrderEvent> events = new ArrayList<>();
         List<SimFill> fills = new ArrayList<>();
         List<SimFeeBreakdown> feeBreakdowns = new ArrayList<>();
@@ -133,7 +134,23 @@ public final class BacktestCheckpointStore implements AutoCloseable {
                 throw new IOException("Checkpoint index exceeds the frozen dataset length: " + file);
             }
             signals.addAll(checkpoint.signalDelta());
-            orders.addAll(checkpoint.orderDelta());
+            for (SimOrder order : checkpoint.orderDelta()) {
+                Integer index = orderIndices.get(order.orderId());
+                if (index == null) {
+                    orderIndices.put(order.orderId(), orders.size());
+                    orders.add(order);
+                } else if (checkpoint.schemaVersion() == 2) {
+                    SimOrder prior = orders.get(index);
+                    if (!prior.decisionTimestamp().equals(order.decisionTimestamp())
+                            || !prior.side().equals(order.side()) || prior.targetLots() != order.targetLots()
+                            || prior.requestedUnits() != order.requestedUnits() || !prior.orderType().equals(order.orderType())) {
+                        throw new IOException("Checkpoint changes an order's immutable intent: " + order.orderId());
+                    }
+                    orders.set(index, order);
+                } else {
+                    throw new IOException("Legacy checkpoint duplicates a ledger order: " + order.orderId());
+                }
+            }
             events.addAll(checkpoint.orderEventDelta());
             fills.addAll(checkpoint.fillDelta());
             feeBreakdowns.addAll(checkpoint.feeBreakdownDelta());
@@ -156,7 +173,8 @@ public final class BacktestCheckpointStore implements AutoCloseable {
         this.lastNextBarIndex = latest.nextBarIndex();
         this.lastCheckpointSha256 = expectedPreviousHash;
         this.savedSignalCount = signals.size();
-        this.savedOrderCount = orders.size();
+        this.savedOrders.clear();
+        orders.forEach(order -> savedOrders.put(order.orderId(), order));
         this.savedOrderEventCount = events.size();
         this.savedFillCount = fills.size();
         this.savedFeeBreakdownCount = feeBreakdowns.size();
@@ -175,9 +193,9 @@ public final class BacktestCheckpointStore implements AutoCloseable {
             java.math.BigDecimal netAtPriorClose, int riskHalts, RiskGate.Snapshot riskGate,
             java.math.BigDecimal highWaterInr, java.math.BigDecimal maxDrawdownInr) {
         requireOpen();
-        return new BacktestCheckpoint(1, runId, dataset.barsSha256(), config.configSha256(), config.commitId(),
+        return new BacktestCheckpoint(2, runId, dataset.barsSha256(), config.configSha256(), config.commitId(),
                 strategy.id(), strategy.parameters(), lastNextBarIndex, nextBarIndex, lastCheckpointSha256,
-                delta(signals, savedSignalCount), delta(orders, savedOrderCount),
+                delta(signals, savedSignalCount), changedOrders(orders),
                 delta(orderEvents, savedOrderEventCount), delta(fills, savedFillCount),
                 delta(feeBreakdowns, savedFeeBreakdownCount), delta(trades, savedTradeCount),
                 delta(equityCurve, savedEquityPointCount), realizedPnlInr, feesPaidInr, slippageInr,
@@ -217,7 +235,7 @@ public final class BacktestCheckpointStore implements AutoCloseable {
         lastNextBarIndex = checkpoint.nextBarIndex();
         lastCheckpointSha256 = sha256(Files.readAllBytes(target));
         savedSignalCount += checkpoint.signalDelta().size();
-        savedOrderCount += checkpoint.orderDelta().size();
+        checkpoint.orderDelta().forEach(order -> savedOrders.put(order.orderId(), order));
         savedOrderEventCount += checkpoint.orderEventDelta().size();
         savedFillCount += checkpoint.fillDelta().size();
         savedFeeBreakdownCount += checkpoint.feeBreakdownDelta().size();
@@ -240,6 +258,12 @@ public final class BacktestCheckpointStore implements AutoCloseable {
     private static <T> List<T> delta(List<T> all, int from) {
         if (from < 0 || from > all.size()) throw new IllegalStateException("checkpoint ledger count exceeds current state");
         return List.copyOf(all.subList(from, all.size()));
+    }
+
+    /** Orders can change status after an earlier checkpoint; schema 2 deltas replace by stable ID. */
+    private List<SimOrder> changedOrders(List<SimOrder> orders) {
+        if (orders.size() < savedOrders.size()) throw new IllegalStateException("checkpoint order ledger cannot shrink");
+        return orders.stream().filter(order -> !order.equals(savedOrders.get(order.orderId()))).toList();
     }
 
     private List<Path> checkpointFiles() throws IOException {
@@ -311,7 +335,10 @@ public final class BacktestCheckpointStore implements AutoCloseable {
                 || name.equals("java.lang.Long") || name.equals("java.lang.Boolean")
                 || name.equals("java.lang.Number") || name.equals("java.lang.Enum")
                 || name.equals("java.math.BigDecimal") || name.equals("java.math.BigInteger")
-                || name.equals("java.time.Ser")
+                // ObjectInputStream checks the concrete object returned by java.time.Ser's
+                // readResolve as well as the proxy. Permit only the two stored time types.
+                || name.equals("java.time.Ser") || name.equals("java.time.Instant")
+                || name.equals("java.time.LocalDate")
                 || name.equals("java.util.ArrayList") || name.equals("java.util.HashMap")
                 || name.equals("java.util.TreeMap") || name.equals("java.util.CollSer")
                 || name.startsWith("java.util.Collections$Unmodifiable")

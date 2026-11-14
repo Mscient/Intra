@@ -37,12 +37,24 @@ public final class FeedLifecycleJournalWriter implements AutoCloseable {
         }
     }
 
-    /** Verifies all existing lifecycle events before restoring hash state for append. */
+    /** Diagnostic resume; removal of complete trailing frames requires an independent anchor to detect. */
     public static FeedLifecycleJournalWriter resume(Path path) throws IOException {
+        return resumeInternal(path, null);
+    }
+
+    /** Operational recovery requires an exact separately retained full-journal summary. */
+    public static FeedLifecycleJournalWriter resume(Path path, FeedLifecycleSummary expected) throws IOException {
+        return resumeInternal(path, java.util.Objects.requireNonNull(expected, "expected"));
+    }
+
+    private static FeedLifecycleJournalWriter resumeInternal(Path path, FeedLifecycleSummary expected) throws IOException {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
             FeedLifecycleSummary summary = FeedLifecycleJournalReader.replay(path, ignored -> { });
+            if (expected != null && !expected.equals(summary)) {
+                throw new IOException("Feed lifecycle journal does not match the retained recovery checkpoint");
+            }
             if (summary.bytesRead() != channel.size()) throw new IOException("Feed lifecycle journal changed while it was being verified");
             channel.position(channel.size());
             FeedLifecycleJournalWriter writer = new FeedLifecycleJournalWriter(channel, lock);
@@ -56,6 +68,12 @@ public final class FeedLifecycleJournalWriter implements AutoCloseable {
 
     public synchronized String append(FeedLifecycleEvent event) throws IOException {
         if (closed || failed) throw new IOException(closed ? "Feed lifecycle journal is closed" : "Feed lifecycle journal failed and cannot continue");
+        try {
+            if (channel.size() != channel.position()) throw new IOException("Feed lifecycle journal length changed while the writer was active");
+        } catch (IOException uncertainty) {
+            failed = true;
+            throw uncertainty;
+        }
         byte[] encoded = FeedLifecycleEncoder.encode(event);
         if (encoded.length < 1 || encoded.length > FeedLifecycleFormat.MAX_RECORD_BYTES) {
             throw new IllegalArgumentException("Encoded feed lifecycle event exceeds record limit");

@@ -61,7 +61,7 @@ public record BacktestCheckpoint(
     }
 
     public BacktestCheckpoint {
-        if (schemaVersion != 1) throw new IllegalArgumentException("unsupported checkpoint schema version");
+        if (schemaVersion != 1 && schemaVersion != 2) throw new IllegalArgumentException("unsupported checkpoint schema version");
         if (runId == null || !runId.matches("[0-9a-f]{24}")) throw new IllegalArgumentException("invalid checkpoint run ID");
         requireHash(barsSha256, "barsSha256");
         requireHash(configSha256, "configSha256");

@@ -25,6 +25,18 @@ public final class QuoteJournalReader {
         Objects.requireNonNull(consumer, "consumer");
         try (InputStream raw = Files.newInputStream(path);
              BufferedInputStream buffered = new BufferedInputStream(raw)) {
+            return replay(buffered, consumer);
+        }
+    }
+
+    /** Verify through the writer's locked handle; a second handle cannot read its lock on Windows. */
+    static QuoteJournalSummary replay(java.nio.channels.FileChannel channel, Consumer<MarketQuote> consumer) throws IOException {
+        channel.position(0);
+        return replay(new BufferedInputStream(java.nio.channels.Channels.newInputStream(channel)), consumer);
+    }
+
+    private static QuoteJournalSummary replay(InputStream buffered, Consumer<MarketQuote> consumer) throws IOException {
+            Objects.requireNonNull(consumer, "consumer");
             long bytesRead = readAndVerifyHeader(buffered);
             byte[] previousHash = QuoteHashChain.genesisHash();
             long eventCount = 0;
@@ -71,7 +83,6 @@ public final class QuoteJournalReader {
             }
             return new QuoteJournalSummary(eventCount, lastSequenceNumber, sequenceGapCount,
                     missingSequenceNumbers, QuoteHashChain.hex(previousHash), bytesRead);
-        }
     }
 
     private static long readAndVerifyHeader(InputStream input) throws IOException {

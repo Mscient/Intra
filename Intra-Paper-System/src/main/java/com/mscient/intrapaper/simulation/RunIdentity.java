@@ -16,12 +16,29 @@ import java.util.TreeMap;
 public final class RunIdentity {
     private RunIdentity() { }
 
+    public static String formatVersion(RunConfig config) {
+        return config.researchTrialLedgerPath().isPresent() ? "INTRA_RUN_ID_V13_TRIAL" : "INTRA_RUN_ID_V12";
+    }
+
+    /** The complete admitted input map, ordered by logical input ID rather than insertion order. */
+    static Map<String, String> datasetInputHashes(ValidatedDataset dataset) {
+        return new TreeMap<>(dataset.manifest().inputFileSha256());
+    }
+
     public static String contentId(ValidatedDataset dataset, RunConfig config, Strategy strategy) throws IOException {
         Optional<ResearchTrialBinding.Evidence> trial = ResearchTrialBinding.resolve(config, dataset, strategy);
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             try (DataOutputStream output = new DataOutputStream(bytes)) {
-                write(output, trial.isPresent() ? "INTRA_RUN_ID_V11_TRIAL" : "INTRA_RUN_ID_V10");
+                write(output, formatVersion(config));
+                // Bind every admitted byte input, including rules and permission evidence.
+                // File paths and the properties hash alone cannot detect an edited sidecar.
+                Map<String, String> inputHashes = datasetInputHashes(dataset);
+                output.writeInt(inputHashes.size());
+                for (Map.Entry<String, String> input : inputHashes.entrySet()) {
+                    write(output, input.getKey());
+                    write(output, input.getValue());
+                }
                 write(output, dataset.barsSha256());
                 write(output, config.configSha256());
                 write(output, dataset.instrumentMaster().rawFileSha256());

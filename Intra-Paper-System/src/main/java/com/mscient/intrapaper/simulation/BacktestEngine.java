@@ -126,6 +126,7 @@ public final class BacktestEngine {
         Objects.requireNonNull(dataset, "dataset");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(strategy, "strategy");
+        dataset.requireSimulationReady(config);
         String strategyId = Objects.requireNonNull(strategy.id(), "strategy.id");
         if (strategyId.isBlank() || !strategyId.equals(strategyId.strip())) {
             throw new IllegalArgumentException("Strategy ID must be non-empty and trimmed");

@@ -47,12 +47,26 @@ public final class QuoteJournalWriter implements AutoCloseable {
     /**
      * Reopens a journal only after verifying every existing frame and reconstructing its chain state.
      * The exclusive file lock prevents concurrent writers that honor this journal API.
+     * This unanchored diagnostic primitive cannot detect removal of complete trailing frames.
+     * Operational recovery must use the overload with a separately retained summary.
      */
     public static QuoteJournalWriter resume(Path path) throws IOException {
+        return resumeInternal(path, null);
+    }
+
+    /** Fails closed unless the entire journal matches the independently retained checkpoint. */
+    public static QuoteJournalWriter resume(Path path, QuoteJournalSummary expected) throws IOException {
+        return resumeInternal(path, java.util.Objects.requireNonNull(expected, "expected"));
+    }
+
+    private static QuoteJournalWriter resumeInternal(Path path, QuoteJournalSummary expected) throws IOException {
         FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE);
         try {
             FileLock lock = channel.lock();
-            QuoteJournalSummary summary = QuoteJournalReader.replay(path, ignored -> { });
+            QuoteJournalSummary summary = QuoteJournalReader.replay(channel, ignored -> { });
+            if (expected != null && !expected.equals(summary)) {
+                throw new IOException("Quote journal does not match the retained recovery checkpoint");
+            }
             if (summary.bytesRead() != channel.size()) {
                 throw new IOException("Quote journal changed while it was being verified");
             }
@@ -69,6 +83,12 @@ public final class QuoteJournalWriter implements AutoCloseable {
 
     public synchronized String append(MarketQuote quote) throws IOException {
         ensureWritable();
+        try {
+            if (channel.size() != channel.position()) throw new IOException("Quote journal length changed while the writer was active");
+        } catch (IOException uncertainty) {
+            failed = true;
+            throw uncertainty;
+        }
         if (quote.sequenceNumber() <= lastSequenceNumber) {
             throw new IllegalArgumentException("Quote sequence numbers must increase strictly");
         }

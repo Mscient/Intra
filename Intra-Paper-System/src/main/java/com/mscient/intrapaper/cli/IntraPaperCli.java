@@ -471,8 +471,14 @@ public final class IntraPaperCli {
                 System.out.printf("VALID: %d bars; dataset=%s; instrument=%s; rights=%s%n",
                         dataset.bars().size(), config.datasetId(), dataset.bars().getFirst().instrumentId(),
                         config.dataRightsStatus());
+                System.out.printf("ADMISSION: %s; complete_sessions=%d/%d; missing_intervals=%d; spacing_anomalies=%d; "
+                                + "quality.allow_intrasession_gaps=%s; quality.max_missing_intervals_per_session=%d%n",
+                        dataset.simulationReady() ? "SIMULATION_READY" : "DIAGNOSTIC_INSPECTION_ONLY",
+                        dataset.completeSessionCount(), dataset.openSessionCount(), dataset.estimatedMissingIntervals(),
+                        dataset.timestampSpacingAnomalies(), config.allowIntraSessionGaps(), config.maxMissingIntervalsPerSession());
                 return;
             }
+            dataset.requireSimulationReady(config);
             SmaCrossoverStrategy strategy = new SmaCrossoverStrategy(config);
             String runId = RunIdentity.contentId(dataset, config, strategy);
             String configuredRunsRoot = System.getenv("INTRA_PAPER_RUNS_DIR");

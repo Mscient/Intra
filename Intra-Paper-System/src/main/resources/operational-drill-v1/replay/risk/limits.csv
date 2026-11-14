@@ -1,0 +1,3 @@
+instrument_id,effective_from,effective_to,max_abs_units,max_gross_notional_inr,source_id
+F,2030-05-06,2030-05-06,3,1000,SYNTHETIC_RISK
+O,2030-05-06,2030-05-06,3,1000,SYNTHETIC_RISK
