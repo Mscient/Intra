@@ -556,6 +556,20 @@ public final class PortfolioTrialEvaluationTest {
                 inputs.put(id, new ValidatedPortfolioDataset.Input(bars, config));
             }
             var dataset = ValidatedPortfolioDataset.load(inputs);
+            require(List.copyOf(dataset.datasetsByInstrument().keySet()).equals(List.of(A, B)),
+                    "validated portfolio instruments are exposed in canonical ID order");
+            require(dataset.frames().size() == runSessions * 4
+                            && List.copyOf(dataset.frames().getFirst().barsByInstrument().keySet()).equals(List.of(A, B)),
+                    "validated portfolio frames align exact synchronized BAR_START observations");
+            Map<String, ValidatedPortfolioDataset.Input> reversedInputs = new LinkedHashMap<>();
+            reversedInputs.put(B, inputs.get(B));
+            reversedInputs.put(A, inputs.get(A));
+            var reversedDataset = ValidatedPortfolioDataset.load(reversedInputs);
+            require(dataset.datasetsSha256().equals(reversedDataset.datasetsSha256())
+                            && dataset.frames().equals(reversedDataset.frames()),
+                    "validated portfolio identity and frames do not depend on input map insertion order");
+            fails(() -> ValidatedPortfolioDataset.load(Map.of("WRONG-ID", inputs.get(A))),
+                    "portfolio input key must match the dated contract identity");
             Optional<PortfolioSettlementEvents> settlementEvents = Optional.empty();
             Optional<PortfolioSettlementCostSchedule> settlementCosts = Optional.empty();
             if (settle) {
