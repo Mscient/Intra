@@ -1,0 +1,3 @@
+schedule_id,entry_id,effective_from,effective_until,instrument_id,contract_kind,side,brokerage_per_order_inr,brokerage_per_unit_inr,brokerage_bps,exchange_inr_per_crore,ipft_inr_per_crore,sebi_inr_per_crore,stt_bps,stamp_duty_bps,gst_bps,gst_on_brokerage,gst_on_exchange,gst_on_ipft,gst_on_sebi,gst_on_stt,gst_on_stamp_duty,source_reference
+SYN-COST,BUY,2030-01-01,2031-01-01,SYN-NIFTY,FUTURE,BUY,0.10,0,0,0,0,0,0,0,0,false,false,false,false,false,false,synthetic cost fixture
+SYN-COST,SELL,2030-01-01,2031-01-01,SYN-NIFTY,FUTURE,SELL,0.10,0,0,0,0,0,0,0,0,false,false,false,false,false,false,synthetic cost fixture

@@ -16,7 +16,7 @@ public final class PortfolioSettlementTest {
     private static final String HASH = "a".repeat(64);
     private PortfolioSettlementTest() { }
     public static void main(String[] args) throws Exception {
-        signedAccounting(); partialBasisAndFlat(); chargesAndAtomicFailure(); strictInputs(); strictUtf8();
+        signedAccounting(); partialBasisAndFlat(); longFuturesCashReconciliation(); chargesAndAtomicFailure(); strictInputs(); strictUtf8();
         System.out.println("PortfolioSettlement signed accounting, inputs, UTF-8, dates, charges, and atomicity checks passed");
     }
     static Bar bar(String id, ContractKind kind, OptionRight right, Instant time) {
@@ -72,6 +72,106 @@ public final class PortfolioSettlementTest {
         return new PortfolioSettlementCostSchedule.Entry(id, LocalDate.parse("2030-01-01"), Optional.of(LocalDate.parse("2031-01-01")), event.contract(),
                 PortfolioSettlementCostSchedule.PositionSide.LONG, category, id, basis, new BigDecimal(rate), 2, mode,
                 new BigDecimal("1800"), true, 2, RoundingMode.HALF_UP, "synthetic-tariff");
+    }
+    /** Signed-notional cash and equity change only; no broker balance or futures margin is inferred. */
+    private static void longFuturesCashReconciliation() throws Exception {
+        var first = frame(bar("A", ContractKind.FUTURE, null, TIME));
+        var last = frame(bar("A", ContractKind.FUTURE, null, TIME.plusSeconds(60)));
+        var ledger = new PortfolioAccountingLedger();
+        var buy1 = chargedFill("BUY-1", 1, TIME, 4, "100");
+        var buy2 = chargedFill("BUY-2", 2, TIME, 6, "101");
+        var sell1 = chargedFill("SELL-1", 3, last.timestamp(), -2, "102");
+        var sell2 = chargedFill("SELL-2", 4, last.timestamp(), -1, "104");
+        var fills = List.of(buy1, buy2, sell1, sell2);
+        // Identical delivery is idempotent, including its fee; conflicting replacements are rejected.
+        var opened = ledger.mark(first, List.of(buy1, buy1, buy2));
+        require(opened.positions().get("A").signedUnits() == 10, "two opening fills create ten long units");
+        equal("100.6", opened.positions().get("A").averageOpenPrice());
+        equal("0", opened.realizedGrossPnlInr()); equal("2", opened.feesInr());
+        ledger.markToClose(first);
+        var conflicting = chargedFill("SELL-1", 3, last.timestamp(), -2, "103");
+        for (int attempt = 0; attempt < 2; attempt++)
+            rejects(IllegalArgumentException.class, "Execution ID was reused with conflicting payload",
+                    () -> ledger.mark(last, List.of(sell1, sell2, conflicting)));
+        var reduced = ledger.mark(last, List.of(sell1, sell2, sell2));
+        require(reduced.positions().get("A").signedUnits() == 7, "two closing fills leave seven units after rejected corrections");
+        equal("100.6", reduced.positions().get("A").averageOpenPrice());
+        equal("6.2", reduced.realizedGrossPnlInr()); equal("4", reduced.feesInr());
+        var before = ledger.markToClose(last);
+        equal("-4.2", before.unrealizedPnlInr()); equal("-2", before.netPnlInr());
+
+        var supplied = event(last.barsByInstrument().get("A"), "110", false);
+        var fixed = entry(supplied, "FIXED", PortfolioSettlementCostSchedule.Basis.FIXED_PER_SETTLEMENT,
+                PortfolioSettlementCostSchedule.Category.EXPIRY_SETTLEMENT, "1.25", RoundingMode.HALF_UP);
+        var units = entry(supplied, "UNITS", PortfolioSettlementCostSchedule.Basis.PER_SETTLED_UNIT,
+                PortfolioSettlementCostSchedule.Category.EXPIRY_SETTLEMENT, "0.05", RoundingMode.HALF_UP);
+        var schedule = new PortfolioSettlementCostSchedule("SYNTHETIC-LONG", List.of(fixed, units), HASH);
+        var amended = new PortfolioSettlementEvents.Event("CORRECTED-A", supplied.contract(), supplied.settlementDate(),
+                supplied.timestamp(), new BigDecimal("111"), false, Optional.empty(), Optional.empty(), "synthetic correction");
+        rejects(IllegalArgumentException.class, "Duplicate settlement event ID or instrument", () -> events(supplied, supplied));
+        rejects(IllegalArgumentException.class, "Duplicate settlement event ID or instrument", () -> events(supplied, amended));
+        rejects(IllegalArgumentException.class, "source_reference", () -> new PortfolioSettlementEvents.Event(
+                supplied.eventId(), supplied.contract(), supplied.settlementDate(), supplied.timestamp(), supplied.valuePerUnit(),
+                false, Optional.empty(), Optional.empty(), ""));
+        // One component calculates successfully before the missing dated component aborts the batch.
+        var expiredUnits = new PortfolioSettlementCostSchedule.Entry(units.entryId(), units.effectiveFrom(),
+                Optional.of(supplied.settlementDate()), units.contract(), units.side(), units.category(), units.componentCode(),
+                units.basis(), units.rate(), units.chargeScale(), units.chargeMode(), units.gstBps(), units.gstOnCharge(),
+                units.gstScale(), units.gstMode(), units.sourceReference());
+        var missingCosts = new PortfolioSettlementCostSchedule("SYNTHETIC-MISSING", List.of(fixed, expiredUnits), HASH);
+        for (int attempt = 0; attempt < 2; attempt++)
+            rejects(IllegalArgumentException.class, "Out-of-date settlement component: UNITS",
+                    () -> ledger.settleFinalSession(last, events(supplied), Optional.of(missingCosts)));
+
+        var batch = ledger.settleFinalSession(last, events(supplied), Optional.of(schedule));
+        require(batch.settlements().size() == 1 && batch.snapshots().size() == 1, "one settlement and terminal snapshot");
+        var settled = batch.settlements().getFirst(); var ending = batch.snapshots().getLast();
+        require(settled.event().equals(supplied) && settled.event().sourceReference().equals("synthetic-value"),
+                "settlement retains the explicit caller value and source");
+        require(settled.signedUnits() == 7 && settled.costModel().equals("DATED_SCHEDULE"), "only residual units settle with modeled costs");
+        equal("704.2", settled.releasedBasisInr()); equal("770", settled.signedProceedsInr());
+        equal("65.8", settled.realizedGrossPnlInr()); equal("1.89", settled.feesInr());
+        require(settled.chargeLines().size() == 2, "fixed and unit charges stay itemized");
+        for (var line : settled.chargeLines()) {
+            boolean isFixed = line.entry().entryId().equals("FIXED");
+            equal(isFixed ? "1" : "7", line.calculationBase());
+            equal(isFixed ? "1.25" : "0.35", line.chargeInr());
+            equal(isFixed ? "0.23" : "0.06", line.gstInr());
+            require(line.sourceFileSha256().equals(HASH) && line.entry().sourceReference().equals("synthetic-tariff"),
+                    "each charge retains its schedule hash and tariff source");
+        }
+        require(ending.phase() == PortfolioAccountingLedger.MarkPhase.SETTLEMENT && ending.timestamp().equals(supplied.timestamp()),
+                "ending equity uses the explicit settlement checkpoint");
+        var position = ending.positions().get("A");
+        require(position.signedUnits() == 0, "settlement extinguishes the residual long");
+        equal("0", position.averageOpenPrice()); equal("0", position.unrealizedPnlInr());
+        equal("72", position.realizedGrossPnlInr()); equal("5.89", position.feesInr());
+        equal("72", ending.realizedGrossPnlInr()); equal("5.89", ending.feesInr());
+        equal("0", ending.unrealizedPnlInr()); equal("66.11", ending.netPnlInr());
+        BigDecimal tradeCash = fills.stream().map(f -> f.price().multiply(BigDecimal.valueOf(f.quantityUnits()))
+                .multiply(BigDecimal.valueOf(f.side() == PortfolioExecution.Side.BUY ? -1 : 1)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal fillFees = fills.stream().map(PortfolioExecution::feeInr).reduce(BigDecimal.ZERO, BigDecimal::add);
+        equal("-698", tradeCash); equal("4", fillFees);
+        BigDecimal endingCash = tradeCash.add(settled.signedProceedsInr()).subtract(fillFees).subtract(settled.feesInr());
+        equal("66.11", endingCash); equal(endingCash.toPlainString(), ending.netPnlInr());
+        equal("66.11", before.netPnlInr().add(new BigDecimal("70")).subtract(settled.feesInr()));
+        for (int attempt = 0; attempt < 2; attempt++) for (var retry : List.of(supplied, amended))
+            rejects(IllegalStateException.class, "Settlement requires the most recently completed final frame",
+                    () -> ledger.settleFinalSession(last, events(retry), Optional.of(schedule)));
+    }
+    private static PortfolioExecution chargedFill(String id, long sequence, Instant time, long signedUnits, String price) {
+        return new PortfolioExecution(id, sequence, "A", time,
+                signedUnits > 0 ? PortfolioExecution.Side.BUY : PortfolioExecution.Side.SELL,
+                Math.abs(signedUnits), new BigDecimal(price), BigDecimal.ONE);
+    }
+    private static void rejects(Class<? extends RuntimeException> type, String reason, Throwing action) throws Exception {
+        try { action.run(); }
+        catch (RuntimeException rejected) {
+            if (type.isInstance(rejected) && rejected.getMessage().contains(reason)) return;
+            throw new AssertionError("Expected " + type.getSimpleName() + ": " + reason, rejected);
+        }
+        throw new AssertionError("Expected rejection: " + reason);
     }
     private static void chargesAndAtomicFailure() throws Exception {
         Bar option = bar("A", ContractKind.OPTION, OptionRight.CALL, TIME); var event = event(option, "2.4", true);

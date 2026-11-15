@@ -33,6 +33,7 @@ public final class PortfolioReplayArtifactWriter {
     public WrittenRun write(Path outputRoot, ValidatedPortfolioDataset dataset,
             PortfolioReplayEngine.Result result) throws IOException {
         if (outputRoot == null || dataset == null || result == null) throw new NullPointerException("outputRoot/dataset/result");
+        dataset.datasetsByInstrument().values().forEach(ValidatedDataset::requireCompleteSimulationCoverage);
         requireHash(result.validatedDatasetsSha256(), "validated dataset fingerprint");
         requireHash(result.replayFingerprintSha256(), "replay fingerprint");
         if (!result.validatedDatasetsSha256().equals(dataset.datasetsSha256())) {

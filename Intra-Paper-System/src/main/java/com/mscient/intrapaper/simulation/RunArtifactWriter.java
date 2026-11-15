@@ -32,6 +32,7 @@ public final class RunArtifactWriter {
 
     public WrittenRun write(Path outputRoot, String runId, ValidatedDataset data,
             RunConfig config, BacktestResult result) throws IOException {
+        data.requireCompleteSimulationCoverage();
         Map<Long, com.mscient.intrapaper.marketdata.MarketQuote> quotes = new java.util.HashMap<>();
         data.quoteHistory().ifPresent(history -> history.quotes().forEach(quote -> quotes.put(quote.sequenceNumber(), quote)));
         var researchTrial = ResearchTrialBinding.resolve(config, data, result.strategyId());

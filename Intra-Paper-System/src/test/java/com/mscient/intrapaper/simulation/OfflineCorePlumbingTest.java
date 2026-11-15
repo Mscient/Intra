@@ -2,6 +2,7 @@ package com.mscient.intrapaper.simulation;
 
 import com.mscient.intrapaper.data.*;
 import com.mscient.intrapaper.marketdata.*;
+import com.mscient.intrapaper.provenance.DatasetManifest;
 import com.mscient.intrapaper.provenance.RunConfig;
 import java.math.BigDecimal;
 import java.nio.file.*;
@@ -68,6 +69,21 @@ public final class OfflineCorePlumbingTest {
         ok(d.completeSessionCount() == 1 && d.bars().size() == 30, "complete supplied session");
         String id = RunIdentity.contentId(d,c,strategy);
         ok(id.equals(RunIdentity.contentId(data(dir),config(dir),strategy)), "deterministic identity");
+        Map<String,String> hashes = new LinkedHashMap<>(new TreeMap<>(d.manifest().inputFileSha256()));
+        String orderedId = RunIdentity.contentId(withInputHashes(d,hashes),c,strategy);
+        ok(id.equals(orderedId), "unchanged manifest hash copy preserves run ID");
+        Map<String,String> reversed = new LinkedHashMap<>();
+        List<String> inputIds = new ArrayList<>(hashes.keySet()); Collections.reverse(inputIds);
+        for (String inputId : inputIds) reversed.put(inputId,hashes.get(inputId));
+        ok(orderedId.equals(RunIdentity.contentId(withInputHashes(d,reversed),c,strategy)),
+                "reversed manifest hash insertion order preserves run ID");
+        for (var input : hashes.entrySet()) {
+            Map<String,String> changed = new LinkedHashMap<>(hashes);
+            String hash = input.getValue();
+            changed.put(input.getKey(), (hash.charAt(0) == '0' ? "1" : "0") + hash.substring(1));
+            ok(!orderedId.equals(RunIdentity.contentId(withInputHashes(d,changed),c,strategy)),
+                    "changed admitted hash changes run ID: " + input.getKey());
+        }
         Path rules = dir.resolve("synthetic-market-rule-regimes.csv");
         cell(rules,0,"verification_status","UNVERIFIED");
         ok(!id.equals(RunIdentity.contentId(data(dir),c,strategy)), "changed rules bytes change run ID with unchanged config");
@@ -93,8 +109,52 @@ public final class OfflineCorePlumbingTest {
         fails(() -> data(gap), "missing interval blocked by default");
         set(gap,"quality.allow_intrasession_gaps","true"); set(gap,"quality.max_missing_intervals_per_session","1");
         var diagnostic = data(gap); ok(diagnostic.completeSessionCount() == 0 && diagnostic.estimatedMissingIntervals() == 1, "explicit incomplete diagnostic");
-        fails(() -> new BacktestEngine().run(diagnostic,config(gap)), "incomplete simulation blocked");
+        var gapConfig = config(gap);
+        BacktestEngine engine = new BacktestEngine();
+        fails(() -> engine.run(diagnostic,gapConfig), "incomplete simulation blocked");
+        Strategy untouched = new Strategy() {
+            public String id() { throw new AssertionError("strategy identity read before data admission"); }
+            public Map<String,String> parameters() { throw new AssertionError("strategy parameters read before data admission"); }
+            public boolean supportsDurableCheckpoints() { return true; }
+            public StrategySignal evaluate(List<Bar> available, Instant time) {
+                throw new AssertionError("strategy evaluated before data admission");
+            }
+        };
+        try (var checkpoints = new BacktestCheckpointStore(gap.resolve("checkpoints"), "0".repeat(24))) {
+            fails(() -> engine.run(diagnostic,gapConfig,untouched,checkpoints), "checkpointed incomplete simulation blocked");
+        }
+        CliResult validation = runCli("validate", bars, gap.resolve("synthetic-run.properties"), gap.resolve("cli-runs"));
+        ok(validation.exitCode() == 0 && validation.output().contains("VALID: 29 bars"),
+                "CLI validation retains diagnostic inspection mode");
+        set(gap,"recovery.checkpoint_interval_bars","2");
+        CliResult run = runCli("run", bars, gap.resolve("synthetic-run.properties"), gap.resolve("cli-runs"));
+        ok(run.exitCode() == 2 && run.output().contains("INCOMPLETE_DATA"), "CLI run rejects diagnostic gaps");
+        ok(!Files.exists(gap.resolve("cli-runs")), "CLI rejects gaps before creating checkpoints or run artifacts");
     }
+    private static ValidatedDataset withInputHashes(ValidatedDataset d, Map<String,String> hashes) {
+        var m = d.manifest();
+        var manifest = new DatasetManifest(m.schemaVersion(),m.datasetId(),m.sourceName(),m.acquiredAtUtc(),
+                m.timezone(),m.timestampRole(),m.dataRightsStatus(),m.dataRightsReference(),
+                m.instrumentMasterSnapshotId(),m.instrumentMasterSha256(),m.sessionCalendarSha256(),hashes);
+        // Hold every other identity input fixed, including the separately stored file hashes.
+        return new ValidatedDataset(d.bars(),d.instrumentMaster(),d.sessionCalendar(),d.marketRuleRegimeSchedule(),
+                manifest,d.barsSha256(),d.configSha256(),d.calendarSha256(),d.costSchedule(),d.componentCostSchedule(),
+                d.marginRequirementSchedule(),d.expirySettlement(),d.settlementCostSchedule(),d.quoteHistory(),
+                d.optionValuationInputs(),d.timestampSpacingAnomalies(),d.estimatedMissingIntervals(),
+                d.expectedBarCount(),d.openSessionCount(),d.completeSessionCount());
+    }
+    private static CliResult runCli(String command, Path bars, Path properties, Path runsRoot) throws Exception {
+        String executable = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win") ? "java.exe" : "java";
+        Path javaExecutable = Path.of(System.getProperty("java.home"),"bin",executable);
+        ProcessBuilder builder = new ProcessBuilder(javaExecutable.toString(),"-cp",System.getProperty("java.class.path"),
+                "com.mscient.intrapaper.cli.IntraPaperCli",command,bars.toString(),properties.toString());
+        builder.environment().put("INTRA_PAPER_RUNS_DIR",runsRoot.toString());
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+        String output = new String(process.getInputStream().readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
+        return new CliResult(process.waitFor(), output);
+    }
+    private record CliResult(int exitCode, String output) { }
     private static void replayAndRecovery() throws Exception {
         Path dir = fixture("replay"); set(dir,"recovery.checkpoint_interval_bars","2");
         var c = config(dir); var d = data(dir); var strategy = new SmaCrossoverStrategy(c);

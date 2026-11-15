@@ -27,6 +27,13 @@ public final class PortfolioReplayCsvRunner {
 
     public record Replay(ValidatedPortfolioDataset dataset, PortfolioReplayEngine.Result result) { }
 
+    /** Validated inputs and frozen models, prepared without generating decisions or performance. */
+    public record Prepared(ValidatedPortfolioDataset dataset, PortfolioReplayEngine.Config config,
+            PortfolioStrategy strategy, PortfolioFillModel fillModel, Optional<PortfolioExecutionCostSchedule> costSchedule,
+            Optional<PortfolioSettlementEvents> settlementEvents, Optional<PortfolioSettlementCostSchedule> settlementCosts) {
+        public Prepared withStrategy(PortfolioStrategy value) { return new Prepared(dataset,config,value,fillModel,costSchedule,settlementEvents,settlementCosts); }
+        public Replay replay() { return new Replay(dataset,new PortfolioReplayEngine(config,strategy,fillModel,costSchedule,settlementEvents,settlementCosts).run(dataset)); }
+    }
     private PortfolioReplayCsvRunner() { }
 
     public static Replay replay(Path inputManifest, Path propertiesPath) throws IOException {
@@ -36,13 +43,20 @@ public final class PortfolioReplayCsvRunner {
     /** Allows a separate offline adapter to wrap execution before any fill model is called. */
     public static Replay replay(Path inputManifest, Path propertiesPath,
             java.util.function.UnaryOperator<PortfolioFillModel> fillAdapter) throws IOException {
+        Prepared prepared = prepare(inputManifest, propertiesPath);
+        return new Prepared(prepared.dataset(),prepared.config(),prepared.strategy(),
+                java.util.Objects.requireNonNull(fillAdapter.apply(prepared.fillModel())),prepared.costSchedule(),
+                prepared.settlementEvents(),prepared.settlementCosts()).replay();
+    }
+
+    public static Prepared prepare(Path inputManifest, Path propertiesPath) throws IOException {
         Path inputsPath = inputManifest.toAbsolutePath().normalize();
         Path settingsPath = propertiesPath.toAbsolutePath().normalize();
         CsvTable table = CsvTable.read(inputsPath);
         if (!table.headers().equals(INPUT_HEADERS)) {
             throw new IllegalArgumentException("Portfolio input CSV headers must be exactly " + INPUT_HEADERS);
         }
-        if (table.rows().size() < 2) throw new IllegalArgumentException("Portfolio input CSV requires at least two instruments");
+        if (table.rows().isEmpty()) throw new IllegalArgumentException("Portfolio input CSV requires at least one instrument");
 
         TreeMap<String, ValidatedPortfolioDataset.Input> inputs = new TreeMap<>();
         TreeMap<String, Integer> maxLots = new TreeMap<>();
@@ -110,10 +124,8 @@ public final class PortfolioReplayCsvRunner {
         PortfolioReplayEngine.Config config = new PortfolioReplayEngine.Config(maxLots, pendingPolicy,
                 positionPolicy, contiguous, settlementPolicy, settlementTargets);
         PortfolioStrategy strategy = new PortfolioSmaCrossoverStrategy(fast, slow, longLots);
-        PortfolioFillModel fillModel = java.util.Objects.requireNonNull(fillAdapter.apply(new OpeningPriceIocFillModel(slippageTicks, fee)));
-        PortfolioReplayEngine.Result result = new PortfolioReplayEngine(config, strategy, fillModel, costSchedule,
-                settlementEvents, settlementCosts).run(dataset);
-        return new Replay(dataset, result);
+        PortfolioFillModel fillModel = new OpeningPriceIocFillModel(slippageTicks, fee);
+        return new Prepared(dataset, config, strategy, fillModel, costSchedule, settlementEvents, settlementCosts);
     }
 
     public static PortfolioReplayArtifactWriter.WrittenRun run(Path inputManifest, Path propertiesPath,

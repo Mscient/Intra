@@ -1,0 +1,13 @@
+session_date,session_status,first_bar_timestamp,last_bar_timestamp,market_rule_regime_id,regime_source_reference
+2030-05-06,OPEN,2030-05-06T09:15:00+05:30,2030-05-06T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-07,OPEN,2030-05-07T09:15:00+05:30,2030-05-07T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-08,OPEN,2030-05-08T09:15:00+05:30,2030-05-08T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-09,OPEN,2030-05-09T09:15:00+05:30,2030-05-09T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-10,OPEN,2030-05-10T09:15:00+05:30,2030-05-10T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-11,CLOSED,,,,
+2030-05-12,CLOSED,,,,
+2030-05-13,OPEN,2030-05-13T09:15:00+05:30,2030-05-13T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-14,OPEN,2030-05-14T09:15:00+05:30,2030-05-14T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-15,OPEN,2030-05-15T09:15:00+05:30,2030-05-15T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-16,OPEN,2030-05-16T09:15:00+05:30,2030-05-16T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset
+2030-05-17,OPEN,2030-05-17T09:15:00+05:30,2030-05-17T09:20:00+05:30,SYNTHETIC_V1,synthetic fixture only; not an exchange ruleset

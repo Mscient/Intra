@@ -1,5 +1,9 @@
 # Intra Paper System
 
+**2026-11-16 local release candidate:** futures come first; options remain a later stage. The existing paper mode now publishes input/session manifests, rejects incomplete simulation/publication, checks active recovery anchors, and exposes `paper-replay-verify` for five byte-identical artifacts. Use [the operating workflow](docs/OPERATING-GUIDE.md) and [current completion evidence](docs/FORWARD-PAPER-COMPLETION-2026-11-16.md). All gates remain open; this is local simulated plumbing, with no account, feed or broker connection. Earlier verification entries below are historical.
+
+Forward-paper verification and remaining limits: [2026-11-15 handover](docs/FORWARD-PAPER-COMPLETION-2026-11-15.md), including 195 paper checks and packaged restart/stop/report verification. G0 remains open.
+
 One integrated, offline-first Java 21 Nifty futures/options research, backtesting, and local paper-simulation project. The single-contract and validated portfolio replay paths share dated inputs, deterministic simulation, risk, accounting, and provenance components. Optional L1 execution consumes local quote journals. The [forward-paper operating mode](docs/FORWARD-PAPER-RUNTIME.md) connects a receive-event clock and local feed boundary to the existing single-contract core, with safety states, checkpoints and reproducible session reports. Its provider boundary permits only frozen local inputs while G0 is open. There is no broker order route.
 
 The [2026-11-14 checkout reconciliation](docs/OFFLINE-COMPLETION-2026-11-14.md) distinguishes current verification from historical build claims. Use `test-offline.mjs` for the complete offline Java 21 build, packaged-JAR tests, and source-hash report; all results remain performance-ineligible.
@@ -113,3 +117,11 @@ Private data, raw-capture journals (`.rawcap`, `.rawcapture`, `.raw`), feed-life
 - [Strategy research-card template](docs/STRATEGY-CARD-TEMPLATE.md)
 - [First-cut data contract](docs/DATA-CONTRACT.md)
 - [Implementation tracker](IMPLEMENTATION-TRACKER.md)
+
+
+## Offline Nifty futures research increment — 2026-11-16
+
+The [connected workflow](docs/NIFTY-RESEARCH-WORKFLOW.md) reuses the trial/outcome ledgers, strict chronological partitions, causal dated-contract replay, manifests/verifiers and signed one-shot holdout controller. It adds preregistration before strategy validation, complete failed/unattempted/empty trial reports, nullable statistics, fixed forward windows, exact code/input identities, report verification and a selected-trial holdout replay adapter. `nifty-research.ps1` is the local entrypoint; synthetic fixtures and a separate-JVM drill provide plumbing evidence only. Data rights, dated market rules, cost-source review, operating evidence, independent custody and strategy performance remain separate open gates.
+
+
+Final local verification for the [Nifty research increment](docs/NIFTY-RESEARCH-COMPLETION-2026-11-16.md): complete offline runner exit 0, 31/31 suites, 78 new research checks, source stability true; separate-JVM drill exit 0, 35 commands (30 successes, five expected denials), with the same JAR bytes. All fixtures are synthetic; profitability remains unproven.

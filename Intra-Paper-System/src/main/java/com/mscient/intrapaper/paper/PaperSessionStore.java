@@ -16,15 +16,18 @@ import java.util.OptionalLong;
 final class PaperSessionStore implements AutoCloseable {
     private final Path directory;
     private final String identity;
+    private final String inputManifest;
     private final FileChannel lockChannel;
     private final FileLock lock;
     private RawCaptureJournalWriter writer;
     private final List<RawMarketMessage> restored = new ArrayList<>();
     private String reportHash;
+    private String checkpointText;
 
-    PaperSessionStore(Path directory, String identity, String initialReport) throws IOException {
+    PaperSessionStore(Path directory, String identity, String inputManifest, String initialReport) throws IOException {
         this.directory = directory.toAbsolutePath().normalize();
         this.identity = identity;
+        this.inputManifest = inputManifest;
         Files.createDirectories(this.directory);
         lockChannel = FileChannel.open(this.directory.resolve(".session.lock"), StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
@@ -35,10 +38,14 @@ final class PaperSessionStore implements AutoCloseable {
         try {
             Path journal = this.directory.resolve("paper.journal");
             Path checkpoint = this.directory.resolve("checkpoint.txt");
+            Path inputs = this.directory.resolve("input-manifest.json");
             if (Files.exists(this.directory.resolve(".checkpoint.pending")))
                 throw new IOException("Ambiguous checkpoint publication; inspect offline before recovery");
             if (Files.exists(checkpoint)) {
+                if (!Files.readString(inputs, StandardCharsets.UTF_8).equals(inputManifest))
+                    throw new IOException("Paper input manifest differs from admitted inputs/code/strategy");
                 String text = Files.readString(checkpoint, StandardCharsets.UTF_8);
+                checkpointText = text;
                 int boundary = text.lastIndexOf("sha256=");
                 if (boundary < 0 || !text.substring(boundary).equals("sha256=" + hash(text.substring(0, boundary)) + "\n"))
                     throw new IOException("Paper checkpoint hash mismatch");
@@ -54,7 +61,9 @@ final class PaperSessionStore implements AutoCloseable {
                 reportHash = fields[6];
                 writer = RawCaptureJournalWriter.resume(journal, summary);
             } else {
-                if (Files.exists(journal)) throw new IOException("Paper journal exists without a verified checkpoint");
+                if (Files.exists(journal) || Files.exists(inputs))
+                    throw new IOException("Paper inputs/journal exist without a verified checkpoint");
+                atomic(inputs, this.directory.resolve(".inputs.pending"), inputManifest);
                 writer = RawCaptureJournalWriter.create(journal);
                 checkpoint(initialReport, 0);
             }
@@ -62,11 +71,18 @@ final class PaperSessionStore implements AutoCloseable {
     }
 
     List<RawMarketMessage> restored() { return List.copyOf(restored); }
+    void requireReplayJournal(Path replay) throws IOException {
+        var expected = writer.verifiedSummary();
+        var actual = RawCaptureJournalReader.replay(replay, ignored -> { });
+        if (!expected.equals(actual)) throw new IOException("Paper replay journal framing/bytes/hash chain differ");
+        writer.requireByteIdentical(replay);
+    }
     void requireReport(String report) throws IOException {
         if (!reportHash.equals(hash(report))) throw new IOException("Reconstructed paper ledger differs from checkpoint");
     }
 
     void input(PaperEvent event) throws IOException {
+        requireAnchors();
         writer.append(message(event, "INPUT", event.toString()));
     }
     void commit(PaperEvent event, String report, int consumed) throws IOException {
@@ -78,17 +94,33 @@ final class PaperSessionStore implements AutoCloseable {
         reportHash = hash(report);
         String payload = "PAPER_CHECKPOINT_V1\n" + identity + "\n" + summary.eventCount() + "\n"
                 + summary.bytesRead() + "\n" + summary.finalHashHex() + "\n" + consumed + "\n" + reportHash + "\n";
-        atomic(directory.resolve("checkpoint.txt"), directory.resolve(".checkpoint.pending"),
-                payload + "sha256=" + hash(payload) + "\n");
+        String text = payload + "sha256=" + hash(payload) + "\n";
+        atomic(directory.resolve("checkpoint.txt"), directory.resolve(".checkpoint.pending"), text);
+        checkpointText = text;
     }
-    void writeReport(String report) throws IOException {
+    void writeReport(String report, boolean complete) throws IOException {
         requireReport(report);
+        requireAnchors();
         atomic(directory.resolve("session-report.txt"), directory.resolve(".report.pending"), report);
+        atomic(directory.resolve("session-manifest.json"), directory.resolve(".manifest.pending"), manifest(report, complete));
     }
-    void verifyPublishedReport(String report) throws IOException {
+    void verifyPublishedReport(String report, boolean complete) throws IOException {
         requireReport(report);
+        requireAnchors();
         if (!Files.readString(directory.resolve("session-report.txt"), StandardCharsets.UTF_8).equals(report))
             throw new IOException("Published paper report differs from verified journal ledger");
+        // Exact canonical comparison rejects extra/duplicate keys, schema changes and promotions.
+        if (!Files.readString(directory.resolve("session-manifest.json"), StandardCharsets.UTF_8).equals(manifest(report, complete)))
+            throw new IOException("Published paper manifest differs from verified inputs/checkpoint/journal/report");
+    }
+    private String manifest(String report, boolean complete) throws IOException {
+        return PaperManifest.publication(identity, inputManifest, writer.verifiedSummary(),
+                hash(checkpointText), hash(report), complete);
+    }
+    private void requireAnchors() throws IOException {
+        if (!Files.readString(directory.resolve("input-manifest.json"), StandardCharsets.UTF_8).equals(inputManifest)
+                || !Files.readString(directory.resolve("checkpoint.txt"), StandardCharsets.UTF_8).equals(checkpointText))
+            throw new IOException("Paper input/checkpoint anchor changed while the session was active");
     }
     static RawMarketMessage message(PaperEvent e, String kind, String payload) {
         return new RawMarketMessage(1, "PAPER_LOCAL", "SESSION", kind, OptionalLong.of(e.sequence()),

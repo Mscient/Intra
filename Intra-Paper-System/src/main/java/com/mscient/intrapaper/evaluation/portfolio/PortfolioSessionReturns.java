@@ -86,7 +86,7 @@ final class PortfolioSessionReturns {
                 throw new IOException("Missing or incomplete portfolio sessions in dataset provenance");
             }
         }
-        if (instruments.size() < 2) throw new IOException("Evaluation requires multiple portfolio instruments");
+        if (instruments.isEmpty()) throw new IOException("Evaluation requires at least one dated instrument");
         requireEqual(run.verification().validatedDatasetsSha256(), datasetFingerprint(instruments),
                 "portfolio dataset artifact fingerprint");
         if (!instruments.keySet().equals(PortfolioTrialIdentity.lotLimits(run).keySet())) {

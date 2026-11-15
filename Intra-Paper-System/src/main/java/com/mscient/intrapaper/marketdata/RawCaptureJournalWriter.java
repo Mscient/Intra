@@ -63,6 +63,19 @@ public final class RawCaptureJournalWriter implements AutoCloseable {
         }
     }
 
+    /** Compare via the owned handle, preserving the lifetime lock and append cursor on Windows. */
+    public synchronized void requireByteIdentical(Path other) throws IOException {
+        if (closed || failed) throw new IOException("Raw capture writer is unavailable");
+        long cursor = channel.position();
+        try (var original = JournalChannelInput.borrow(channel); var replay = Files.newInputStream(other)) {
+            while (true) {
+                byte[] left = original.readNBytes(8192), right = replay.readNBytes(8192);
+                if (!java.util.Arrays.equals(left, right)) throw new IOException("Journal replay bytes differ");
+                if (left.length == 0) break;
+            }
+        } finally { channel.position(cursor); }
+    }
+
     public synchronized String append(RawMarketMessage message) throws IOException {
         if (closed || failed) throw new IOException(closed ? "Raw capture journal is closed" : "Raw capture journal failed and cannot continue");
         try {

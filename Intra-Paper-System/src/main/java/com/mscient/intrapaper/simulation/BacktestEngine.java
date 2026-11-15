@@ -135,6 +135,7 @@ public final class BacktestEngine {
 
     /** Incremental operating mode of the same strategy/risk/OMS/accounting loop. */
     public Session paperSession(ValidatedDataset referenceData, RunConfig config, Strategy strategy) {
+        referenceData.requireCompleteSimulationCoverage();
         return new Session(referenceData, config, strategy, null, true);
     }
 

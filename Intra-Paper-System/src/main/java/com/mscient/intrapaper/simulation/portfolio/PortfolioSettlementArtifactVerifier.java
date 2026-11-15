@@ -88,7 +88,7 @@ final class PortfolioSettlementArtifactVerifier {
             if (enabled) check(d.complete(), "Settlement requires complete final session");
             if (d.date().equals(identity.expiry())) check(targets.contains(identity.instrumentId()), "Missing expiry settlement target");
         }
-        check(datasets.size() >= 2 && datasets.keySet().equals(limits.keySet()), "Dataset/portfolio universe mismatch");
+        check(!datasets.isEmpty() && datasets.keySet().equals(limits.keySet()), "Dataset/portfolio universe mismatch");
         Dataset firstDataset = datasets.values().iterator().next();
         for (Dataset d : datasets.values()) check(d.bars() == firstDataset.bars() && d.close().equals(firstDataset.close())
                 && d.date().equals(firstDataset.date()), "Unsynchronized dataset boundary");

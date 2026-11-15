@@ -76,6 +76,7 @@ public record EvaluationPartitionReport(String splitPlanSha256, List<PartitionSu
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(dataset, "dataset");
         Objects.requireNonNull(sessionAudits, "sessionAudits");
+        dataset.requireCompleteSimulationCoverage();
         if (config.evaluationSplitPlanPath().isEmpty()) return Optional.empty();
 
         Path splitPath = config.evaluationSplitPlanPath().orElseThrow();

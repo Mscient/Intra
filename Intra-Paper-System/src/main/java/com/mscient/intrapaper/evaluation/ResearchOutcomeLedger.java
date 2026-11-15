@@ -187,6 +187,15 @@ public final class ResearchOutcomeLedger {
         }
     }
 
+    /** Verified per-attempt events for automatic result-view auditing and report provenance. */
+    public static List<Entry> entries(Path registrationLedgerPath, Path outcomeLedgerPath) throws IOException {
+        var registrations = registrations(registrationLedgerPath);
+        try (FileChannel channel = FileChannel.open(outcomeLedgerPath, StandardOpenOption.READ);
+             FileLock ignored = channel.lock(0L, Long.MAX_VALUE, true)) {
+            return parse(readBytes(channel), registrations);
+        }
+    }
+
     private static Map<String, ResearchTrialLedger.Entry> registrations(Path ledgerPath) throws IOException {
         Map<String, ResearchTrialLedger.Entry> entries = new LinkedHashMap<>();
         for (ResearchTrialLedger.Entry entry : ResearchTrialLedger.entries(ledgerPath)) {

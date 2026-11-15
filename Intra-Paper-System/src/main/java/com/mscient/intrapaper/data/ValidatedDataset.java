@@ -75,10 +75,14 @@ public record ValidatedDataset(
 
     /** Gap overrides expose input diagnostics, never permission to simulate through missing information. */
     public void requireCompleteSimulationCoverage() {
-        if (completeSessionCount != openSessionCount || timestampSpacingAnomalies != 0 || estimatedMissingIntervals != 0) {
+        if (!simulationCoverageComplete()) {
             throw new IllegalArgumentException("INCOMPLETE_DATA: diagnostic gap overrides permit validation only; "
                     + "simulation requires complete supplied sessions without spacing anomalies");
         }
+    }
+    public boolean simulationCoverageComplete() {
+        return openSessionCount > 0 && completeSessionCount == openSessionCount && timestampSpacingAnomalies == 0
+                && estimatedMissingIntervals == 0 && bars.size() == expectedBarCount;
     }
 
     private static ValidatedDataset loadInternal(java.nio.file.Path barsPath, RunConfig config,

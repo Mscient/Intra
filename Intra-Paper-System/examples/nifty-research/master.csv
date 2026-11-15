@@ -1,0 +1,2 @@
+instrument_id,exchange,segment,source_token,trading_symbol,contract_kind,underlying,expiry,strike,option_right,lot_size,tick_size,effective_from,effective_through
+SYN-NIFTY,SYN,FUT,SYN-NIFTY,SYN-NIFTY-DEC30,FUTURE,NIFTY,2030-12-26,,,1,0.05,2030-01-01,

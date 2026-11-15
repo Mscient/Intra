@@ -1,5 +1,35 @@
 # Offline Backtest Operating Guide
 
+## Futures-first local release workflow (2026-11-16)
+
+The current [release record](FORWARD-PAPER-COMPLETION-2026-11-16.md) supersedes earlier build results for this increment. Paper mode admits one dated Nifty futures contract and one complete supplied session; the existing explicitly labeled synthetic futures fixture is also accepted. Options remain a later stage. The shared historical settlement and options components are preserved, but paper mode rejects automatic flattening, settlement, next-session orders and option stress inputs. It never supplies a missing close or settlement price.
+
+For the identified release candidate, use the fixed source/JAR paths and launcher in the release record. The shared checkout was edited concurrently; its later changes are outside that verification. The fixed copy passed 31 suites and the 24-command synthetic CLI workflow, with all 318 code/resource hashes independently rechecked. G0 and operating evidence remain open.
+
+From the repository root, select a fresh output directory outside the repository and the installed JDK 21. The full runner publishes a JAR only after every registered suite and the source-change guard pass:
+
+```powershell
+rtk proxy node Intra-Paper-System/test-offline.mjs --java-home "C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot" --output-root <fresh-offline-output>
+rtk proxy node Intra-Paper-System/test-paper-release.mjs <fresh-offline-output>/intra-paper-system.jar <fresh-cli-output> "C:\Program Files\Microsoft\jdk-21.0.13.21-hotspot"
+```
+
+For individual commands, use the exact same JAR throughout a session:
+
+```powershell
+rtk proxy java -jar <jar> validate Intra-Paper-System/examples/synthetic-futures-bars.csv Intra-Paper-System/examples/synthetic-run.properties
+rtk proxy java -jar <jar> paper-run Intra-Paper-System/examples/synthetic-futures-bars.csv Intra-Paper-System/examples/synthetic-run.properties <session-dir> 17
+rtk proxy java -jar <jar> paper-verify Intra-Paper-System/examples/synthetic-futures-bars.csv Intra-Paper-System/examples/synthetic-run.properties <session-dir>
+rtk proxy java -jar <jar> paper-run Intra-Paper-System/examples/synthetic-futures-bars.csv Intra-Paper-System/examples/synthetic-run.properties <session-dir>
+rtk proxy java -jar <jar> paper-replay-verify Intra-Paper-System/examples/synthetic-futures-bars.csv Intra-Paper-System/examples/synthetic-run.properties <session-dir>
+rtk proxy java -jar <jar> paper-stop <session-dir>
+```
+
+`validate` is diagnostic inspection and prints complete-session counts and `simulation_coverage_complete`. Gap allowances cannot admit incomplete input to historical/paper simulation, partition scoring or simulated artifact publication. `paper-verify` requires an existing checkpoint and checks the journal, reconstructed ledger, report and exact canonical manifests. `paper-replay-verify` regenerates the committed prefix, including an out-of-band operator stop, and byte-compares the input manifest, checkpoint, journal, report and session manifest. Repeating `paper-run` resumes the verified committed cursor without duplicate effects.
+
+`input-manifest.json` exposes every admitted dataset hash (including rules, costs and other configured governed sidecars), properties hash, frozen event hash, strategy/settings and actual code hash. `session-manifest.json` binds these inputs, report/checkpoint hashes and journal length/count/terminal chain hash. Partial, halted and operator-stopped reports explicitly remain incomplete. Even a complete synthetic rehearsal has `operating_evidence_eligible=false` and `performance_claim_eligible=false`. It supplies no G4 session credit.
+
+Do not delete, truncate or regenerate an ambiguous recovery tail to make restart pass. Changed anchors, uncommitted journal records, corrupt checkpoints and failed storage halt the instance or refuse restart. Retain the directory for offline review. V2 sessions require this exact running JAR; retain older V1 sessions with their original build. They are not migrated by this release. These local anchors do not authenticate independent custody or qualify power-loss durability, long-running throughput or a live watchdog.
+
 The separate offline K0–K3 stop-policy state machine is documented in [OPERATIONAL-KILL-CONTROLLER.md](OPERATIONAL-KILL-CONTROLLER.md). It produces recommended responses from caller-supplied health observations and human attestations; it is not a live watchdog, independent risk service, broker control, order-cancel mechanism, or process kill path.
 
 ## Offline boundary and verification
@@ -486,3 +516,8 @@ Schema 15 run manifests use strict JSON parsing: duplicate keys, trailing conten
 ## Current checkout helper-file gaps
 
 At the 2026-11-14 handoff, several legacy focused-test and portfolio command PowerShell wrappers and example catalog/risk files were missing from the shared checkout. Their deletion provenance is unknown. The verified Java sources, production JAR and shared `test-offline.mjs` still match the recorded passing build. Use the shared runner for verification; references elsewhere to missing wrappers do not establish runnable commands. Exact categories and verification limits are in the completion record.
+
+
+## Offline registered Nifty futures research
+
+Use [NIFTY-RESEARCH-WORKFLOW.md](NIFTY-RESEARCH-WORKFLOW.md) for preregistration, complete chronological prefix replay, failed/empty trial reporting, walk-forward windows, report/replay verification, and the concrete signed one-shot holdout adapter. `nifty-research.ps1` follows the existing dedicated classpath CLI convention. All results remain diagnostic and profitability is unproven.

@@ -18,8 +18,11 @@ public final class PaperCli {
             System.out.println("Local operator stop requested; applied before the next event transaction.");
             return;
         }
-        if (args.length < 4 || args.length > 5 || (args[0].equals("paper-verify") && args.length != 4))
-            throw new IllegalArgumentException("Usage: paper-run <bars.csv> <run.properties> <session-dir> [max-events] | paper-verify <bars.csv> <run.properties> <session-dir>");
+        if (args.length < 4 || args.length > 5 || (!args[0].equals("paper-run") && args.length != 4)
+                || !java.util.Set.of("paper-run", "paper-verify", "paper-replay-verify").contains(args[0]))
+            throw new IllegalArgumentException("Usage: paper-run <bars.csv> <run.properties> <session-dir> [max-events] | paper-verify/paper-replay-verify <bars.csv> <run.properties> <session-dir>");
+        if (!args[0].equals("paper-run") && !java.nio.file.Files.isRegularFile(Path.of(args[3]).resolve("checkpoint.txt")))
+            throw new IllegalArgumentException("Verification requires an existing paper session");
         var config = RunConfig.load(Path.of(args[2]));
         var data = ValidatedDataset.load(Path.of(args[1]), config);
         var date = data.bars().getFirst().sessionDate();
@@ -28,6 +31,9 @@ public final class PaperCli {
         try (var runtime = new PaperRuntime(Path.of(args[3]), data, config, new SmaCrossoverStrategy(config),
                 date, LocalMarketDataProvider.recorded(data))) {
             if (args[0].equals("paper-verify")) runtime.verifyReport();
+            else if (args[0].equals("paper-replay-verify"))
+                System.out.println("VERIFIED PAPER REPLAY: artifacts=" + runtime.verifyReplay(new SmaCrossoverStrategy(config))
+                        + "; byte-for-byte output match");
             else runtime.run(args.length == 5 ? Integer.parseInt(args[4]) : Integer.MAX_VALUE);
             System.out.println("PAPER_PLUMBING_ONLY: state=" + runtime.state() + "; reason=" + runtime.reason()
                     + "; events=" + runtime.consumedEvents() + "; reconciliation verified; G0=OPEN; external_connection=false");

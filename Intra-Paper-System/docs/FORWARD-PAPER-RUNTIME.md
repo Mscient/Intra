@@ -1,5 +1,15 @@
 # Forward paper runtime
 
+## Current release candidate (2026-11-16)
+
+See [the current release record](FORWARD-PAPER-COMPLETION-2026-11-16.md) and [operating workflow](OPERATING-GUIDE.md). The V2 session identity binds a canonical `input-manifest.json`; `session-manifest.json` binds the published report/checkpoint and verified journal. `paper-replay-verify <bars.csv> <run.properties> <session-dir>` regenerates the committed prefix and compares all five artifacts byte for byte, using the writer's owned handle for the Windows-locked journal. No new strategy, OMS, fill, cost or accounting model was introduced.
+
+Paper pre-open and the incremental core require complete reference coverage. Ordinary paper inputs are restricted to Nifty futures; the existing `SYNTHETIC` futures fixture is explicitly permitted as plumbing. Options remain later-stage work. Historical/scoring/artifact boundaries also reject diagnostic gaps. Exact duplicate IDs are checked before advancing the clock, so an old retransmitted event retains its original clocks and produces no second decision or fill. Conflicting duplicates and new reversed events still halt.
+
+An active session now rechecks its retained input/checkpoint anchors before appending an event or publishing/verifying reports. A changed anchor cannot be silently overwritten by the next checkpoint. Report/manifest storage failure disables further processing. `session_complete` requires a normal close, all source events and expected bars, no quality warnings, and flat exposure. `operating_evidence_eligible` and `performance_claim_eligible` remain false even then. The sections below retain the original runtime design and historical handover evidence; V1 journals need their original JAR, with no automatic migration.
+
+Final verified files, commands, outcomes and remaining limits are in the [2026-11-15 handover](FORWARD-PAPER-COMPLETION-2026-11-15.md): 28 offline suites passed, including 195 paper checks; packaged restart/report/stop checks passed.
+
 This is an operating mode of the existing Intra-Paper-System. `paper-run` drives the existing single-contract strategy, `RiskGate`, simulated OMS, L1 execution book, fee calculation, trade accounting, and ledger reconciliation from local timestamped events. Every result is `PAPER_PLUMBING_ONLY` and performance-ineligible. G0 remains open.
 
 ## Existing components reused

@@ -47,10 +47,12 @@ async function stage(name, exe, commandArgs, env, cwd) {
   return run;
 }
 const suites = [
+  ['paper.PaperReleaseCandidateTest', [project, path.join(root,'paper-release')]],
   ['paper.PaperRuntimeIntegrationTest', [project, path.join(root,'paper-integration')]],
   ['paper.PaperRuntimeTest', [project, path.join(root,'paper')]],
   ['simulation.OfflineCorePlumbingTest', [project, path.join(root,'core')]],
   ['marketdata.JournalRecoveryTest', [path.join(root,'journals')]],
+  ['marketdata.FeedCaptureReconcilerTest', [path.join(root,'feed-capture-reconcile')]],
   ['permission.PermissionAdmissionTest', [project, path.join(root,'admission')]],
   ['data.SynchronizedBarFrameBuilderTest', []],
   ['reference.DatedInstrumentMappingRegistryTest', []],
@@ -69,6 +71,7 @@ const suites = [
   ['audit.portfolio.PortfolioRiskSettlementFixtures', [project]],
   ['audit.portfolio.PortfolioSettlementAuditTest', [project]],
   ['evaluation.portfolio.PortfolioTrialEvaluationTest', [project]],
+  ['evaluation.portfolio.NiftyResearchWorkflowTest', [project, path.join(root,'nifty-research')]],
   ['evaluation.portfolio.PortfolioHoldoutReleaseTest', [path.join(root,'holdout')]],
   ['ops.drill.IncidentDrillTest', [path.join(project,'examples','incident-drills'), path.join(root,'incident')]],
   ['ops.evidence.DailyOpsEvidenceCheckerTest', [path.join(project,'examples','daily-ops-evidence'), path.join(root,'daily')]],
@@ -145,8 +148,15 @@ try {
     if (selectedSuite && name !== selectedSuite) continue;
     await stage(name,tool('java'),['-ea','-Djava.io.tmpdir=' + env.TEMP,'-cp',jar + path.delimiter + tests,'com.mscient.intrapaper.' + name,...parameters],env);
   }
-  if (suites.filter(s => !selectedSuite || s[0] === selectedSuite).some(s => results[s[0]] !== 'PASS')) throw new Error('Offline suites failed; candidate JAR is not published.');
-  await requireUnchangedSources();
+  const suiteFailures = suites.filter(s => (!selectedSuite || s[0] === selectedSuite) && results[s[0]] !== 'PASS');
+  try {
+    await requireUnchangedSources();
+    report.source_stable = true;
+  } catch (error) {
+    report.source_stable = false;
+    throw error;
+  }
+  if (suiteFailures.length) throw new Error('Offline suites failed; candidate JAR is not published.');
   if (selectedSuite) report.status = 'PASS_FOCUSED';
   else { await fs.rename(jar,path.join(root,'intra-paper-system.jar')); report.status = 'PASS'; }
 } catch (error) {

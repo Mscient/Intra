@@ -50,7 +50,7 @@ public final class PortfolioReplayEngine {
                 }
                 limits.put(instrumentId, maxLots);
             });
-            if (limits.size() < 2) throw new IllegalArgumentException("At least two instrument limits are required");
+            if (limits.isEmpty()) throw new IllegalArgumentException("At least one instrument limit is required");
             maxAbsLotsByInstrument = Collections.unmodifiableMap(limits);
             Objects.requireNonNull(settlementPolicy, "settlementPolicy");
             settlementInstruments = Collections.unmodifiableSet(new java.util.TreeSet<>(settlementInstruments));
@@ -420,7 +420,7 @@ public final class PortfolioReplayEngine {
 
     private List<String> validateFrames(List<SynchronizedBarFrameBuilder.Frame> frames) {
         SynchronizedBarFrameBuilder.Frame first = Objects.requireNonNull(frames.getFirst(), "frame");
-        if (first.barsByInstrument().size() < 2) throw new IllegalArgumentException("At least two instruments are required");
+        if (first.barsByInstrument().isEmpty()) throw new IllegalArgumentException("At least one instrument is required");
         List<String> instruments = List.copyOf(new java.util.TreeSet<>(first.barsByInstrument().keySet()));
         String interval = null;
         String exchange = null;

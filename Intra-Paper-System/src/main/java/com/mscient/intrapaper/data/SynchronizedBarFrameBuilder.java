@@ -19,8 +19,8 @@ public final class SynchronizedBarFrameBuilder {
             Objects.requireNonNull(timestamp, "timestamp");
             Objects.requireNonNull(sessionDate, "sessionDate");
             Objects.requireNonNull(barsByInstrument, "barsByInstrument");
-            if (barsByInstrument.size() < 2) {
-                throw new IllegalArgumentException("A synchronized frame requires at least two instruments");
+            if (barsByInstrument.isEmpty()) {
+                throw new IllegalArgumentException("A synchronized frame requires at least one instrument");
             }
             LinkedHashMap<String, Bar> ordered = new LinkedHashMap<>();
             barsByInstrument.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
@@ -41,13 +41,13 @@ public final class SynchronizedBarFrameBuilder {
     private SynchronizedBarFrameBuilder() { }
 
     /**
-     * Aligns at least two non-empty, strictly time-ordered instrument series.
+     * Aligns at least one non-empty, strictly time-ordered instrument series.
      * Any timestamp or local-session-date mismatch fails closed; no bar is interpolated or carried forward.
      */
     public static List<Frame> build(Map<String, ? extends List<Bar>> inputSeries) {
         Objects.requireNonNull(inputSeries, "inputSeries");
-        if (inputSeries.size() < 2) {
-            throw new IllegalArgumentException("At least two instrument series are required");
+        if (inputSeries.isEmpty()) {
+            throw new IllegalArgumentException("At least one instrument series is required");
         }
 
         TreeMap<String, List<Bar>> series = new TreeMap<>();

@@ -301,6 +301,7 @@ public final class ExternalLedgerAuditTest {
         outcome(exact, Status.PASS, "Itemized charges with independent declared totals");
         require(content(exact, "totals.csv").contains("FEE,A,total_fee_inr,5,5,0,PASS"), "Components do not double count total fees");
         require(content(exact, "comparisons.csv").contains("fee_total_from_items,2,2,0,PASS"), "Settlement charge plus GST equals total");
+        settlementHistoryAndUnknownCosts(replay);
         rows = itemizedLedger(); entity(rows, "brokerage").put("amount_inr", "0.7"); entity(rows, "gst").put("amount_inr", "0.3");
         var offset = evaluateItemized("offsetting-charge-errors", replay, rows);
         outcome(offset, Status.FAIL, "Equal totals cannot hide offsetting item mismatches"); code(offset, "VALUE_MISMATCH");
@@ -363,6 +364,54 @@ public final class ExternalLedgerAuditTest {
         add(rows, Kind.FEE, "settle-charge", "04:00", "S1:CHARGE:ENTRY", "related_type", "SETTLEMENT", "related_id", "settlement1", "component", "CHARGE:ENTRY", "amount_inr", "1.5");
         add(rows, Kind.FEE, "settle-gst", "04:00", "S1:GST:ENTRY", "related_type", "SETTLEMENT", "related_id", "settlement1", "component", "GST:ENTRY", "amount_inr", "0.5");
         return rows;
+    }
+
+    private static void settlementHistoryAndUnknownCosts(VerifiedReplay replay) throws Exception {
+        for (String item : List.of("settle-charge", "settle-gst")) {
+            var rows = itemizedLedger(); rows.remove(entity(rows, item));
+            var missing = evaluateItemized("missing-settlement-" + item, replay, rows);
+            outcome(missing, Status.INCOMPLETE, "Missing settlement item cannot be allocated from its known total");
+            require(content(missing, "comparisons.csv").contains("fee_total_from_items,,2,,INCOMPLETE"),
+                    "Known settlement total does not supply a missing charge or GST amount");
+            rows = itemizedLedger(); entity(rows, item).put("amount_inr", "");
+            var blank = evaluateItemized("blank-settlement-" + item, replay, rows);
+            outcome(blank, Status.INCOMPLETE, "Blank settlement item stays unknown"); code(blank, "UNKNOWN_EXTERNAL_VALUE");
+            require(content(blank, "comparisons.csv").contains("fee_total_from_items,,2,,INCOMPLETE"),
+                    "Unknown settlement charge is neither zero nor the difference from the total");
+        }
+        for (String target : List.of("settlement1", "fee-settlement1", "cash-settlement1", "settle-charge")) {
+            var rows = itemizedLedger(); var original = entity(rows, target);
+            var correction = update(rows, original, "CORRECT", "settlement-correction"); rows.add(correction);
+            var corrected = evaluateItemized("settlement-corrected-" + target, replay, rows);
+            outcome(corrected, Status.PASS, "One explicitly linked replacement applies once");
+            require(content(corrected, "totals.csv").contains("FEE,A,total_fee_inr,5,5,0,PASS")
+                    && content(corrected, "totals.csv").contains("CASH,A,SETTLEMENT_PROCEEDS_inr,770,770,0,PASS"),
+                    "Replacement history does not double count settlement cash or fees");
+            var duplicate = new TreeMap<>(correction); duplicate.put("event_sequence", Integer.toString(rows.size() + 1));
+            rows.add(duplicate);
+            var repeated = evaluateItemized("settlement-repeated-correction-" + target, replay, rows);
+            outcome(repeated, Status.FAIL, "Repeated correction record is rejected"); code(repeated, "DUPLICATE_RECORD_ID");
+            rows = itemizedLedger(); original = entity(rows, target);
+            rows.add(update(rows, original, "CORRECT", "settlement-branch-1"));
+            rows.add(update(rows, original, "CORRECT", "settlement-branch-2"));
+            var branched = evaluateItemized("settlement-branched-correction-" + target, replay, rows);
+            outcome(branched, Status.FAIL, "Repeated replacement of the same predecessor has no winning correction");
+            code(branched, "BRANCHED_CORRECTION");
+            if (target.equals("settlement1")) for (var rejected : List.of(repeated, branched))
+                require(content(rejected, "totals.csv").contains("SETTLEMENT,A,proceeds_inr,770,,,INCOMPLETE"),
+                        "Ambiguous settlement history leaves proceeds and difference unknown");
+        }
+        var rows = itemizedLedger(); entity(rows, "settlement1").put("source_reference", "");
+        var unattributed = evaluateItemized("unattributed-settlement", replay, rows);
+        outcome(unattributed, Status.INCOMPLETE, "Numerically matching settlement without attribution cannot pass");
+        code(unattributed, "MISSING_SOURCE_REFERENCE");
+        rows = itemizedLedger(); entity(rows, "fee-settlement1").put("amount_inr", "");
+        entity(rows, "cash-fee-settlement1").put("amount_inr", "");
+        var unknown = evaluateItemized("unknown-settlement-fee-total-and-cash", replay, rows);
+        outcome(unknown, Status.INCOMPLETE, "Unknown fee and cash debit are not filled from known charge items");
+        require(content(unknown, "totals.csv").contains("FEE,A,total_fee_inr,5,,,INCOMPLETE")
+                && content(unknown, "totals.csv").contains("CASH,A,SETTLEMENT_FEE_inr,-2,,,INCOMPLETE"),
+                "Missing settlement fee and cash totals remain blank, including their differences");
     }
 
     private static LedgerReconciler.Result evaluateItemized(String name, VerifiedReplay replay, List<Map<String, String>> rows) throws Exception {
@@ -430,6 +479,10 @@ public final class ExternalLedgerAuditTest {
         var unknown = ExternalLedgerAudit.audit(ExternalLedgerAudit.ReplayKind.PORTFOLIO, unknownRun, inputs, settings, manifest, root.resolve("unknown-cost-audits"));
         require(unknown.status() == ExternalLedgerAudit.Outcome.INCOMPLETE, "Actual NOT_MODELED settlement fees are unknown despite stored zero");
         require(Files.readString(unknown.path().resolve("comparisons.csv")).contains("amount_inr,,1.19,,INCOMPLETE"), "Actual unknown replay fee stays blank");
+        String unknownTotals = Files.readString(unknown.path().resolve("totals.csv"));
+        require(unknownTotals.contains("FEE,F,total_fee_inr,,2.19,,INCOMPLETE")
+                && unknownTotals.contains("CASH,F,SETTLEMENT_FEE_inr,,-1.19,,INCOMPLETE"),
+                "NOT_MODELED does not become a zero expected fee, cash debit or difference");
         require(ExternalLedgerAuditCli.run(auditArgs("audit", null, unknownRun, inputs, settings, manifest, root.resolve("unknown-cost-audits"))) == 3, "Audit CLI INCOMPLETE exits 3");
         Files.writeString(settings, savedSettings); fromTemplate(external, manifest, run.getFileName().toString());
         equal(originalRun, contents(run), "Replay remains byte-for-byte unchanged");

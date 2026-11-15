@@ -16,11 +16,18 @@ public final class DatedInstrumentMappingRegistryTest {
     private static final String SECOND = row("m-101-v2", "NSE", "101", "NIFTY-FUT-2026-02",
             "NIFTY26FEBFUT", "FUTURE", "2026-02-26", "", "",
             "2026-01-02T00:00:00Z", "2026-01-03T00:00:00Z");
+    // Inclusive calendar dates January 10 through 12 use midnight on January 13 as the exclusive end.
+    private static final String CALENDAR_WINDOW = row("synthetic-calendar-window", "NSE", "101",
+            "SYNTHETIC-EQUITY", "SYNTHETIC", "EQUITY", "", "", "",
+            "2026-01-10T00:00:00Z", "2026-01-13T00:00:00Z");
 
     private DatedInstrumentMappingRegistryTest() { }
 
     public static void main(String[] args) throws Exception {
         resolvesHalfOpenUtcIntervalsAndBoundaries();
+        resolvesInclusiveCalendarStartAndEndDates();
+        rejectsOutsideCalendarValidityWindow();
+        rejectsTwoMappingsMatchingTheSameTokenAndDate();
         rejectsDuplicateAndOverlappingMappingsWithRows();
         rejectsUnknownTokensAndMalformedInput();
         isIndependentOfRowOrderAndMachineTimezone();
@@ -35,6 +42,47 @@ public final class DatedInstrumentMappingRegistryTest {
         equal("NIFTY-FUT-2026-02", registry.resolve("NSE", "101", at("2026-01-02T00:00:00Z")).instrumentId());
         equal("m-101-v2", registry.resolve("NSE", "101", at("2026-01-02T23:59:59Z")).mappingId());
         expectUnknown(registry, "2026-01-03T00:00:00Z");
+    }
+
+    private static void resolvesInclusiveCalendarStartAndEndDates() throws Exception {
+        DatedInstrumentMappingRegistry registry = load(CALENDAR_WINDOW + "\n");
+        for (String timestamp : List.of("2026-01-10T00:00:00Z", "2026-01-10T23:59:59.999999999Z",
+                "2026-01-11T12:00:00Z", "2026-01-12T00:00:00Z", "2026-01-12T23:59:59.999999999Z")) {
+            InstrumentMappingResolution resolution = registry.resolve("NSE", "101", at(timestamp));
+            equal("synthetic-calendar-window", resolution.mappingId());
+            equal("SYNTHETIC-EQUITY", resolution.instrumentId());
+        }
+    }
+
+    private static void rejectsOutsideCalendarValidityWindow() throws Exception {
+        DatedInstrumentMappingRegistry registry = load(CALENDAR_WINDOW + "\n");
+        for (String timestamp : List.of("2026-01-09T23:59:59.999999999Z", "2026-01-13T00:00:00Z",
+                "2026-01-13T00:00:00.000000001Z", "2026-01-14T12:00:00Z")) {
+            expectUnknown(registry, timestamp);
+        }
+    }
+
+    private static void rejectsTwoMappingsMatchingTheSameTokenAndDate() throws Exception {
+        String competing = row("synthetic-competing-window", "NSE", "101", "SYNTHETIC-OTHER",
+                "SYNTHETICOTHER", "EQUITY", "", "", "",
+                "2026-01-12T00:00:00Z", "2026-01-13T00:00:00Z");
+        Instant sharedTimestamp = at("2026-01-12T12:00:00Z");
+        // Each fixture is valid on its own and matches the same token on the inclusive final date.
+        equal("synthetic-calendar-window", load(CALENDAR_WINDOW + "\n")
+                .resolve("NSE", "101", sharedTimestamp).mappingId());
+        equal("synthetic-competing-window", load(competing + "\n")
+                .resolve("NSE", "101", sharedTimestamp).mappingId());
+
+        // Ambiguity must be rejected at load time, regardless of CSV row order.
+        for (String rows : List.of(CALENDAR_WINDOW + "\n" + competing + "\n",
+                competing + "\n" + CALENDAR_WINDOW + "\n")) {
+            IllegalArgumentException error = expectFailure(() -> load(rows));
+            contains(error.getMessage(), "Overlapping mappings for NSE token 101");
+            contains(error.getMessage(), "synthetic-calendar-window");
+            contains(error.getMessage(), "synthetic-competing-window");
+            contains(error.getMessage(), "CSV row 2");
+            contains(error.getMessage(), "CSV row 3");
+        }
     }
 
     private static void rejectsDuplicateAndOverlappingMappingsWithRows() throws Exception {
@@ -110,7 +158,11 @@ public final class DatedInstrumentMappingRegistryTest {
     private static Instant at(String value) { return Instant.parse(value); }
 
     private static void expectUnknown(DatedInstrumentMappingRegistry registry, String timestamp) {
-        expectFailure(() -> registry.resolve("NSE", "101", at(timestamp)));
+        IllegalArgumentException error = expectFailure(() -> registry.resolve("NSE", "101", at(timestamp)));
+        contains(error.getMessage(), "No instrument mapping");
+        contains(error.getMessage(), "exchange='NSE'");
+        contains(error.getMessage(), "token='101'");
+        contains(error.getMessage(), at(timestamp).toString());
     }
 
     private static IllegalArgumentException expectFailure(ThrowingAction action) {

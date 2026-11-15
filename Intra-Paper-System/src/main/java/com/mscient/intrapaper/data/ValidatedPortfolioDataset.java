@@ -38,7 +38,7 @@ public record ValidatedPortfolioDataset(
                 throw new IllegalArgumentException("Duplicate portfolio instrument: " + instrumentId);
             }
         });
-        if (ordered.size() < 2) throw new IllegalArgumentException("A validated portfolio requires at least two instruments");
+        if (ordered.isEmpty()) throw new IllegalArgumentException("A validated portfolio requires at least one instrument");
         datasetsByInstrument = Collections.unmodifiableMap(new LinkedHashMap<>(ordered));
         frames = List.copyOf(Objects.requireNonNull(frames, "frames"));
         if (frames.isEmpty()) throw new IllegalArgumentException("A validated portfolio requires synchronized frames");
@@ -69,7 +69,7 @@ public record ValidatedPortfolioDataset(
             java.util.Set<String> settlementTargets,
             java.util.Optional<com.mscient.intrapaper.simulation.portfolio.PortfolioSettlementEvents> settlementEvents) throws IOException {
         Objects.requireNonNull(inputsByInstrument, "inputsByInstrument");
-        if (inputsByInstrument.size() < 2) throw new IllegalArgumentException("At least two contract inputs are required");
+        if (inputsByInstrument.isEmpty()) throw new IllegalArgumentException("At least one contract input is required");
         TreeMap<String, Input> inputs = new TreeMap<>();
         inputsByInstrument.forEach((instrumentId, input) -> {
             requireInstrumentId(instrumentId);

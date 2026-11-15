@@ -58,9 +58,10 @@ public final class PaperRuntime implements AutoCloseable {
                 : window.lastBarTimestamp().orElseThrow();
         preopen(strategy);
         core = new BacktestEngine().paperSession(reference, config, strategy);
-        identity = PaperSessionStore.hash("PAPER_RUNTIME_V1\n" + RunIdentity.contentId(reference, config, strategy)
-                + "\n" + sessionDate + "\n" + codeFingerprint() + "\n" + source);
-        store = new PaperSessionStore(this.directory, identity, report());
+        String inputs = PaperManifest.inputs(reference, config, strategy, RunIdentity.contentId(reference, config, strategy),
+                sessionDate.toString(), codeFingerprint(), source);
+        identity = PaperSessionStore.hash("PAPER_RUNTIME_V2\n" + inputs);
+        store = new PaperSessionStore(this.directory, identity, inputs, report());
         try {
             var records = store.restored();
             for (int i = 0; i < records.size(); i += 2) {
@@ -99,6 +100,12 @@ public final class PaperRuntime implements AutoCloseable {
                 || config.optionStressRiskLimits().isPresent())
             throw new IllegalArgumentException("PREOPEN_UNSUPPORTED_PAPER_POLICY: no automatic settlement/flattening, cross-session orders or option stress inputs");
         var b = reference.bars().getFirst();
+        reference.requireCompleteSimulationCoverage();
+        if (b.contractKind() != com.mscient.intrapaper.reference.ContractKind.FUTURE
+                || (!b.underlying().equals("NIFTY") && !(config.syntheticFixture() && b.underlying().equals("SYNTHETIC"))))
+            throw new IllegalArgumentException("PREOPEN_NIFTY_FUTURES_ONLY: options remain a later stage");
+        if (reference.bars().stream().anyMatch(bar -> !bar.sessionDate().equals(sessionDate)))
+            throw new IllegalArgumentException("PREOPEN_ONE_SESSION_REQUIRED");
         reference.instrumentMaster().requireContract(b.exchange(), b.segment(), b.sourceToken(), sessionDate);
         if (sessionDate.isAfter(b.expiry())) throw new IllegalArgumentException("PREOPEN_CONTRACT_EXPIRED");
     }
@@ -128,7 +135,7 @@ public final class PaperRuntime implements AutoCloseable {
         try {
             store.input(event); process(event); consumed++;
             store.commit(event, report(), consumed);
-            store.writeReport(report());
+            store.writeReport(report(), complete());
         } catch (IOException | RuntimeException error) { failed = true; state = State.HALTED; throw error; }
     }
     private PaperEvent stopEvent() {
@@ -139,18 +146,22 @@ public final class PaperRuntime implements AutoCloseable {
     public void run(int maximumEvents) throws IOException {
         if (maximumEvents < 0) throw new IllegalArgumentException("maximumEvents must be nonnegative");
         for (int i = 0; i < maximumEvents && step(); i++) { }
-        synchronized (this) { store.writeReport(report()); }
+        synchronized (this) {
+            if (failed) throw new IOException("Paper session failed; verified restart required");
+            try { store.writeReport(report(), complete()); }
+            catch (IOException | RuntimeException error) {
+                failed = true; state = State.HALTED; reason = "ARTIFACT_STORAGE_FAILURE"; throw error;
+            }
+        }
     }
-    public synchronized void verifyReport() throws IOException { store.verifyPublishedReport(report()); }
+    public synchronized void verifyReport() throws IOException { store.verifyPublishedReport(report(), complete()); }
     public synchronized State state() { return state; }
     public synchronized String reason() { return reason; }
     public synchronized int consumedEvents() { return consumed; }
     public synchronized BacktestResult result() { return core.snapshot(); }
 
     private void process(PaperEvent event) {
-        String clockFailure = clock.advance(event);
         if (state == State.STOPPED || state == State.HALTED) { observe(event, "TERMINAL_STATE_IGNORED"); return; }
-        if (clockFailure != null) { halt(event, clockFailure); return; }
         String fingerprint = PaperSessionStore.hash(event.toString());
         String previous = seen.get(event.sequence());
         if (previous != null) {
@@ -159,6 +170,8 @@ public final class PaperRuntime implements AutoCloseable {
             return;
         }
         if (event.sequence() != lastSequence + 1) { halt(event, "EVENT_SEQUENCE_GAP_OR_REORDER"); return; }
+        String clockFailure = clock.advance(event);
+        if (clockFailure != null) { halt(event, clockFailure); return; }
         seen.put(event.sequence(), fingerprint); lastSequence = event.sequence();
         switch (event.kind()) {
             case OPERATOR_STOP -> { pendingAtClose = core.pendingOrders(); stop(event, "OPERATOR_STOP"); }
@@ -282,6 +295,8 @@ public final class PaperRuntime implements AutoCloseable {
         BacktestResult r = core.snapshot();
         StringBuilder text = new StringBuilder("PAPER_SESSION_REPORT_V1\nclassification=PAPER_PLUMBING_ONLY\nperformance_claim_eligible=false\n");
         text.append("external_connection=false\ng0=OPEN\nprovider=FROZEN_LOCAL\nordering=RECEIVE_THEN_INPUT_ORDER_FAIL_CLOSED_ON_REVERSAL\n");
+        text.append("run_id=").append(identity).append("\nsession_complete=").append(complete())
+                .append("\noperating_evidence_eligible=false\n");
         text.append("session_date=").append(sessionDate).append("\nstate=").append(state).append("\nreason=").append(reason)
                 .append("\nconsumed_events=").append(consumed).append("\nsource_events=").append(sourceCursor).append("\nclock=").append(clock.now())
                 .append("\ndata_quality_warnings=").append(warnings).append("\ndisconnects=").append(disconnects)
@@ -300,6 +315,36 @@ public final class PaperRuntime implements AutoCloseable {
         section(text, "fills", r.fills()); section(text, "fees", r.feeBreakdowns()); section(text, "trades", r.trades());
         section(text, "positions-equity", r.equityCurve()); section(text, "sessions", r.sessionAudits());
         return text.toString();
+    }
+    private boolean complete() {
+        var r = core.snapshot();
+        return state == State.STOPPED && reason.equals("SESSION_CLOSED") && sourceCursor == source.size()
+                && warnings == 0 && r.finalPositionUnits() == 0 && !r.sessionAudits().isEmpty()
+                && r.sessionAudits().stream().allMatch(SessionAudit::complete);
+    }
+
+    /** Regenerate the committed prefix, including an out-of-band operator stop, in an owned scratch directory. */
+    public synchronized int verifyReplay(Strategy replayStrategy) throws IOException {
+        verifyReport();
+        Path scratch = Files.createTempDirectory("intra-paper-replay-");
+        try {
+            try (var replay = new PaperRuntime(scratch, reference, config, replayStrategy, sessionDate,
+                    new LocalMarketDataProvider(source))) {
+                replay.run(sourceCursor);
+                if (consumed > sourceCursor) replay.requestStop();
+                replay.run(0);
+                if (!identity.equals(replay.identity)) throw new IOException("Replay strategy/input identity mismatch");
+            }
+            var files = List.of("input-manifest.json", "checkpoint.txt", "session-report.txt", "session-manifest.json");
+            for (String file : files) if (Files.mismatch(directory.resolve(file), scratch.resolve(file)) != -1)
+                throw new IOException("Paper replay bytes differ: " + file);
+            store.requireReplayJournal(scratch.resolve("paper.journal"));
+            return files.size() + 1;
+        } finally {
+            try (var paths = Files.walk(scratch)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path);
+            }
+        }
     }
     private static void section(StringBuilder text, String title, List<?> rows) {
         text.append('[').append(title).append("]\n"); rows.forEach(row -> text.append(row).append('\n'));

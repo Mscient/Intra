@@ -1,0 +1,34 @@
+{
+  "holdout_files": {
+    "calendar.csv": "e097086a0003124a2422c6fb3d269a6ed1d441bca0442acd77182f1551e921f8",
+    "costs.csv": "1f6f0b6da93c6fd51d39c1fd18695f4ffb1477f2f0cb4dbc91cd879a552683e5",
+    "holdout-inputs.csv": "bcf657b318208c38ca0b4af5b713a9fd592fd32c64eb825aa4e84cedcbb606f2",
+    "holdout.csv": "a85597a30ced9a62797773930fde287869c7a2ae1474f0d62755328af17a2101",
+    "holdout.properties": "e81e2ab3c091768aae574f7ff70df233fea06b89e13a36de42232754ddf6549c",
+    "master.csv": "16161b52fbca013e583057dfa8129bace4b6733622e5870a7f932740b77bf56b",
+    "rules.csv": "647a434f4b59e4014e3f3683138f88a78b7d53b41841ea657938f8d7745174ac"
+  },
+  "holdout_inputs_csv": "holdout-inputs.csv",
+  "portfolio_settings_file": "empty.properties",
+  "prefix_files": {
+    "calendar.csv": "e097086a0003124a2422c6fb3d269a6ed1d441bca0442acd77182f1551e921f8",
+    "costs.csv": "1f6f0b6da93c6fd51d39c1fd18695f4ffb1477f2f0cb4dbc91cd879a552683e5",
+    "master.csv": "16161b52fbca013e583057dfa8129bace4b6733622e5870a7f932740b77bf56b",
+    "prefix-inputs.csv": "7f6213add9de1090afe95b6cd98ebcbedd21177f1cd9617f284983985e85c265",
+    "prefix.csv": "1923297ef5d961c1675b1d0ed44075f4406025460c297b92e5535f34461567bc",
+    "prefix.properties": "fba020edcf5b78475a7fb1b79120618655cea080d2d40dd70f927a4a8926b96e",
+    "rules.csv": "647a434f4b59e4014e3f3683138f88a78b7d53b41841ea657938f8d7745174ac"
+  },
+  "prefix_inputs_csv": "prefix-inputs.csv",
+  "schema": "INTRA_NIFTY_RESEARCH_PLAN_V1",
+  "selection_rule": "MAX_VALIDATION_NET_PNL_TIE_TRIAL_ID",
+  "split_plan_csv": "split.csv",
+  "starting_capital_inr": "100000",
+  "strategy_card_file": "strategy.md",
+  "strategy_version": "v1",
+  "trial_id": "empty",
+  "variant_id": "empty",
+  "walk_forward_evaluation_sessions": "2",
+  "walk_forward_training_sessions": "2",
+  "walk_forward_validation_sessions": "2"
+}
